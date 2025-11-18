@@ -1,0 +1,31 @@
+class Product:
+    def __init__(self, id, name, description, manufacturer, image):
+        self.id = id
+        self.name = name
+        self.description = description
+        self.image = image
+        self.manufacturer
+
+    def add(self):
+        #
+        pass
+
+    def update(self):
+        #
+        pass
+
+    def delete(self):
+        #
+        pass
+
+    def get_all(self):
+        #
+        pass
+
+    def get(self):
+        #
+        pass
+
+    def set_image(self):
+        #
+        pass
