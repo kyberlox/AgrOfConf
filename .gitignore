@@ -2,3 +2,6 @@
 .idea/
 .vscode
 ./app/static
+*__pycache__*
+
+/app_logs

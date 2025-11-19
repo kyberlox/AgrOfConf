@@ -8,3 +8,4 @@ sqlalchemy[asyncio]==2.0.44
 requests==2.32.5
 openpyxl==3.1.5
 pandas==2.3.3
+aiofiles==25.1.0
