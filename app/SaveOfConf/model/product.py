@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy.orm import relationship
 from .database import Base
 
 class Product(Base):
@@ -9,3 +10,5 @@ class Product(Base):
     description = Column(Text)
     manufacturer = Column(String(100))
     image = Column(String(255))
+
+    parameters = relationship("Parameter", back_populates="product")

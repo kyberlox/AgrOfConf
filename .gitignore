@@ -3,5 +3,5 @@
 .vscode
 ./app/static
 *__pycache__*
-
+/postgresql
 /app_logs

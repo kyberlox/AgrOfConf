@@ -1,7 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 import os
-from dotenv import load_dotenv
 
 from dotenv import load_dotenv
 
@@ -10,7 +9,7 @@ load_dotenv()
 user = os.getenv('user')
 pswd = os.getenv('pswd')
 
-engine = create_async_engine(f'postgresql+psycopg2://{user}:{pswd}@postgres/pdb', echo=True)
+engine = create_async_engine(f'postgresql+asyncpg://{user}:{pswd}@postgres/pdb', pool_size=50, max_overflow=0)
 AsyncSessionLocal = async_sessionmaker(
     engine,
     class_=AsyncSession,
