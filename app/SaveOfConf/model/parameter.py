@@ -10,7 +10,8 @@ class Parameter(Base):
     description = Column(Text)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     parameter_type_id = Column(Integer, ForeignKey("parameter_types.id"), nullable=False)
-    value = Column(JSON)  # BSON-подобное хранение данных
+    values = Column(JSON)  # BSON-подобное хранение данных
+    visibility = Column(JSON)  # BSON-подобное хранение видимости параметра
 
     # Опциональные отношения (если нужны)
     product = relationship("Product", back_populates="parameters")

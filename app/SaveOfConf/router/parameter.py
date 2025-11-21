@@ -108,8 +108,8 @@ async def update_parameter(
             )
 
     # Обновляем поля
-    for field, value in parameter_data.dict(exclude_unset=True).items():
-        setattr(db_parameter, field, value)
+    for field, values in parameter_data.dict(exclude_unset=True).items():
+        setattr(db_parameter, field, values)
 
     await db.commit()
     await db.refresh(db_parameter)
