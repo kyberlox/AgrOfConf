@@ -6,7 +6,8 @@ class ParameterBase(BaseModel):
     description: Optional[str] = None
     product_id: int
     parameter_type_id: int
-    value: Optional[Dict[str, Any]] = None  # BSON-подобные данные
+    values: Optional[Dict[str, Any]] = None  # BSON-подобные данные
+    visibility: Optional[Dict[str, Any]] = None  # BSON-подобные данные
 
 class ParameterCreate(ParameterBase):
     pass
