@@ -6,12 +6,16 @@ from app.SaveOfConf import parameter_router
 from app.SaveOfConf import specification_type_router
 from app.SaveOfConf import specification_router
 
+
+
 app = FastAPI(
     title="SaveOfConf API",
     version="1.0.0",
     docs_url="/api/docs", #None
     openapi_url="/api/openapi.json"
     )
+
+
 
 # Подключаем статические файлы
 app.mount("/api/files", StaticFiles(directory="./static"), name="static")
