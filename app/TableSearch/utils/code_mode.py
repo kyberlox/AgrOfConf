@@ -21,7 +21,7 @@ class CodeParametr:
     #     self.param = param_id
 
     #функция выводит значение параметра по названию
-    def get_param_by_name(self, param_name, selection_result):
+    def _get_param_by_name(self, param_name, selection_result):
         #найти параметр
         for param in selection_result:
             if param["name"] == param_name:
@@ -33,8 +33,24 @@ class CodeParametr:
         #или None
         return None
 
-    # def _set_params(self, selection_result, param_id, param_name, param_description="", param_type, value=None, all_values=[]):
-    #     if param_type == "list":
+    def _set_params(self, selection_result, param_id, param_name, param_description="", param_type="list", visibility=True, response_value=None, all_values=[], error=None):
+        new_param = {
+                "id" : param_id,
+                "name" : param_name,
+                "description" : param_description,
+                "visibility" : visibility
+            }
+        if param_type == "list":
+            new_param["all_values"]
+
+        if response_value:
+            new_param["response_value"] = response_value
+        if error:
+            new_param["error"] = error
+
+        selection_result.aapend(new_param)
+
+        return selection_result
     
     async def make_mixture(self, selection_result, param_info, select_formula_params, db):
         """
@@ -110,10 +126,10 @@ class CodeParametr:
         #заполняем смесь
         if is_mixture:
             #список ВСЕХ сред
-            all_envs_names = self.get_param_by_name("Название рабочей среды", selection_result)["all_values"]
+            all_envs_names = self._get_param_by_name("Название рабочей среды", selection_result)["all_values"]
 
             #есть ли параметр для состава смесей?
-            # envs_param = self.get_param_by_name("Состав смеси", selection_result)
+            # envs_param = self._get_param_by_name("Состав смеси", selection_result)
             envs_param = [value for param_name, value in select_formula_params.items() if param_name == "Состав смеси"]
             
             #если нет
@@ -197,7 +213,7 @@ class CodeParametr:
         if got_envs:
             # '''
             #список ВСЕХ климатик
-            climate = self.get_param_by_name("Климатическое исполнение по ГОСТ 15150-69", selection_result)
+            climate = self._get_param_by_name("Климатическое исполнение по ГОСТ 15150-69", selection_result)
             climate_values = climate
             if "response_value" not in climate:
                 climate["id"] = 2
@@ -209,11 +225,11 @@ class CodeParametr:
             res.append(climate_values)
             got_climate = True
             '''
-            all_climate_names = self.get_param_by_name("Климатическое исполнение по ГОСТ 15150-69", selection_result)["all_values"]
+            all_climate_names = self._get_param_by_name("Климатическое исполнение по ГОСТ 15150-69", selection_result)["all_values"]
             # print("climate", all_climate_names)
             
 
-            climate_param = self.get_param_by_name("Климатическое исполнение (ГОСТ 15150-69)", select_formula_params)
+            climate_param = self._get_param_by_name("Климатическое исполнение (ГОСТ 15150-69)", select_formula_params)
             # print("climate_param", climate_param)
 
             climate = climate_param["response_value"] if climate_param is not None else None
@@ -269,8 +285,8 @@ class CodeParametr:
         #Тип клапана
         if got_climate:
             #список ВСЕХ климатик
-            all_type_names = self.get_param_by_name("Тип клапана", selection_result)["all_values"]
-            # type_param = self.get_param_by_name("Тип предохранительного клапана", select_formula_params)
+            all_type_names = self._get_param_by_name("Тип клапана", selection_result)["all_values"]
+            # type_param = self._get_param_by_name("Тип предохранительного клапана", select_formula_params)
             type_param = [value for param_name, value in select_formula_params.items() if param_name == "Тип предохранительного клапана"]
             
             type_val = type_param[0] if type_param else None # is not None
@@ -325,7 +341,7 @@ class CodeParametr:
         #Температура
         if got_type:
             # задана пользователем?
-            # T_param  = self.get_param_by_name("Температура рабочей среды", select_formula_params)
+            # T_param  = self._get_param_by_name("Температура рабочей среды", select_formula_params)
             T_param  = [value for param_name, value in select_formula_params.items() if param_name == "Температура рабочей среды"]
             T = int(T_param[0]) if T_param else None
 
