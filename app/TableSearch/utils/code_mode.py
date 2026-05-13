@@ -33,7 +33,7 @@ class CodeParametr:
         #или None
         return None
 
-    def _set_params(self, selection_result, param_id, param_name, param_description="", param_type="list", visibility=True, response_value=None, all_values=[], error=None):
+    def _set_params(self, selection_result, param_id, param_name, param_description="", param_type="list", visibility=True, response_value=None, all_values=[], error=None, sort=None):
         new_param = {
                 "id" : param_id,
                 "name" : param_name,
@@ -47,6 +47,8 @@ class CodeParametr:
             new_param["response_value"] = response_value
         if error:
             new_param["error"] = error
+        if sort:
+            new_param["sort"] = sort
 
         selection_result.aapend(new_param)
 
@@ -96,6 +98,9 @@ class CodeParametr:
                     ]
                 }
             ]
+            res = self._set_params(res, 0, "Смесь", all_values=["Да", "Нет"])
+        
+        return {"total_change" : res}
 
 
     async def old_make_mixture(self, selection_result, param_info, select_formula_params, db):
