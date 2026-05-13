@@ -50,7 +50,7 @@ class CodeParametr:
         if sort:
             new_param["sort"] = sort
 
-        selection_result.aapend(new_param)
+        selection_result.append(new_param)
 
         return selection_result
     
