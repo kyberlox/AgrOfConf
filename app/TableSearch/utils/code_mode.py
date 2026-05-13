@@ -56,6 +56,52 @@ class CodeParametr:
         """
         алгоритм подбора смеси
         """
+        print(selection_result)
+        # print(param_info)
+        print(select_formula_params)
+        res = []
+        #чтобы не падала ошибка табличного подбора
+        debug_param = {
+            "id" : -1,
+            "debug" : False,
+            'visibility': False
+        }
+
+        #как понять на каком я этапе?
+        naydeno = False
+        is_mixture = False
+        got_envs = False
+        got_climate = False
+        got_type = False
+        got_T = False
+
+        # поиск смеси среди выбранных значений
+        if select_formula_params != []:
+            for param_name, value in select_formula_params.items():
+                if param_name == "Смесь":
+                    naydeno = True
+        
+        if not naydeno:
+            res = [
+                debug_param,
+                {
+                    'id': 0,
+                    'name': param_info.name,
+                    'description': param_info.description,
+                    'visibility': True,
+                    'required_type':  "list",
+                    "all_values": [
+                        "Да",
+                        "Нет"
+                    ]
+                }
+            ]
+
+
+    async def old_make_mixture(self, selection_result, param_info, select_formula_params, db):
+        """
+        алгоритм подбора смеси
+        """
         # print(selection_result)
         # print(param_info)
         # print(select_formula_params)
