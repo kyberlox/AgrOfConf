@@ -138,7 +138,7 @@ async def new_sort(product_id: int, data = Body(), db: AsyncSession = Depends(ge
 
         await db.commit()
 
-        result = await db.execute(select(ParameterSchema).where(ParameterSchema.product_id == product_id))
+        result = await db.execute(select(ParameterSchema).where(ParameterSchema.product_id == product_id)).order_by(ParameterSchema.sort.asc())
         params = result.scalars().all()
 
         return params
