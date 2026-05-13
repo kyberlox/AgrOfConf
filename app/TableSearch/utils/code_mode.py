@@ -61,7 +61,7 @@ class CodeParametr:
         # print(selection_result)
         # print(param_info)
         # print(select_formula_params)
-        res = []
+        res = [debug_param]
         #чтобы не падала ошибка табличного подбора
         debug_param = {
             "id" : -1,
@@ -92,20 +92,6 @@ class CodeParametr:
 
         
         if not naydeno:
-            res = [
-                debug_param,
-                {
-                    'id': 0,
-                    'name': param_info.name,
-                    'description': param_info.description,
-                    'visibility': True,
-                    'required_type':  "list",
-                    "all_values": [
-                        "Да",
-                        "Нет"
-                    ]
-                }
-            ]
             res = self._set_params(res, 0, "Смесь", all_values=["Да", "Нет"])
         
         return {"total_change" : res}
