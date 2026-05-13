@@ -60,7 +60,7 @@ class CodeParametr:
         """
         # print(selection_result)
         # print(param_info)
-        print(select_formula_params)
+        # print(select_formula_params)
         res = []
         #чтобы не падала ошибка табличного подбора
         debug_param = {
@@ -82,6 +82,13 @@ class CodeParametr:
             for param_name, value in select_formula_params.items():
                 if param_name == "Смесь":
                     naydeno = True
+                    if value == "Да":
+                        res = self._set_params(res, param_info.id, param_info.name, description=param_info.description, all_values=["Да", "Нет"], response_value="Да")
+                        is_mixture = True
+
+                    elif value == "Нет":
+                        res.append(mixture)
+                        res = self._set_params(res, param_info.id, param_info.name, description=param_info.description, all_values=["Да", "Нет"], response_value="Нет")
 
         
         if not naydeno:
