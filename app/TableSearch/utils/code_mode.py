@@ -98,7 +98,7 @@ class CodeParametr:
             #список ВСЕХ сред
             param = self._get_param_by_name("Название рабочей среды", selection_result)
             all_values = param["all_values"]
-            res = self._set_params(res, param["id"], peram["name"], param_description=param["description"], all_values=all_values)
+            res = self._set_params(res, param["id"], param["name"], param_description=param["description"], all_values=all_values)
 
         
         return {"total_change" : res}
