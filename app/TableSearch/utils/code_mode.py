@@ -555,15 +555,15 @@ class CodeParametr:
                 "compressibility_factor" : "",
             }
             for i, param_key in enumerate(result.keys()): 
-                # param = {
-                #     'id': i+4,
-                #     'name': param_key,
-                #     'description': "",
-                #     'visibility': False,
-                #     'required_type':  "list",
-                #     "response_value" : result[param_key]
-                # }
-                # res.append(param)
+                param = {
+                    'id': i+4,
+                    'name': param_key,
+                    'description': "",
+                    'visibility': False,
+                    'required_type':  "list",
+                    "response_value" : result[param_key]
+                }
+                res.append(param)
 
         
 

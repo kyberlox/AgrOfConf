@@ -1,6 +1,6 @@
 # app/products/router/parameters.py
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy import text
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -124,6 +124,28 @@ async def update_parameter(
 
     return param
 
+@router.put("/sort/{product_id}", description="Для сортировки параметров со стороны фронтенда")
+async def new_sort(product_id: int, data =  Body(), db: AsyncSession = Depends(get_db)):
+
+    if data != []:
+        for param in data:
+            param_id = param["id"]
+            new_sort = param["sort"]
+
+            await db.execute(
+                text(f'UPDATE public.parameter_schemas SET sort = {new_sort} WHERE id = {param_id};')
+            )
+
+        await db.commit()
+        await db.refresh(param)
+
+        result = await db.execute(select(ParameterSchema).where(ParameterSchema.product_id == product_id))
+        params = result.scalars().all()
+
+        return params
+
+    else:
+        raise HTTPException(status_code=404, detail="Parameters not found")
 
 @router.delete("/{param_id}", response_model=ParameterSchemaResponse,
                description="Запрос на удаление полей параметра.")
