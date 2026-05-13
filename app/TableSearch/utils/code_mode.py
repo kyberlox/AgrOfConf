@@ -58,7 +58,7 @@ class CodeParametr:
         """
         алгоритм подбора смеси
         """
-        print(selection_result)
+        # print(selection_result)
         # print(param_info)
         print(select_formula_params)
         res = []
