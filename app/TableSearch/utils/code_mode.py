@@ -84,12 +84,12 @@ class CodeParametr:
                 if param_name == "Смесь":
                     naydeno = True
                     if value == "Да":
-                        res = self._set_params(res, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Да")
+                        res = self._set_params(res, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Да", sort=0)
                         is_mixture = True
 
                     elif value == "Нет":
                         res.append(mixture)
-                        res = self._set_params(res, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Нет")
+                        res = self._set_params(res, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Нет", sort=0)
 
         if not naydeno:
             res = self._set_params(res, 0, "Смесь", all_values=["Да", "Нет"])
@@ -98,7 +98,7 @@ class CodeParametr:
             #список ВСЕХ сред
             param = self._get_param_by_name("Название рабочей среды", selection_result)
             all_values = param["all_values"]
-            res = self._set_params(res, param["id"], "Состав смеси", param_description=param["description"], all_values=all_values)
+            res = self._set_params(res, param["id"], "Состав смеси", param_description=param["description"], all_values=all_values, sort=0)
 
         
         return {"total_change" : res}
