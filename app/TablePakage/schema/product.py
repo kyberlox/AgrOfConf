@@ -1,0 +1,32 @@
+# app/products/schema/product.py
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+
+
+class ProductBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    manufacturer: Optional[str] = None
+    image_url: Optional[str] = None
+
+
+class ProductCreate(ProductBase):
+    name: str
+
+
+class ProductUpdate(ProductBase):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    manufacturer: Optional[str] = None
+    image_url: Optional[str] = None
+
+
+class ProductResponse(ProductBase):
+    id: int
+    image: Optional[str] = None
+    image_url: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
