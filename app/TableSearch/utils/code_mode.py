@@ -90,9 +90,15 @@ class CodeParametr:
                         res.append(mixture)
                         res = self._set_params(res, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Нет")
 
-        
         if not naydeno:
             res = self._set_params(res, 0, "Смесь", all_values=["Да", "Нет"])
+        
+        if is_mixture:
+            #список ВСЕХ сред
+            param = self._get_param_by_name("Название рабочей среды", selection_result)["all_values"]
+            all_values = param["all_values"]
+            res = self._set_params(res, param["id"], peram["name"], param_description=param["description"], all_values=all_values)
+
         
         return {"total_change" : res}
 
