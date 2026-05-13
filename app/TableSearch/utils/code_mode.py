@@ -61,13 +61,14 @@ class CodeParametr:
         # print(selection_result)
         # print(param_info)
         # print(select_formula_params)
-        res = [debug_param]
+        
         #чтобы не падала ошибка табличного подбора
         debug_param = {
             "id" : -1,
             "debug" : False,
             'visibility': False
         }
+        res = [debug_param]
 
         #как понять на каком я этапе?
         naydeno = False
