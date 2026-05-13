@@ -125,7 +125,7 @@ async def update_parameter(
     return param
 
 @router.put("/sort/{product_id}", description="Для сортировки параметров со стороны фронтенда")
-async def new_sort(product_id: int, data =  Body(), db: AsyncSession = Depends(get_db)):
+async def new_sort(product_id: int, data = Body(), db: AsyncSession = Depends(get_db)):
 
     if data != []:
         for param in data:
@@ -137,7 +137,6 @@ async def new_sort(product_id: int, data =  Body(), db: AsyncSession = Depends(g
             )
 
         await db.commit()
-        await db.refresh(param)
 
         result = await db.execute(select(ParameterSchema).where(ParameterSchema.product_id == product_id))
         params = result.scalars().all()
