@@ -83,12 +83,12 @@ class CodeParametr:
                 if param_name == "Смесь":
                     naydeno = True
                     if value == "Да":
-                        res = self._set_params(res, param_info.id, param_info.name, description=param_info.description, all_values=["Да", "Нет"], response_value="Да")
+                        res = self._set_params(res, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Да")
                         is_mixture = True
 
                     elif value == "Нет":
                         res.append(mixture)
-                        res = self._set_params(res, param_info.id, param_info.name, description=param_info.description, all_values=["Да", "Нет"], response_value="Нет")
+                        res = self._set_params(res, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Нет")
 
         
         if not naydeno:
