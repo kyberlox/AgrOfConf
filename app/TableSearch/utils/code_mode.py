@@ -41,7 +41,7 @@ class CodeParametr:
                 "visibility" : visibility
             }
         if param_type == "list":
-            new_param["all_values"]
+            new_param["all_values"] = all_values
 
         if response_value:
             new_param["response_value"] = response_value
@@ -82,6 +82,7 @@ class CodeParametr:
             for param_name, value in select_formula_params.items():
                 if param_name == "Смесь":
                     naydeno = True
+
         
         if not naydeno:
             res = [
