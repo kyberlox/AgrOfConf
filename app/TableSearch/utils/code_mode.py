@@ -18,15 +18,18 @@ class CodeParametr:
     # def __init__(self, product_id, param_id):
     #     self.product_id = product_id
     #     self.param = param_id
+
+    # def _set_params(self, selection_result, param_id, param_name, param_description="", param_type, value=None, all_values=[]):
+    #     if param_type == "list":
     
     async def make_mixture(self, selection_result, param_info, select_formula_params, db):
         """
         алгоритм подбора смеси
         """
-        print(selection_result)
-        print(param_info)
-        print(select_formula_params)
-
+        # print(selection_result)
+        # print(param_info)
+        # print(select_formula_params)
+        res = []
         #чтобы не падала ошибка табличного подбора
         debug_param = {
             "id" : -1,
@@ -44,11 +47,11 @@ class CodeParametr:
 
         # поиск смеси среди выбранных значений
         if select_formula_params != []:
-            for param in select_formula_params:
-                if param["name"] == "Смесь":
+            for param_name, value in select_formula_params.items():
+                if param_name == "Смесь":
                     naydeno = True
 
-                    if param["response_value"] == "Да":
+                    if value == "Да":
                         mixture = {
                             'id': 0,
                             'name': param_info.name,
@@ -57,10 +60,10 @@ class CodeParametr:
                             'response_value': 'Да'
                         }
 
-                        selection_result.append(mixture)
+                        res.append(mixture)
                         is_mixture = True
 
-                    elif param["response_value"] == "Нет":
+                    elif value == "Нет":
                         
                         mixture = {
                             'id': param_info.id,
@@ -69,16 +72,16 @@ class CodeParametr:
                             'visibility': False,
                             'response_value': 'Нет'
                         }
-                        selection_result.append(mixture)
+                        res.append(mixture)
 
-                        return {"total_change" : selection_result}
+                        # return {"total_change" : res}
 
         # внедрить параметр для смеси на какое-нибудь место, если её ещё нет
         if not naydeno:
-            selection_result = [
+            res = [
                 debug_param,
                 {
-                    'id': param_info.id,
+                    'id': 0,
                     'name': param_info.name,
                     'description': param_info.description,
                     'visibility': True,
@@ -96,28 +99,31 @@ class CodeParametr:
             all_envs_names = get_param_by_name("Название рабочей среды", selection_result)["all_values"]
 
             #есть ли параметр для состава смесей?
-            envs_param = get_param_by_name("Состав смеси", select_formula_params)
-
+            # envs_param = get_param_by_name("Состав смеси", selection_result)
+            envs_param = [value for param_name, value in select_formula_params.items() if param_name == "Состав смеси"]
+            
             #если нет
-            if envs_param is None:
+            if not envs_param:
 
                 #создать
                 envs_values = {
                     'id': 1,
                     'name': "Состав смеси",
                     'description': "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)",
-                    "code_example" : [{ "Азот" : 50}, {"Воздух" : 50}],
+                    # "code_example" : [{ "Азот" : 50}, {"Воздух" : 50}],
                     'visibility': True,
                     'required_type':  "select-input",
                     "all_values": all_envs_names
                 }
 
-                selection_result = [debug_param, mixture, envs_values]
+                # res = [debug_param, mixture, envs_values]
+                res.append(envs_values)
+                # return {"total_change" : res}
             
             #если есть
             elif envs_param:
                 #проверить правильность
-                envs = envs_param["response_value"]
+                envs = envs_param[0]
                 #сумма мольных долей
                 r_sum = sum(list(env.values())[0] for env in envs)
                 
@@ -127,7 +133,7 @@ class CodeParametr:
                         'id': 1,
                         'name': "Состав смеси",
                         'description': "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)",
-                        "code_example" : [{ "Азот" : 50}, {"Воздух" : 50}],
+                        # "code_example" : [{ "Азот" : 50}, {"Воздух" : 50}],
                         'visibility': True,
                         'required_type':  "select-input",
                         "all_values": all_envs_names,
@@ -135,7 +141,8 @@ class CodeParametr:
                         "error" : "Смесь не может состоять менее чем из двух сред!"
                     }
 
-                    selection_result = [debug_param, mixture, envs_values]
+                    # res = [debug_param, mixture, envs_values]
+                    res.append(envs_values)
 
                 #праивльная ли сумма их долей?
                 elif r_sum != 100:
@@ -143,7 +150,7 @@ class CodeParametr:
                         'id': 1,
                         'name': "Состав смеси",
                         'description': "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)",
-                        "code_example" : [{ "Азот" : 50}, {"Воздух" : 50}],
+                        # "code_example" : [{ "Азот" : 50}, {"Воздух" : 50}],
                         'visibility': True,
                         'required_type':  "select-input",
                         "all_values": all_envs_names,
@@ -151,7 +158,8 @@ class CodeParametr:
                         "error" : f"Сумма мольных долей сред смеси должна составлять 100%, а не {r_sum}%"
                     }
 
-                    selection_result = [debug_param, mixture, envs_values]
+                    # res = [debug_param, mixture, envs_values]
+                    res.append(envs_values)
 
                 #если всё правильно
                 else:
@@ -159,30 +167,33 @@ class CodeParametr:
                         'id': 1,
                         'name': "Состав смеси",
                         'description': "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)",
-                        "code_example" : [{ "Азот" : 50}, {"Воздух" : 50}],
+                        # "code_example" : [{ "Азот" : 50}, {"Воздух" : 50}],
                         'visibility': True,
                         'required_type':  "select-input",
                         "all_values": all_envs_names,
                         "response_value" : envs
                     }
 
-                    # selection_result = [debug_param, mixture, envs_values]
+                    # res = [debug_param, mixture, envs_values]
+                    res.append(envs_values)
                     # print("envs собран!")
                     got_envs = True
         
         #климатика
         if got_envs:
-            '''
-            print("tyt")
+            # '''
             #список ВСЕХ климатик
             climate = get_param_by_name("Климатическое исполнение по ГОСТ 15150-69", selection_result)
-            print(climate)
+            climate_values = climate
             if "response_value" not in climate:
                 climate["id"] = 2
-                climate_values = climate
+                # res = [debug_param, mixture, envs_values, climate_values]
+                res.append(climate_values)
+                return {"total_change" : res}
 
-                selection_result = [debug_param, mixture, envs_values, climate_values]
-
+            # selection_result = [debug_param, mixture, envs_values, climate_values]
+            res.append(climate_values)
+            got_climate = True
             '''
             all_climate_names = get_param_by_name("Климатическое исполнение по ГОСТ 15150-69", selection_result)["all_values"]
             # print("climate", all_climate_names)
@@ -237,15 +248,18 @@ class CodeParametr:
                     "all_values": all_climate_names,
                     "response_value" : climate
                 }
-
-                got_climate = True
+            got_climate = True
+            '''
+                # got_climate = True
 
         #Тип клапана
         if got_climate:
             #список ВСЕХ климатик
             all_type_names = get_param_by_name("Тип клапана", selection_result)["all_values"]
-            type_param = get_param_by_name("Тип предохранительного клапана", select_formula_params)
-            type_val = type_param["response_value"] if type_param is not None else None
+            # type_param = get_param_by_name("Тип предохранительного клапана", select_formula_params)
+            type_param = [value for param_name, value in select_formula_params.items() if param_name == "Тип предохранительного клапана"]
+            
+            type_val = type_param[0] if type_param else None # is not None
 
             #если нет
             if type_val is None:
@@ -259,7 +273,8 @@ class CodeParametr:
                     "all_values": all_type_names
                 }
 
-                selection_result = [debug_param, mixture, envs_values, climate_values, type_values]
+                # res = [debug_param, mixture, envs_values, climate_values, type_values]
+                res.append(type_values)
 
             #валидация нужна
             elif type_val not in all_type_names:
@@ -276,7 +291,8 @@ class CodeParametr:
                     "error" : "Надо выбрать один из предложеннных вариантов"
                 }
 
-                selection_result = [debug_param, mixture, envs_values, climate_values, type_values]
+                # res = [debug_param, mixture, envs_values, climate_values, type_values]
+                res.append(type_values)
 
             #собрал тип клапана
             else:
@@ -289,14 +305,15 @@ class CodeParametr:
                     "all_values": all_type_names,
                     "response_value" : type_val
                 }
-
+                res.append(type_values)
                 got_type = True
 
         #Температура
         if got_type:
             # задана пользователем?
-            T_param  = get_param_by_name("Температура рабочей среды", select_formula_params)
-            T = T_param["response_value"] if T_param is not None else None
+            # T_param  = get_param_by_name("Температура рабочей среды", select_formula_params)
+            T_param  = [value for param_name, value in select_formula_params.items() if param_name == "Температура рабочей среды"]
+            T = int(T_param[0]) if T_param else None
 
             #если нет
             if T is None:
@@ -309,7 +326,8 @@ class CodeParametr:
                     'required_type':  "user_input"
                 }
 
-                selection_result = [debug_param, mixture, envs_values, climate_values, type_values, T_values]
+                # res = [debug_param, mixture, envs_values, climate_values, type_values, T_values]
+                res.append(T_values)
             
             #валидировать:
             elif (type_val == "Пружинный (В)" and (T < -60 or T > 600) ) or (type_val == "Пилотный (П)" and (T < -60 or T > 250) ):
@@ -323,7 +341,8 @@ class CodeParametr:
                     "error" : "Температура должна быть в диапазоне от -60°С до 600°С для пружинных и от -60°С до 250°С для пилотных клапанов"
                 }
 
-                selection_result = [debug_param, mixture, envs_values, climate_values, type_values, T_values]
+                # res = [debug_param, mixture, envs_values, climate_values, type_values, T_values]
+                res.append(T_values)
             
             else:
                 T_values = {
@@ -337,12 +356,13 @@ class CodeParametr:
 
                 got_T = True
                 #ПОТОМ УДАЛИ
-                selection_result = [debug_param, mixture, envs_values, climate_values, type_values, T_values]
+                # res = [debug_param, mixture, envs_values, climate_values, type_values, T_values]
+                res.append(T_values)
 
         ################# РАСЧЕТ #################
         if got_T:
             #ключи === названия колонок БД
-            searching_table_name = "predohranitel_nyj_klapan_table"
+            searching_table_name = "reguljator_table"
 
             #чтобы проще было заполнять
             # all_columns_names = await db.execute(text(f"SELECT column_name FROM information_schema.columns WHERE table_name = \'{searching_table_name}\';"))
@@ -521,20 +541,33 @@ class CodeParametr:
                     result["material"] = "12Х18Н9ТЛ"
 
             ########### ЗАПОЛНИТЬ ПАРАМЕТРЫ ##########
-            for i, param_key in enumerate(result.keys()):
-                param = {
-                    'id': i+4,
-                    'name': param_key,
-                    'description': "",
-                    'visibility': False,
-                    'required_type':  "list",
-                    "response_value" : result[param_key]
-                }
-                selection_result.append(param)
+            param_result_dict = {
+                "name" : "",
+                "environment" : "",
+                "molecular_weight" : "",
+                "density" : "",
+                "material" : "",
+                "viscosity" : "",
+                "isobaric_capacity" : "",
+                "molar_mass" : "",
+                "isochoric_capacity" : "",
+                "adiabatic_index" : "",
+                "compressibility_factor" : "",
+            }
+            for i, param_key in enumerate(result.keys()): 
+                # param = {
+                #     'id': i+4,
+                #     'name': param_key,
+                #     'description': "",
+                #     'visibility': False,
+                #     'required_type':  "list",
+                #     "response_value" : result[param_key]
+                # }
+                # res.append(param)
 
         
 
-        return {"total_change" : selection_result}
+        return {"total_change" : res}
 
 def mixture(envs : list, climate : str, T : float):
     result = {
