@@ -300,7 +300,8 @@ async def process_table_data(
             'response_value': response_value,
             'visibility': item.get('visibility', None),
             'required_type': item.get('required_type', None),
-            'filtered_values': parameters.get(name, None)
+            'filtered_values': parameters.get(name, None),
+            'sort': item.get('sort', None)
         }
         new_params.append(param_info)
 
