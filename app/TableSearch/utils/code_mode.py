@@ -89,11 +89,10 @@ class CodeParametr:
                         is_mixture = True
 
                     elif value == "Нет":
-                        res.append(mixture)
-                        res = self._set_params(res, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Нет", sort=1)
-
+                        res = self._set_params(selection_result, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Нет", sort=1)
+                        
         if not naydeno:
-            res = self._set_params(res, 1, "Смесь", all_values=["Да", "Нет"])
+            res = self._set_params(res, 1, "Смесь", all_values=["Да", "Нет"], sort=1)
         
         if is_mixture:
             #список ВСЕХ сред
