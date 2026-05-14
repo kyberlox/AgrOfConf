@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
-
+from math import sqrt
 #функция выводит значение параметра по названию
 # def get_param_by_name(param_name, selection_result):
 #     #найти параметр
@@ -38,16 +38,17 @@ class CodeParametr:
                 "id" : param_id,
                 "name" : param_name,
                 "description" : param_description,
-                "visibility" : visibility
+                "visibility" : visibility,
+                'required_type': param_type
             }
-        if param_type == "list":
+        if param_type == "list" or param_type == "select-input":
             new_param["all_values"] = all_values
 
         if response_value:
             new_param["response_value"] = response_value
         if error:
             new_param["error"] = error
-        if sort:
+        if sort is not None:
             new_param["sort"] = sort
 
         selection_result.append(new_param)
@@ -84,23 +85,317 @@ class CodeParametr:
                 if param_name == "Смесь":
                     naydeno = True
                     if value == "Да":
-                        res = self._set_params(res, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Да", sort=0)
+                        res = self._set_params(res, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Да", sort=1)
                         is_mixture = True
 
                     elif value == "Нет":
                         res.append(mixture)
-                        res = self._set_params(res, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Нет", sort=0)
+                        res = self._set_params(res, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Нет", sort=1)
 
         if not naydeno:
-            res = self._set_params(res, 0, "Смесь", all_values=["Да", "Нет"])
+            res = self._set_params(res, 1, "Смесь", all_values=["Да", "Нет"])
         
         if is_mixture:
             #список ВСЕХ сред
             param = self._get_param_by_name("Название рабочей среды", selection_result)
             all_values = param["all_values"]
-            res = self._set_params(res, param["id"], "Состав смеси", param_description=param["description"], all_values=all_values, sort=0)
+            envs_param = [value for param_name, value in select_formula_params.items() if param_name == "Состав смеси"]
+            
+            if not envs_param:
+                description = "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)"
+                res = self._set_params(res, param_info.id, "Состав смеси", param_description=description, all_values=all_values, sort=2, param_type="select-input")
 
+            elif envs_param:
+                #проверить правильность
+                envs = envs_param[0]
+                #сумма мольных долей
+                r_sum = sum(list(env.values())[0] for env in envs)
+                
+                #хватает ли сред для смеси
+                if envs == [] or len(envs) == 1:
+                    description = "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)"
+                    error = "Смесь не может состоять менее чем из двух сред!"
+                    res = self._set_params(res, param_info.id, "Состав смеси", param_description=description, all_values=all_values, sort=2, param_type="select-input", response_value=envs, error=error)
+
+                #праивльная ли сумма их долей?
+                elif r_sum != 100:
+                    description = "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)"
+                    error = f"Сумма мольных долей сред смеси должна составлять 100%, а не {r_sum}%"
+                    res = self._set_params(res, param_info.id, "Состав смеси", param_description=description, all_values=all_values, sort=2, param_type="select-input", response_value=envs, error=error)
+                
+                #если всё правильно
+                else:
+                    description = "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)"
+                    res = self._set_params(res, param_info.id, "Состав смеси", param_description=description, all_values=all_values, sort=2, param_type="select-input", response_value=envs)
+                    got_envs = True
+
+        #климатика
+        if got_envs:
+            #список ВСЕХ климатик
+            climate = self._get_param_by_name("Климатическое исполнение по ГОСТ 15150-69", selection_result)['all_values']
+            type_param = [value for param_name, value in select_formula_params.items() if param_name == "Климатическое исполнение по ГОСТ 15150-69"]
+            
+            climate_values = type_param[0] if type_param else None # is not None
+            #если нет
+            if climate_values is None:
+                res = self._set_params(res, param_info.id, "Климатическое исполнение по ГОСТ 15150-69", all_values=climate, sort=3)
+            else:
+                res = self._set_params(res, param_info.id, "Климатическое исполнение по ГОСТ 15150-69", all_values=climate, sort=3, response_value=climate_values)
+                got_climate = True
+
+        #Тип клапана
+        if got_climate:
+            #список ВСЕХ климатик
+            all_type_names = self._get_param_by_name("Тип клапана", selection_result)["all_values"]
+            # type_param = self._get_param_by_name("Тип предохранительного клапана", select_formula_params)
+            type_param = [value for param_name, value in select_formula_params.items() if param_name == "Тип предохранительного клапана"]
+            
+            type_val = type_param[0] if type_param else None # is not None
+
+            #если нет
+            if type_val is None:
+                res = self._set_params(res, param_info.id, "Тип предохранительного клапана", all_values=all_type_names, sort=4)
+
+            #валидация нужна
+            elif type_val not in all_type_names:
+                error = "Надо выбрать один из предложеннных вариантов"
+                res = self._set_params(res, param_info.id, "Тип предохранительного клапана", all_values=all_type_names, sort=4, error=error, response_value=type_val)
+
+            else:
+                res = self._set_params(res, param_info.id, "Тип предохранительного клапана", all_values=all_type_names, sort=4, response_value=type_val)
+                got_type = True
         
+        #Температура
+        if got_type:
+            # задана пользователем?
+            # T_param  = self._get_param_by_name("Температура рабочей среды", select_formula_params)
+            T_param  = [value for param_name, value in select_formula_params.items() if param_name == "Температура рабочей среды"]
+            T = int(T_param[0]) if T_param else None
+
+            description = "Ввведите значение температуры рабочей среды (°C)"
+            required_type = "user_input"
+            response_value = T
+
+            #если нет
+            if T is None:
+                res = self._set_params(res, param_info.id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=5, param_type=required_type)
+            
+            #валидировать:
+            elif (type_val == "Пружинный (В)" and (T < -60 or T > 600) ) or (type_val == "Пилотный (П)" and (T < -60 or T > 250) ):
+                error = "Температура должна быть в диапазоне от -60°С до 600°С для пружинных и от -60°С до 250°С для пилотных клапанов"
+                res = self._set_params(res, param_info.id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=5, param_type=required_type, response_value=response_value, error=error)
+            
+            else:
+                res = self._set_params(res, param_info.id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=5, param_type=required_type, response_value=response_value)
+
+                got_T = True
+
+        ################# РАСЧЕТ #################
+        if got_T:
+            #ключи === названия колонок БД
+            searching_table_name = "reguljator_table"
+
+            #чтобы проще было заполнять
+            # all_columns_names = await db.execute(text(f"SELECT column_name FROM information_schema.columns WHERE table_name = \'{searching_table_name}\';"))
+            # rows_all_columns_names = [row.column_name for row in all_columns_names]
+            # print("Список колонок таблицы: ", rows_all_columns_names)
+        
+
+            env_keys = {
+                "name" : "nazvanie_rabochej_sredy",
+                "environment" : "agregatnoe_sostojanie",
+                "molecular_weight" : "molekuljarnaja_massa",
+                "density" : "plotnost_zhidkosti",
+                # "density_ns": "",
+                "material" : "material",
+                "viscosity" : "vjazkost_pa_s",
+                "isobaric_capacity" : "udel_naja_izobarnaja_teploemkost_kdzh_kg_k",
+                "molar_mass" : "moljarnaja_massa",
+                "isochoric_capacity" : "udel_naja_izohornaja_teploemkost_kdzh_kg_k",
+                "adiabatic_index" : "pokazatel_adiabaty",
+                "compressibility_factor" : "faktor_szhimaemosti",
+            }
+            #собрать список параметров сред
+            envs_json = []
+            env_type = set()
+
+            env_name_colunm = env_keys["name"]
+
+            for env in envs:
+                env_name = list(env.keys())[0]
+                r = env[env_name] / 100
+                ###################### собрать sql запрос ##############################
+                env_params_sql = "SELECT "
+                for keys in env_keys.keys():
+                    colunm_name = env_keys[keys]
+                    env_params_sql += colunm_name + ", "
+                env_params_sql = env_params_sql[:-2]
+                env_params_sql += f" FROM {searching_table_name} WHERE {env_name_colunm} = \'{env_name}\';"
+                # print(env_params_sql)
+                sql_result = await db.execute( text(env_params_sql) )
+                env_result = sql_result.mappings().first()
+                # print(env_result)
+                ###################### обработать его в json ###########################
+                env_json = {
+                    "name" : env_result.nazvanie_rabochej_sredy,
+                    "r" : r,
+                    "environment" : env_result.agregatnoe_sostojanie,
+                    "molecular_weight" : env_result.molekuljarnaja_massa,
+                    "density" : env_result.plotnost_zhidkosti,
+                    "material" : env_result.material,
+                    "viscosity" : env_result.vjazkost_pa_s,
+                    "isobaric_capacity" : env_result.udel_naja_izobarnaja_teploemkost_kdzh_kg_k,
+                    "molar_mass" : env_result.moljarnaja_massa,
+                    "isochoric_capacity" : env_result.udel_naja_izohornaja_teploemkost_kdzh_kg_k,
+                    "adiabatic_index" : env_result.pokazatel_adiabaty,
+                    "compressibility_factor" : env_result.faktor_szhimaemosti,
+                }
+                #возможные типы состава сред
+                env_type.add(env_json["environment"])
+
+                #значения для ключей среды
+                envs_json.append(env_json)
+
+            result = {
+                "name" : "",
+                "environment" : "",
+                "molecular_weight" : 0,
+                "density" : 0,
+                # "density_ns": 0,
+                "material" : "",
+                "viscosity" : 0,
+                "isobaric_capacity" : 0,
+                "molar_mass" : 0,
+                "isochoric_capacity" : 0,
+                "adiabatic_index" : 0,
+                "compressibility_factor" : 1,
+            }
+            r_max = 0
+            if len(env_type) == 1:
+                env_type_name = f"Однородная смесь - {list(env_type)[0]}"
+                result["environment"] = env_type_name
+
+                if list(env_type)[0] == "Жидкость":
+                    ch_den = 0
+                    zn_den = 0
+                    pre_viscosity = 0
+                    for env in envs_json:
+                        r = env["r"]
+                        result["name"] += f"{env['name']}:{r}% "
+                        result["molecular_weight"] += float(env["molecular_weight"]) * r
+                        ch_den += float(env["density"]) * r
+                        zn_den += r
+                        pre_viscosity += log10(float(env["viscosity"])) * r
+
+
+                    result["density"] = ch_den/zn_den
+                    result["density_ns"] = result["density"]
+                    result["viscosity"] = 10**(pre_viscosity)
+
+                elif list(env_type)[0] == "Газ": #если среда - газ
+                    viscosity_сh = 0
+                    viscosity_zn = 0
+                    pre_M = 0
+                    adiabatic_index = 0
+                    adiabatic_index_zn = 0
+                    for env in envs_json:
+                        r = env["r"]
+                        result["name"] += f"{env['name']}:{r*100}% "
+                        M_i = float(env["molar_mass"])
+                        u_i = float(env["viscosity"])
+                        pre_M += M_i * r
+                        viscosity_сh += u_i * r * sqrt(M_i)
+                        viscosity_zn += r * sqrt(M_i)
+                        adiabatic_index += float(env['adiabatic_index']) * r
+
+                        # плотность при н.у.
+                        result["density"] += (M_i * r)
+                    result["molar_mass"] = pre_M #/100
+                    result["viscosity"] = viscosity_сh / viscosity_zn
+                    result["adiabatic_index"] = adiabatic_index
+
+                        # плотность при н.у.
+                    result["density"] = result["density"] / 22.4
+            else:
+                result["environment"] = "Неоднородная смесь"
+                density_ch = 0
+                density_zn = 0
+                pre_u = 0
+                for env in envs_json:
+
+                    r = env["r"]
+                    result["name"] += f"{env['name']}:{r}% "
+
+                    # pre_viscosity += log10(env["viscosity"]) * r
+
+                    if env["environment"] == "Газ":
+                        M = float(env["molar_mass"])
+                        density_ch += (float(env["molar_mass"]) / 22.4) * r
+                        density_zn += r
+                    elif env["environment"] == "Жидкость":
+                        M = float(env["molecular_weight"])
+                        density_ch += float(env["density"]) * r
+                        density_zn += r
+
+                    pre_u += r * float(env["viscosity"]) * M
+
+                    if r > r_max:
+                        # Плотность несущей среды при нормальных условиях
+                        r_max = r
+                        result["density_ns"] = density_ch / density_zn
+
+                #рабочая плотность
+                result["density"] = density_ch / density_zn
+                result["viscosity"] = pre_u
+
+                material = []
+            
+            material = []
+            for env in envs_json:
+                if ( env['name'] == 'Сероводород' and env["r"] < 0.06 ) and result["environment"] == "Смесь":
+                    material.append(f"25Л")
+                else:
+                    material.append(env['material'])
+
+            ln = 0
+            for mat in material:
+                if len(mat) > ln:
+                    ln = len(mat)
+                    result["material"] = mat
+
+            #если климатика => то материал
+            if ((climate == "ХЛ1") or (climate == "УХЛ1")) and (result["material"] == "25Л"):
+                if T < 350.0:
+                    result["material"] = "20ГЛ"
+                elif T >= 350.0 and climate == "ХЛ1":
+                    result["material"] = "12Х18Н9ТЛ"
+
+            ########### ЗАПОЛНИТЬ ПАРАМЕТРЫ ##########
+            param_result_dict = {
+                "name" : "",
+                "environment" : "",
+                "molecular_weight" : "",
+                "density" : "",
+                "material" : "",
+                "viscosity" : "",
+                "isobaric_capacity" : "",
+                "molar_mass" : "",
+                "isochoric_capacity" : "",
+                "adiabatic_index" : "",
+                "compressibility_factor" : "",
+            }
+            for i, param_key in enumerate(result.keys()): 
+                param = {
+                    'id': i+4,
+                    'name': param_key,
+                    'description': "",
+                    'visibility': False,
+                    'required_type':  "list",
+                    "response_value" : result[param_key]
+                }
+                res.append(param)
+
+
         return {"total_change" : res}
 
 
