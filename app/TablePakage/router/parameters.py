@@ -113,7 +113,7 @@ async def update_parameter(
 
         # если это Table → переименовываем колонку
         if param.type == "Table" and param.table_name:
-            table_name = to_sql_name_lat(param.table_name) + "_table"
+            table_name = to_sql_name_lat(param.table_name)# + "_table"
 
             await db.execute(
                 text(f'ALTER TABLE {table_name} RENAME COLUMN "{old_translit}" TO "{new_translit}"')
