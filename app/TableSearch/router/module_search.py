@@ -246,7 +246,7 @@ async def process_table_data(
         db,
         product_id,
     )
-
+    
     # ФОРМИРУЕМ ОТВЕТ
     answer = {
         "product_id": product_id,
@@ -319,7 +319,7 @@ async def process_table_data(
                     item['response_value'] = None
                     item["error"] = is_param_error[0]["error"]
 
-    parameters = await search_formula(db, new_params, table_name, selected_params, full_info=full_info)
+    parameters = await search_formula(db, new_params, table_name, selected_params, full_info=full_info, column_to_param=column_to_param)
     parameters = sorted(parameters, key=lambda param: param.get('sort') or param['id'])
 
     answer["parameters"] = parameters

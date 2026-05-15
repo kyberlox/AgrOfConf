@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from math import sqrt
+from app.TablePakage.utils.router_utils import to_sql_name_lat, to_sql_name_kir
 #функция выводит значение параметра по названию
 # def get_param_by_name(param_name, selection_result):
 #     #найти параметр
@@ -55,7 +56,7 @@ class CodeParametr:
 
         return selection_result
     
-    async def make_mixture(self, selection_result, param_info, select_formula_params, db):
+    async def make_mixture(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
         """
         алгоритм подбора смеси
         """
@@ -200,33 +201,44 @@ class CodeParametr:
             # print("Список колонок таблицы: ", rows_all_columns_names)
         
 
-            env_keys = {
-                "name" : "nazvanie_rabochej_sredy",
-                "environment" : "agregatnoe_sostojanie",
-                "molecular_weight" : "molekuljarnaja_massa",
-                "density" : "plotnost_zhidkosti",
-                # "density_ns": "",
-                "material" : "material",
-                "viscosity" : "vjazkost_pa_s",
-                "isobaric_capacity" : "udel_naja_izobarnaja_teploemkost_kdzh_kg_k",
-                "molar_mass" : "moljarnaja_massa",
-                "isochoric_capacity" : "udel_naja_izohornaja_teploemkost_kdzh_kg_k",
-                "adiabatic_index" : "pokazatel_adiabaty",
-                "compressibility_factor" : "faktor_szhimaemosti",
-            }
+            # env_keys = {
+            #     "name" : "nazvanie_rabochej_sredy",
+            #     "environment" : "agregatnoe_sostojanie",
+            #     "molecular_weight" : "molekuljarnaja_massa",
+            #     "density" : "plotnost_zhidkosti",
+            #     # "density_ns": "",
+            #     "material" : "material",
+            #     "viscosity" : "vjazkost_pa_s",
+            #     "isobaric_capacity" : "udel_naja_izobarnaja_teploemkost_kdzh_kg_k",
+            #     "molar_mass" : "moljarnaja_massa",
+            #     "isochoric_capacity" : "udel_naja_izohornaja_teploemkost_kdzh_kg_k",
+            #     "adiabatic_index" : "pokazatel_adiabaty",
+            #     "compressibility_factor" : "faktor_szhimaemosti",
+            # }
+            env_keys = [
+                "nazvanie_rabochej_sredy", "agregatnoe_sostojanie",
+                "molekuljarnaja_massa", "plotnost_zhidkosti",
+                "material", "vjazkost_pa_s",
+                "udel_naja_izobarnaja_teploemkost_kdzh_kg_k",
+                "moljarnaja_massa",
+                "udel_naja_izohornaja_teploemkost_kdzh_kg_k",
+                "pokazatel_adiabaty", "faktor_szhimaemosti",
+            ]
             #собрать список параметров сред
             envs_json = []
             env_type = set()
 
-            env_name_colunm = env_keys["name"]
+            # env_name_colunm = env_keys["name"]
+            env_name_colunm = "nazvanie_rabochej_sredy"
 
             for env in envs:
                 env_name = list(env.keys())[0]
                 r = env[env_name] / 100
                 ###################### собрать sql запрос ##############################
                 env_params_sql = "SELECT "
-                for keys in env_keys.keys():
-                    colunm_name = env_keys[keys]
+                # for keys in env_keys.keys():
+                for colunm_name in env_keys:
+                    # colunm_name = env_keys[keys]
                     env_params_sql += colunm_name + ", "
                 env_params_sql = env_params_sql[:-2]
                 env_params_sql += f" FROM {searching_table_name} WHERE {env_name_colunm} = \'{env_name}\';"
@@ -239,14 +251,14 @@ class CodeParametr:
                     "name" : env_result.nazvanie_rabochej_sredy,
                     "r" : r,
                     "environment" : env_result.agregatnoe_sostojanie,
-                    "molecular_weight" : env_result.molekuljarnaja_massa,
-                    "density" : env_result.plotnost_zhidkosti,
+                    "molekuljarnaja_massa" : env_result.molekuljarnaja_massa,
+                    "plotnost_zhidkosti" : env_result.plotnost_zhidkosti,
                     "material" : env_result.material,
-                    "viscosity" : env_result.vjazkost_pa_s,
+                    "vjazkost_pa_s" : env_result.vjazkost_pa_s,
                     "isobaric_capacity" : env_result.udel_naja_izobarnaja_teploemkost_kdzh_kg_k,
-                    "molar_mass" : env_result.moljarnaja_massa,
+                    "moljarnaja_massa" : env_result.moljarnaja_massa,
                     "isochoric_capacity" : env_result.udel_naja_izohornaja_teploemkost_kdzh_kg_k,
-                    "adiabatic_index" : env_result.pokazatel_adiabaty,
+                    "pokazatel_adiabaty" : env_result.pokazatel_adiabaty,
                     "compressibility_factor" : env_result.faktor_szhimaemosti,
                 }
                 #возможные типы состава сред
@@ -256,23 +268,23 @@ class CodeParametr:
                 envs_json.append(env_json)
 
             result = {
-                "name" : "",
-                "environment" : "",
-                "molecular_weight" : 0,
-                "density" : 0,
+                "nazvanie_rabochej_sredy" : "",
+                "agregatnoe_sostojanie" : "",
+                "molekuljarnaja_massa" : 0,
+                "plotnost_zhidkosti" : 0,
                 # "density_ns": 0,
                 "material" : "",
-                "viscosity" : 0,
-                "isobaric_capacity" : 0,
-                "molar_mass" : 0,
-                "isochoric_capacity" : 0,
-                "adiabatic_index" : 0,
-                "compressibility_factor" : 1,
+                "vjazkost_pa_s" : 0,
+                "udel_naja_izobarnaja_teploemkost_kdzh_kg_k" : 0,
+                "moljarnaja_massa" : 0,
+                "udel_naja_izohornaja_teploemkost_kdzh_kg_k" : 0,
+                "pokazatel_adiabaty" : 0,
+                "faktor_szhimaemosti" : 1,
             }
             r_max = 0
             if len(env_type) == 1:
                 env_type_name = f"Однородная смесь - {list(env_type)[0]}"
-                result["environment"] = env_type_name
+                result["agregatnoe_sostojanie"] = env_type_name
 
                 if list(env_type)[0] == "Жидкость":
                     ch_den = 0
@@ -280,16 +292,15 @@ class CodeParametr:
                     pre_viscosity = 0
                     for env in envs_json:
                         r = env["r"]
-                        result["name"] += f"{env['name']}:{r}% "
-                        result["molecular_weight"] += float(env["molecular_weight"]) * r
+                        result["nazvanie_rabochej_sredy"] += f"{env['name']}:{r}% "
+                        result["molekuljarnaja_massa"] += float(env["molecular_weight"]) * r
                         ch_den += float(env["density"]) * r
                         zn_den += r
                         pre_viscosity += log10(float(env["viscosity"])) * r
 
 
-                    result["density"] = ch_den/zn_den
-                    result["density_ns"] = result["density"]
-                    result["viscosity"] = 10**(pre_viscosity)
+                    result["plotnost_zhidkosti"] = ch_den/zn_den
+                    result["vjazkost_pa_s"] = 10**(pre_viscosity)
 
                 elif list(env_type)[0] == "Газ": #если среда - газ
                     viscosity_сh = 0
@@ -299,31 +310,31 @@ class CodeParametr:
                     adiabatic_index_zn = 0
                     for env in envs_json:
                         r = env["r"]
-                        result["name"] += f"{env['name']}:{r*100}% "
-                        M_i = float(env["molar_mass"])
-                        u_i = float(env["viscosity"])
+                        result["nazvanie_rabochej_sredy"] += f"{env['name']}:{r*100}% "
+                        M_i = float(env["moljarnaja_massa"])
+                        u_i = float(env["vjazkost_pa_s"])
                         pre_M += M_i * r
                         viscosity_сh += u_i * r * sqrt(M_i)
                         viscosity_zn += r * sqrt(M_i)
-                        adiabatic_index += float(env['adiabatic_index']) * r
+                        adiabatic_index += float(env['pokazatel_adiabaty']) * r
 
                         # плотность при н.у.
-                        result["density"] += (M_i * r)
-                    result["molar_mass"] = pre_M #/100
-                    result["viscosity"] = viscosity_сh / viscosity_zn
-                    result["adiabatic_index"] = adiabatic_index
+                        result["plotnost_zhidkosti"] += (M_i * r)
+                    result["moljarnaja_massa"] = pre_M #/100
+                    result["vjazkost_pa_s"] = viscosity_сh / viscosity_zn
+                    result["pokazatel_adiabaty"] = adiabatic_index
 
                         # плотность при н.у.
-                    result["density"] = result["density"] / 22.4
+                    result["plotnost_zhidkosti"] = result["plotnost_zhidkosti"] / 22.4
             else:
-                result["environment"] = "Неоднородная смесь"
+                result["agregatnoe_sostojanie"] = "Неоднородная смесь"
                 density_ch = 0
                 density_zn = 0
                 pre_u = 0
                 for env in envs_json:
 
                     r = env["r"]
-                    result["name"] += f"{env['name']}:{r}% "
+                    result["nazvanie_rabochej_sredy"] += f"{env['name']}:{r}% "
 
                     # pre_viscosity += log10(env["viscosity"]) * r
 
@@ -341,17 +352,17 @@ class CodeParametr:
                     if r > r_max:
                         # Плотность несущей среды при нормальных условиях
                         r_max = r
-                        result["density_ns"] = density_ch / density_zn
+                        # result["density_ns"] = density_ch / density_zn
 
                 #рабочая плотность
-                result["density"] = density_ch / density_zn
-                result["viscosity"] = pre_u
+                result["plotnost_zhidkosti"] = density_ch / density_zn
+                result["vjazkost_pa_s"] = pre_u
 
                 material = []
             
             material = []
             for env in envs_json:
-                if ( env['name'] == 'Сероводород' and env["r"] < 0.06 ) and result["environment"] == "Смесь":
+                if ( env['name'] == 'Сероводород' and env["r"] < 0.06 ) and result["agregatnoe_sostojanie"] == "Смесь":
                     material.append(f"25Л")
                 else:
                     material.append(env['material'])
@@ -369,30 +380,14 @@ class CodeParametr:
                 elif T >= 350.0 and climate == "ХЛ1":
                     result["material"] = "12Х18Н9ТЛ"
 
-            ########### ЗАПОЛНИТЬ ПАРАМЕТРЫ ##########
-            param_result_dict = {
-                "name" : "",
-                "environment" : "",
-                "molecular_weight" : "",
-                "density" : "",
-                "material" : "",
-                "viscosity" : "",
-                "isobaric_capacity" : "",
-                "molar_mass" : "",
-                "isochoric_capacity" : "",
-                "adiabatic_index" : "",
-                "compressibility_factor" : "",
-            }
-            for i, param_key in enumerate(result.keys()): 
-                param = {
-                    'id': i+4,
-                    'name': param_key,
-                    'description': "",
-                    'visibility': False,
-                    'required_type':  "list",
-                    "response_value" : result[param_key]
-                }
-                res.append(param)
+
+            for param_name, value in result.items():
+                kir_param_name = column_to_param[param_name]
+                param_info = [param for param in selection_result if param["name"] == kir_param_name]
+                if not param_info:
+                    continue
+                param_info = param_info[0]
+                res = self._set_params(res, param_info['id'], kir_param_name, param_description=param["description"], all_values=param_info['all_values'], response_value=value, sort=param_info['sort'])
 
 
         return {"total_change" : res}
@@ -760,6 +755,7 @@ class CodeParametr:
                 "adiabatic_index" : "pokazatel_adiabaty",
                 "compressibility_factor" : "faktor_szhimaemosti",
             }
+            
             #собрать список параметров сред
             envs_json = []
             env_type = set()
