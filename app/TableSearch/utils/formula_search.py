@@ -75,13 +75,13 @@ from sqlalchemy import text
 #         return None
 
 # async def code_params(note_params_info, db, user_params, param_info, select_formula_params):
-async def code_params(db, func_name, param_info, user_params, select_formula_params):
+async def code_params(db, func_name, param_info, user_params, select_formula_params, column_to_param=[]):
     #тут надо вызвать нужную функцию по её названию из БД
     cp_class = CodeParametr()
     # cp_method_name = param_info.field_of_view
     cp_method = getattr(cp_class, func_name)
 
-    return await cp_method(user_params, param_info, select_formula_params, db)
+    return await cp_method(user_params, param_info, select_formula_params, db, column_to_param)
 
 # async def condition_params(param_info, db, params):
 #     if not param_info['condition_param_id'] or not param_info['condition_value']:
@@ -165,7 +165,7 @@ async def get_dependencies_for_param(param, db):
         return param_names.scalars().all()
     return []
 
-async def search_formula(db, params, table_name_params, select_formula_params=[], full_info=[]):
+async def search_formula(db, params, table_name_params, select_formula_params=[], full_info=[], column_to_param=[]):
     # 1. Получаем все формульные параметры (кроме selected_file)
     stmt_formula_params = select(ParameterSchema).where(ParameterSchema.type == 'Formula', ParameterSchema.table_name == table_name_params ) #! искать формульные параметры только для этого же продукта
     res = await db.execute(stmt_formula_params)
@@ -177,7 +177,7 @@ async def search_formula(db, params, table_name_params, select_formula_params=[]
     for param in all_formula_params:
         # async def code_params(db, func_name, param_info, user_params, select_formula_params):
         func_name = param.field_of_view
-        res = await code_params(db, func_name, param, params, select_formula_params) #####!ВОЗМОЖНО ТАК НЕЛЬЗЯ - table_formula_params[0]
+        res = await code_params(db, func_name, param, params, select_formula_params, column_to_param) #####!ВОЗМОЖНО ТАК НЕЛЬЗЯ - table_formula_params[0]
         if res is not None:
             if "total_change" in res:
                 # print(res["total_change"][-1])
