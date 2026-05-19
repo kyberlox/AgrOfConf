@@ -80,6 +80,33 @@ async def upload_xlsx(
 
     df = df.where(pd.notnull(df), None)
 
+    if df.empty:
+        # Удаляем старую таблицу
+        await db.execute(text(f'DROP TABLE IF EXISTS "{table_name}"'))
+
+        # Создаём пустую таблицу заново
+        await create_table(db, table_name)
+
+        # Удаляем параметры из parameter_schemas этой таблицы
+        await db.execute(
+            text("""
+                   DELETE FROM parameter_schemas
+                   WHERE table_name = :table_name
+               """),
+            {"table_name": table_name}
+        )
+
+        await mark_datamart_dirty(db, product_id)
+
+        await db.commit()
+
+        return {
+            "table": table_name,
+            "rows": 0,
+            "columns": [],
+            "message": "Таблица очищена"
+        }
+
     # Excel → SQL имена
     excel_map = {
         to_sql_name_lat(col): col
@@ -160,7 +187,6 @@ async def upload_xlsx(
             WHERE product_id = :product_id
               AND sort IS NULL
         """), {"product_id": product_id})
-
 
     await db.commit()
 
