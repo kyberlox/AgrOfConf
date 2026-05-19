@@ -40,7 +40,9 @@ async def upload_xlsx(
     if product_name is None:
         raise HTTPException(status_code=404, detail="Продукция не найдена")
 
-    table_name = f"{to_sql_name_lat(product_name)}_table"
+    filename_without_ext = os.path.splitext(file.filename)[0]
+
+    table_name = f"{to_sql_name_lat(filename_without_ext)}"
 
     # Создаём таблицу если нет
     await create_table(db, table_name)
@@ -48,10 +50,6 @@ async def upload_xlsx(
     # Читаем Excel
     print("Файл называется: ", file.filename)
     print()
-    # df = pd.read_excel(file.file)
-    # contents = await file.read()
-    # df = pd.read_excel(io.BytesIO(contents), engine='openpyxl')
-    # df = df.where(pd.notnull(df), None)
 
     # Читаем Excel с обработкой ошибок
     contents = await file.read()
@@ -108,36 +106,32 @@ async def upload_xlsx(
     )
     db_columns = {row[0] for row in result.fetchall()}
 
-    # Проверка совпадения
-    columns_match = db_columns == excel_columns_set
+    # Удаляем старую таблицу файла
+    await db.execute(text(f'DROP TABLE IF EXISTS "{table_name}"'))
 
-    if not columns_match:
-        # Удаляем таблицу
-        await db.execute(text(f'DROP TABLE IF EXISTS "{table_name}"'))
+    # Создаём таблицу заново
+    columns_sql = ", ".join(f'"{col}" TEXT' for col in excel_columns_ordered)
 
-        # Создаём заново с порядком столбцов как в excel-файле
-        columns_sql = ", ".join(f'"{col}" TEXT' for col in excel_columns_ordered)
+    await db.execute(text(f"""
+        CREATE TABLE "{table_name}" (
+            id SERIAL PRIMARY KEY,
+            {columns_sql}
+        )
+    """))
 
-        await db.execute(text(f"""
-            CREATE TABLE "{table_name}" (
-                id SERIAL PRIMARY KEY,
-                {columns_sql}
-            )
-        """))
+    # Удаляем старые schema этого файла
+    await db.execute(
+        text("""
+            DELETE FROM parameter_schemas
+            WHERE table_name = :table_name
+        """),
+        {"table_name": table_name}
+    )
 
-        # Полностью пересобираем parameter_schemas
+    # Добавляем заново в правильном порядке
+    for col in excel_columns_ordered:
         await db.execute(
             text("""
-                DELETE FROM parameter_schemas
-                WHERE product_id = :product_id
-            """),
-            {"product_id": product_id}
-        )
-
-        # Добавляем заново в правильном порядке
-        for col in excel_columns_ordered:
-            await db.execute(
-                text("""
                     INSERT INTO parameter_schemas (
                         name,
                         transliterated_name,
@@ -153,44 +147,20 @@ async def upload_xlsx(
                         :product_id
                     )
                 """),
-                {
-                    "name": excel_map[col],
-                    "transliterated_name": col,
-                    "table_name": table_name,
-                    "product_id": product_id
-                }
-            )
-        await db.execute(text("""
+            {
+                "name": excel_map[col],
+                "transliterated_name": col,
+                "table_name": table_name,
+                "product_id": product_id
+            }
+        )
+    await db.execute(text("""
             UPDATE parameter_schemas
             SET sort = id
             WHERE product_id = :product_id
               AND sort IS NULL
         """), {"product_id": product_id})
 
-        # Удаляем колонки, которые не совпали
-        # extra = db_columns - excel_columns_set
-        #
-        # for col in extra:
-        #     # Удаляем из таблицы
-        #     await db.execute(
-        #         text(f'ALTER TABLE "{table_name}" DROP COLUMN "{col}"')
-        #     )
-        #
-        #     # Удаляем из parameter_schemas
-        #     await db.execute(
-        #         text("""
-        #             DELETE FROM parameter_schemas
-        #             WHERE transliterated_name = :col
-        #               AND product_id = :product_id
-        #         """),
-        #         {
-        #             "col": col,
-        #             "product_id": product_id
-        #         }
-        #     )
-
-        # Перезаписываем данные в бд
-        # await db.execute(text(f'DELETE FROM "{table_name}"'))
 
     await db.commit()
 
@@ -199,9 +169,9 @@ async def upload_xlsx(
     values_sql = ", ".join(f":{col}" for col in excel_columns_ordered)
 
     insert_sql = text(f"""
-        INSERT INTO "{table_name}" ({columns_sql})
-        VALUES ({values_sql})
-    """)
+            INSERT INTO "{table_name}" ({columns_sql})
+            VALUES ({values_sql})
+        """)
 
     rows = [
         {
@@ -221,7 +191,6 @@ async def upload_xlsx(
     return {
         "table": table_name,
         "rows": len(df),
-        "columns_match": columns_match,
         "columns": list(excel_columns_ordered)
     }
 

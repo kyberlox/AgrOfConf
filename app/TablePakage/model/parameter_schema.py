@@ -26,5 +26,5 @@ class ParameterSchema(Base):
 
     __table_args__ = (
         Index("idx_parameter_product_id", "product_id"),
-        UniqueConstraint("product_id", "transliterated_name", name="uq_product_parameter"),
+        UniqueConstraint("product_id", "table_name", "transliterated_name", name="uq_product_parameter"),
     )
