@@ -2,6 +2,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from math import sqrt
 from app.TablePakage.utils.router_utils import to_sql_name_lat, to_sql_name_kir
+from math import sqrt, log, exp, pi, log10
+import math
 #функция выводит значение параметра по названию
 # def get_param_by_name(param_name, selection_result):
 #     #найти параметр
@@ -56,6 +58,24 @@ class CodeParametr:
 
         return selection_result
     
+    def _linear_interpolation(x1, y1, x2, y2, x):
+        """
+        Функция для линейной интерполяции.
+
+        :param x1: x-координата первой точки
+        :param y1: y-координата первой точки
+        :param x2: x-координата второй точки
+        :param y2: y-координата второй точки
+        :param x: x-координата точки, для которой нужно найти y
+        :return: интерполированное значение y
+        """
+        if x1 == x2:
+            raise ValueError("x1 и x2 не должны быть равны, чтобы избежать деления на ноль.")
+
+        # Вычисляем y по формуле линейной интерполяции
+        y = y1 + (x - x1) * (y2 - y1) / (x2 - x1)
+        return y
+
     async def make_mixture(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
         """
         алгоритм подбора смеси
@@ -175,7 +195,7 @@ class CodeParametr:
             description = "Ввведите значение температуры рабочей среды (°C)"
             required_type = "user_input"
             response_value = T
-
+            
             #если нет
             if T is None:
                 res = self._set_params(res, param_info.id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=5, param_type=required_type)
@@ -388,707 +408,339 @@ class CodeParametr:
                     continue
                 param_info = param_info[0]
                 res = self._set_params(res, param_info['id'], kir_param_name, param_description=param["description"], all_values=param_info['all_values'], response_value=value, sort=param_info['sort'])
-
+            
+            #Поскольку расчет смеси завершился, докидываем
+            # параметры из БД для следующего расчета
+            for param_db in selection_result:
+                param_info = [param_res for param_res in res if 'debug' not in param_res and param_res["name"] == param_db["name"]]
+                if param_info:
+                    continue
+                res.append(param_db)
 
         return {"total_change" : res}
 
 
-    async def old_make_mixture(self, selection_result, param_info, select_formula_params, db):
-        """
-        алгоритм подбора смеси
-        """
-        # print(selection_result)
-        # print(param_info)
-        # print(select_formula_params)
-        res = []
-        #чтобы не падала ошибка табличного подбора
-        debug_param = {
-            "id" : -1,
-            "debug" : False,
-            'visibility': False
+    async def raschet(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
+        from copy import deepcopy
+        #Флаги
+        force_open = None # "Устройство принудительного открытия"
+        Pn = None # "Давление настройки"
+        Gab = None # "Максимальный аварийный расход жидкости и газа"
+        N = None # "Количество параллельно установленных и одновременно работающих клапанов (шт)"
+        pre_Kc = None # Мембранно-предохранительное устройство
+        Pp = None # Противодавление статическое
+        Pp_din = None # Противодавление динамическое
+        if not select_formula_params:
+            return {"total_change" : selection_result}
+        last_sort = 0
+        selection_result.pop(0)
+        res = deepcopy(selection_result)
+        #Ищем Устройство принудительного открытия
+        for param_name, value in select_formula_params.items():
+            if param_name == "Устройство принудительного открытия":
+                force_open = value
+                #ищем данные параметра
+                param_info = [param for param in selection_result if param["name"] == param_name]
+                if not param_info:
+                    return {'error': 'Не найден параметр в БД - Устройство принудительного открытия'}
+                param_info = param_info[0]
+                # res = self._set_params(res, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
+                last_sort = param_info['sort']
+            elif param_name == "Давление настройки" and force_open:
+                Pn = value
+                last_sort += 1
+                if value > 16 or value < 0:
+                    res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 16], response_value=value, sort=last_sort, error="Давление настройки не может быть меньше 0 и больше 16")
+                    continue
+                res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 16], response_value=value, sort=last_sort)
+            elif param_name == "Максимальный аварийный расход жидкости и газа" and force_open:
+                Gab = value
+                last_sort += 1
+                if value < 0:
+                    res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=value, sort=last_sort, error="Значение не может быть меньше 0")
+                    continue
+                res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=value, sort=last_sort)
+            elif param_name == "Количество параллельно установленных и одновременно работающих клапанов (шт)" and force_open:
+                N = value
+                last_sort += 1
+                if value < 0:
+                    res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=value, sort=last_sort)
+                continue
+                res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=value, sort=last_sort, error="Значение не может быть меньше 0")
+            elif param_name == "Мембранно-предохранительное устройство" and force_open:
+                pre_Kc = value
+                last_sort += 1
+                res = self._set_params(res, last_sort, param_name, param_description="", all_values=["Да", "Нет"], response_value=value, sort=last_sort)
+            elif param_name == "Противодавление статическое" and Pn:
+                last_sort += 1
+                Pp = value
+                if value > Pn * 0.7 or value < 0:
+                    res = self._set_params(res, last_sort, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], response_value=value, sort=last_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
+                else:
+                    
+                    last_sort += 1
+                    res = self._set_params(res, last_sort, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], response_value=value, sort=last_sort)
+            elif param_name == "Противодавление динамическое" and Pn:
+                last_sort += 1
+                Pp_din = value
+                if value > Pn * 0.7 or value < 0:
+                    res = self._set_params(res, last_sort, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], response_value=value, sort=last_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
+                else:
+                    res = self._set_params(res, last_sort, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], response_value=value, sort=last_sort)
+
+        #Формируем Устройство принудительного открытия
+        if not force_open:
+            {"total_change" : res}
+        #Формируем Давление настройки
+        if not Pn and force_open:
+            last_sort += 1
+            res = self._set_params(res, last_sort, "Давление настройки", param_description="", all_values=[0, 16], sort=last_sort)
+        #Формируем Максимальный аварийный расход жидкости и газа
+        if not Gab and force_open:
+            last_sort += 1
+            res = self._set_params(res, last_sort, "Максимальный аварийный расход жидкости и газа", param_description="", all_values=[0, 10 ** 100], sort=last_sort)
+        #Формируем Количество параллельно установленных и одновременно работающих клапанов (шт)
+        if not N and force_open:
+            last_sort += 1
+            res = self._set_params(res, last_sort, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_description="", all_values=[0, 10 ** 100], sort=last_sort)
+        #Формируем Мембранно-предохранительное устройство
+        if not pre_Kc and force_open:
+            last_sort += 1
+            res = self._set_params(res, last_sort, "Мембранно-предохранительное устройство", param_description="", all_values=["Да", "Нет"], sort=last_sort)
+        #Формируем Противодавление статическое
+        if not Pp and Pn:
+            last_sort += 1
+            res = self._set_params(res, last_sort, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], sort=last_sort)
+        #Формируем Противодавление динамическое
+        if not Pp_din and Pn:
+            last_sort += 1
+            res = self._set_params(res, last_sort, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], sort=last_sort)
+        
+        #Если не все заполнено, возвращаем массив параметров для заполнения
+        is_exist = [force_open, Pn, Gab, N, pre_Kc, Pp, Pp_din]
+        if not all(x is not None for x in is_exist):
+            return {"total_change" : res}
+        
+        #Все заполнено, можно выполнять расчет
+        P_atm = 0.101320
+        R = 8.31446261815324  # Газовая постоянная ( Па / (моль * K))
+        u_info = [param for param in res if param["name"] == 'Вязкость (Па*с)']
+        u = u_info[0]["response_value"]
+
+        "Климатическое исполнение по ГОСТ 15150-69"
+        
+        climate = select_formula_params["Климатическое исполнение по ГОСТ 15150-69"]
+        model = {
+            "М1 (от -40, до 40)": [-40, 40],
+            "У1 (от -40, до 40)": [-40, 40],
+            "УХЛ1 (от -60, до 40)": [-60, 40],
+            "ХЛ1 (от -60, до 40)": [-60, 40]
         }
 
-        #как понять на каком я этапе?
-        naydeno = False
-        is_mixture = False
-        got_envs = False
-        got_climate = False
-        got_type = False
-        got_T = False
+        T_min, T_max = model[climate]
 
-        # поиск смеси среди выбранных значений
-        if select_formula_params != []:
-            for param_name, value in select_formula_params.items():
-                if param_name == "Смесь":
-                    naydeno = True
+        T = select_formula_params["Температура рабочей среды"]
 
-                    if value == "Да":
-                        mixture = {
-                            'id': 0,
-                            'name': param_info.name,
-                            'description': param_info.description,
-                            'visibility': False,
-                            'response_value': 'Да'
-                        }
-
-                        res.append(mixture)
-                        is_mixture = True
-
-                    elif value == "Нет":
-                        
-                        mixture = {
-                            'id': param_info.id,
-                            'name': param_info.name,
-                            'description': param_info.description,
-                            'visibility': False,
-                            'response_value': 'Нет'
-                        }
-                        res.append(mixture)
-
-                        # return {"total_change" : res}
-
-        # внедрить параметр для смеси на какое-нибудь место, если её ещё нет
-        if not naydeno:
-            res = [
-                debug_param,
-                {
-                    'id': 0,
-                    'name': param_info.name,
-                    'description': param_info.description,
-                    'visibility': True,
-                    'required_type':  "list",
-                    "all_values": [
-                        "Да",
-                        "Нет"
-                    ]
-                }
-            ]
+        if pre_Kc == 'Да':
+            Kc = 0.9
+        else:
+            Kc = 1
         
-        #заполняем смесь
-        if is_mixture:
-            #список ВСЕХ сред
-            all_envs_names = self._get_param_by_name("Название рабочей среды", selection_result)["all_values"]
+        # Давление начала открытия
+        # Давление полного открытия
+        if Pn <= 0.3:
+            Pno = Pn + 0.02
+            Ppo = Pn + 0.05
+        elif (Pn > 0.3) and (Pn <= 6):
+            Pno = 1.07 * Pn
+            Ppo = 1.15 * Pn
+        elif Pn > 6:
+            Pno = 1.05 * Pn
+            Ppo = 1.1 * Pn
+        else:
+            return {"error": f"Невозможно определить давление начала открытия и давление полного открытия, при давлении настройки = {Pn}"}
 
-            #есть ли параметр для состава смесей?
-            # envs_param = self._get_param_by_name("Состав смеси", selection_result)
-            envs_param = [value for param_name, value in select_formula_params.items() if param_name == "Состав смеси"]
+        #Ищем наше агрегатное состояние (среду)
+        environment_inf = [param for param in selection_result if param["name"] == 'Агрегатное состояние']
+        molar_mass_info = [param for param in selection_result if param["name"] == 'Молярная масса']
+        if "Газ" in environment_inf[0]['response_value']:
+            #p1 = dt["density_ns"]  * (Ppo * 273.15) / (0.101325 * (T + 273.15))
+            #p1 = dt["density_ns"] * ((Ppo * 100000) / (101325 * 8.14))
             
-            #если нет
-            if not envs_param:
+            ch = molar_mass_info[0]["response_value"] * (Ppo*10 + 1) * 100000
+            zn = 8314 * (T + 273.15)
+            p1 = ch / zn
 
-                #создать
-                envs_values = {
-                    'id': 1,
-                    'name': "Состав смеси",
-                    'description': "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)",
-                    # "code_example" : [{ "Азот" : 50}, {"Воздух" : 50}],
-                    'visibility': True,
-                    'required_type':  "select-input",
-                    "all_values": all_envs_names
-                }
+            # if  dt["convertGab"]:# и размерность м3/час
+            #     # Домножить Gab
+            #     Gab *= p1
+        else:
+            #Ищем плотность
+            density_inf = [param for param in selection_result if param["name"] == 'Плотность жидкости']
+            p1 = density_inf["response_value"]
+        
+        #!!!!!!!!!!!!! ОБРАТИТЬ ВНИМАНИЕ
+        # dt["density"] = #p1 !!!!!!!!!!!!! ОБРАТИТЬ ВНИМАНИЕ
 
-                # res = [debug_param, mixture, envs_values]
-                res.append(envs_values)
-                # return {"total_change" : res}
-            
-            #если есть
-            elif envs_param:
-                #проверить правильность
-                envs = envs_param[0]
-                #сумма мольных долей
-                r_sum = sum(list(env.values())[0] for env in envs)
-                
-                #хватает ли сред для смеси
-                if envs == [] or len(envs) == 1:
-                    envs_values = {
-                        'id': 1,
-                        'name': "Состав смеси",
-                        'description': "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)",
-                        # "code_example" : [{ "Азот" : 50}, {"Воздух" : 50}],
-                        'visibility': True,
-                        'required_type':  "select-input",
-                        "all_values": all_envs_names,
-                        "response_value" : envs,
-                        "error" : "Смесь не может состоять менее чем из двух сред!"
-                    }
+        # Максимально допустимое давление аварийного сброса;
+        P_ab_max = 1.1 * Pno
 
-                    # res = [debug_param, mixture, envs_values]
-                    res.append(envs_values)
+        # Абсолютное давление до клапана,
+        P1 = Ppo + P_atm  # < P_ab_max
 
-                #праивльная ли сумма их долей?
-                elif r_sum != 100:
-                    envs_values = {
-                        'id': 1,
-                        'name': "Состав смеси",
-                        'description': "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)",
-                        # "code_example" : [{ "Азот" : 50}, {"Воздух" : 50}],
-                        'visibility': True,
-                        'required_type':  "select-input",
-                        "all_values": all_envs_names,
-                        "response_value" : envs,
-                        "error" : f"Сумма мольных долей сред смеси должна составлять 100%, а не {r_sum}%"
-                    }
+        # Абсолютное давление за клапаном при его полном открытии
+        P2 = Pp + P_atm  # = P_sbr
 
-                    # res = [debug_param, mixture, envs_values]
-                    res.append(envs_values)
+        # Отношение абсолютных давлений;
+        B = P2 / P1
 
-                #если всё правильно
+        if "Газ" in environment_inf[0]['response_value']:
+            M = molar_mass_info[0]["response_value"]
+
+            p1 = P1 * 1000 * M / (R * (T + 273.15))
+
+            alpha = 0.8
+            # (Д.22)
+            if (Ppo / Pn) == 1.1:
+                if (Pp / Pno) <= 0.3:
+                    Kw = 1
                 else:
-                    envs_values = {
-                        'id': 1,
-                        'name': "Состав смеси",
-                        'description': "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)",
-                        # "code_example" : [{ "Азот" : 50}, {"Воздух" : 50}],
-                        'visibility': True,
-                        'required_type':  "select-input",
-                        "all_values": all_envs_names,
-                        "response_value" : envs
-                    }
-
-                    # res = [debug_param, mixture, envs_values]
-                    res.append(envs_values)
-                    # print("envs собран!")
-                    got_envs = True
-        
-        #климатика
-        if got_envs:
-            # '''
-            #список ВСЕХ климатик
-            climate = self._get_param_by_name("Климатическое исполнение по ГОСТ 15150-69", selection_result)
-            climate_values = climate
-            if "response_value" not in climate:
-                climate["id"] = 2
-                # res = [debug_param, mixture, envs_values, climate_values]
-                res.append(climate_values)
-                return {"total_change" : res}
-
-            # selection_result = [debug_param, mixture, envs_values, climate_values]
-            res.append(climate_values)
-            got_climate = True
-            '''
-            all_climate_names = self._get_param_by_name("Климатическое исполнение по ГОСТ 15150-69", selection_result)["all_values"]
-            # print("climate", all_climate_names)
-            
-
-            climate_param = self._get_param_by_name("Климатическое исполнение (ГОСТ 15150-69)", select_formula_params)
-            # print("climate_param", climate_param)
-
-            climate = climate_param["response_value"] if climate_param is not None else None
-            # print("climate", climate)
-            
-
-            #если нет
-            if climate is None:
-                #создать
-                climate_values = {
-                    'id': 2,
-                    'name': "Климатическое исполнение (ГОСТ 15150-69)",
-                    'description': "",
-                    'visibility': True,
-                    'required_type':  "list",
-                    "all_values": all_climate_names
-                }
-
-                selection_result = [debug_param, mixture, envs_values, climate_values]
-
-            #валидация нужна
-            elif climate not in all_climate_names:
-            
-                
-                climate_values = {
-                    'id': 2,
-                    'name': "Климатическое исполнение (ГОСТ 15150-69)",
-                    'description': "",
-                    'visibility': True,
-                    'required_type':  "list",
-                    "all_values": all_climate_names,
-                    "response_value" : climate,
-                    "error" : "Надо выбрать один из предложеннных вариантов"
-                }
-
-                selection_result = [debug_param, mixture, envs_values, climate_values]
-            
-            else:
-                #собрал климатику
-                climate_values = {
-                    'id': 2,
-                    'name': "Климатическое исполнение (ГОСТ 15150-69)",
-                    'description': "",
-                    'visibility': True,
-                    'required_type':  "list",
-                    "all_values": all_climate_names,
-                    "response_value" : climate
-                }
-            got_climate = True
-            '''
-                # got_climate = True
-
-        #Тип клапана
-        if got_climate:
-            #список ВСЕХ климатик
-            all_type_names = self._get_param_by_name("Тип клапана", selection_result)["all_values"]
-            # type_param = self._get_param_by_name("Тип предохранительного клапана", select_formula_params)
-            type_param = [value for param_name, value in select_formula_params.items() if param_name == "Тип предохранительного клапана"]
-            
-            type_val = type_param[0] if type_param else None # is not None
-
-            #если нет
-            if type_val is None:
-                #создать
-                type_values = {
-                    'id': 3,
-                    'name':"Тип предохранительного клапана",
-                    'description': "",
-                    'visibility': True,
-                    'required_type':  "list",
-                    "all_values": all_type_names
-                }
-
-                # res = [debug_param, mixture, envs_values, climate_values, type_values]
-                res.append(type_values)
-
-            #валидация нужна
-            elif type_val not in all_type_names:
-            
-                
-                type_values = {
-                    'id': 3,
-                    'name': "Тип предохранительного клапана",
-                    'description': "",
-                    'visibility': True,
-                    'required_type':  "list",
-                    "all_values": all_type_names,
-                    "response_value" : type_val,
-                    "error" : "Надо выбрать один из предложеннных вариантов"
-                }
-
-                # res = [debug_param, mixture, envs_values, climate_values, type_values]
-                res.append(type_values)
-
-            #собрал тип клапана
-            else:
-                type_values = {
-                    'id': 3,
-                    'name': "Тип предохранительного клапана",
-                    'description': "",
-                    'visibility': True,
-                    'required_type':  "list",
-                    "all_values": all_type_names,
-                    "response_value" : type_val
-                }
-                res.append(type_values)
-                got_type = True
-
-        #Температура
-        if got_type:
-            # задана пользователем?
-            # T_param  = self._get_param_by_name("Температура рабочей среды", select_formula_params)
-            T_param  = [value for param_name, value in select_formula_params.items() if param_name == "Температура рабочей среды"]
-            T = int(T_param[0]) if T_param else None
-
-            #если нет
-            if T is None:
-                #создать
-                T_values = {
-                    'id': 4,
-                    'name': "Температура рабочей среды",
-                    'description': "Ввведите значение температуры рабочей среды (°C)",
-                    'visibility': True,
-                    'required_type':  "user_input"
-                }
-
-                # res = [debug_param, mixture, envs_values, climate_values, type_values, T_values]
-                res.append(T_values)
-            
-            #валидировать:
-            elif (type_val == "Пружинный (В)" and (T < -60 or T > 600) ) or (type_val == "Пилотный (П)" and (T < -60 or T > 250) ):
-                T_values = {
-                    'id': 4,
-                    'name': "Температура рабочей среды",
-                    'description': "Ввведите значение температуры рабочей среды (°C)",
-                    'visibility': True,
-                    'required_type':  "user_input",
-                    "response_value" : T,
-                    "error" : "Температура должна быть в диапазоне от -60°С до 600°С для пружинных и от -60°С до 250°С для пилотных клапанов"
-                }
-
-                # res = [debug_param, mixture, envs_values, climate_values, type_values, T_values]
-                res.append(T_values)
-            
-            else:
-                T_values = {
-                    'id': 4,
-                    'name': "Температура рабочей среды",
-                    'description': "Ввведите значение температуры рабочей среды (°C)",
-                    'visibility': True,
-                    'required_type':  "user_input",
-                    "response_value" : T
-                }
-
-                got_T = True
-                #ПОТОМ УДАЛИ
-                # res = [debug_param, mixture, envs_values, climate_values, type_values, T_values]
-                res.append(T_values)
-
-        ################# РАСЧЕТ #################
-        if got_T:
-            #ключи === названия колонок БД
-            searching_table_name = "reguljator_table"
-
-            #чтобы проще было заполнять
-            # all_columns_names = await db.execute(text(f"SELECT column_name FROM information_schema.columns WHERE table_name = \'{searching_table_name}\';"))
-            # rows_all_columns_names = [row.column_name for row in all_columns_names]
-            # print("Список колонок таблицы: ", rows_all_columns_names)
-        
-
-            env_keys = {
-                "name" : "nazvanie_rabochej_sredy",
-                "environment" : "agregatnoe_sostojanie",
-                "molecular_weight" : "molekuljarnaja_massa",
-                "density" : "plotnost_zhidkosti",
-                # "density_ns": "",
-                "material" : "material",
-                "viscosity" : "vjazkost_pa_s",
-                "isobaric_capacity" : "udel_naja_izobarnaja_teploemkost_kdzh_kg_k",
-                "molar_mass" : "moljarnaja_massa",
-                "isochoric_capacity" : "udel_naja_izohornaja_teploemkost_kdzh_kg_k",
-                "adiabatic_index" : "pokazatel_adiabaty",
-                "compressibility_factor" : "faktor_szhimaemosti",
-            }
-            
-            #собрать список параметров сред
-            envs_json = []
-            env_type = set()
-
-            env_name_colunm = env_keys["name"]
-
-            for env in envs:
-                env_name = list(env.keys())[0]
-                r = env[env_name]
-                ###################### собрать sql запрос ##############################
-                env_params_sql = "SELECT "
-                for keys in env_keys.keys():
-                    colunm_name = env_keys[keys]
-                    env_params_sql += colunm_name + ", "
-                env_params_sql = env_params_sql[:-2]
-                env_params_sql += f" FROM {searching_table_name} WHERE {env_name_colunm} = \'{env_name}\';"
-                # print(env_params_sql)
-                sql_result = await db.execute( text(env_params_sql) )
-                env_result = sql_result.mappings().first()
-                # print(env_result.name)
-                ###################### обработать его в json ###########################
-                env_json = {
-                    "name" : env_result.nazvanie_rabochej_sredy,
-                    "r" : r,
-                    "environment" : env_result.agregatnoe_sostojanie,
-                    "molecular_weight" : env_result.molekuljarnaja_massa,
-                    "density" : env_result.plotnost_zhidkosti,
-                    "material" : env_result.material,
-                    "viscosity" : env_result.vjazkost_pa_s,
-                    "isobaric_capacity" : env_result.udel_naja_izobarnaja_teploemkost_kdzh_kg_k,
-                    "molar_mass" : env_result.moljarnaja_massa,
-                    "isochoric_capacity" : env_result.udel_naja_izohornaja_teploemkost_kdzh_kg_k,
-                    "adiabatic_index" : env_result.pokazatel_adiabaty,
-                    "compressibility_factor" : env_result.faktor_szhimaemosti,
-                }
-
-                #возможные типы состава сред
-                env_type.add(env_json["environment"])
-
-                #значения для ключей среды
-                envs_json.append(env_json)
-
-            result = {
-                "name" : "",
-                "environment" : "",
-                "molecular_weight" : 0,
-                "density" : 0,
-                "density_ns": 0,
-                "material" : "",
-                "viscosity" : 0,
-                "isobaric_capacity" : 0,
-                "molar_mass" : 0,
-                "isochoric_capacity" : 0,
-                "adiabatic_index" : 0,
-                "compressibility_factor" : 1,
-            }
-            r_max = 0
-            if len(env_type) == 1:
-                env_type = f"Однородная смесь - {list(env_type)[0]}"
-                result["environment"] = env_type
-
-                if list(env_type)[0] == "Жидкость":
-                    ch_den = 0
-                    zn_den = 0
-                    pre_viscosity = 0
-                    for env in envs_json:
-                        r = env["r"]
-                        result["name"] += f"{env['name']}:{r}% "
-                        result["molecular_weight"] += float(env["molecular_weight"]) * r
-                        ch_den += float(env["density"]) * r
-                        zn_den += r
-                        pre_viscosity += log10(float(env["viscosity"])) * r
-
-
-                    result["density"] = ch_den/zn_den
-                    result["density_ns"] = result["density"]
-                    result["viscosity"] = 10**(pre_viscosity)
-
-                elif list(env_type)[0] == "Газ": #если среда - газ
-                    viscosity_сh = 0
-                    viscosity_zn = 0
-                    pre_M = 0
-                    adiabatic_index = 0
-                    adiabatic_index_zn = 0
-                    for env in envs_json:
-                        r = env["r"]
-                        result["name"] += f"{env['name']}:{r}% "
-                        M_i = float(env["molar_mass"])
-                        u_i = float(env["viscosity"])
-                        pre_M += M_i * r
-                        viscosity_сh += u_i * r * sqrt(M_i)
-                        viscosity_zn += r * sqrt(M_i)
-                        adiabatic_index += float(env['adiabatic_index']) * r
-
-                        # плотность при н.у.
-                        result["density"] += (M_i * r)
-                        result["molar_mass"] = pre_M #/100
-                        result["viscosity"] = viscosity_сh / viscosity_zn
-                        result["adiabatic_index"] = adiabatic_index
-
-                        # плотность при н.у.
-                        result["density"] = result["density"] / 22.4
-            else:
-                result["environment"] = "Неоднородная смесь"
-                density_ch = 0
-                density_zn = 0
-                pre_u = 0
-                for env in envs_json:
-
-                    r = env["r"]
-                    result["name"] += f"{env['name']}:{r}% "
-
-                    # pre_viscosity += log10(env["viscosity"]) * r
-
-                    if env["environment"] == "Газ":
-                        M = float(env["molar_mass"])
-                        density_ch += (float(env["molar_mass"]) / 22.4) * r
-                        density_zn += r
-                    elif env["environment"] == "Жидкость":
-                        M = float(env["molecular_weight"])
-                        density_ch += float(env["density"]) * r
-                        density_zn += r
-
-                    pre_u += r * float(env["viscosity"]) * M
-
-                    if r > r_max:
-                        # Плотность несущей среды при нормальных условиях
-                        r_max = r
-                        result["density_ns"] = density_ch / density_zn
-
-                #рабочая плотность
-                result["density"] = density_ch / density_zn
-                result["viscosity"] = pre_u
-
-                material = []
-            
-            material = []
-            for env in envs_json:
-                if ( env['name'] == 'Сероводород' and env["r"] < 0.06 ) and result["environment"] == "Смесь":
-                    material.append(f"25Л")
+                    Kw = 1.1027 + 0.4007 * (Pp / Pno) - 2.4577 * (Pp / Pno) ** 2
+            # (Д.23)
+            elif (Ppo / Pn) == 1.15:
+                if (Pp / Pno) <= 0.37:
+                    Kw = 1
                 else:
-                    material.append(env['material'])
+                    Kw = 1.2857 - 0.7603 * (Pp / Pno)
+            # (Д.24)
+            elif ((Ppo / Pn) > 1.2) and ((Pp / Pno) >= 0.5):
+                Kw = 1
+            # (Д.25)
+            elif ((Ppo / Pn) > 1.1) and ((Ppo / Pn) <= 1.15):
+                # Kw определяют линейной интерполяцией по (Ppo / Pn) между значениями, полученными по (Д.22) и (Д.23)
+                #return {"err": f"Нет возможности расчитать {data_mean['Kw']} для соотношения 1.1 < Ppo / Pn <= 1.15, при {data_mean['Ppo']} = {Ppo} и {data_mean['Pn']} = {Pn} "}
 
-            ln = 0
-            for mat in material:
-                if len(mat) > ln:
-                    ln = len(mat)
-                    result["material"] = mat
+                # (Д.22)
+                Ppo_Pn_1 = 1.1
+                Kw_1 = 1.1027 + 0.4007 * (Pp / Pno) - 2.4577 * (Pp / Pno) ** 2
 
-            #если климатика => то материал
-            if ((climate == "ХЛ1") or (climate == "УХЛ1")) and (result["material"] == "25Л"):
-                if T < 350.0:
-                    result["material"] = "20ГЛ"
-                elif T >= 350.0 and climate == "ХЛ1":
-                    result["material"] = "12Х18Н9ТЛ"
+                # (Д.23)
+                Ppo_Pn_2 = 1.15
+                Kw_2 = 1.2857 - 0.7603 * (Pp / Pno)
 
-            ########### ЗАПОЛНИТЬ ПАРАМЕТРЫ ##########
-            param_result_dict = {
-                "name" : "",
-                "environment" : "",
-                "molecular_weight" : "",
-                "density" : "",
-                "material" : "",
-                "viscosity" : "",
-                "isobaric_capacity" : "",
-                "molar_mass" : "",
-                "isochoric_capacity" : "",
-                "adiabatic_index" : "",
-                "compressibility_factor" : "",
-            }
-            for i, param_key in enumerate(result.keys()): 
-                param = {
-                    'id': i+4,
-                    'name': param_key,
-                    'description': "",
-                    'visibility': False,
-                    'required_type':  "list",
-                    "response_value" : result[param_key]
-                }
-                res.append(param)
+                Kw = _linear_interpolation(Ppo_Pn_1, Kw_1, Ppo_Pn_2, Kw_2, Ppo / Pn)
 
+            # (Д.26)
+            elif ((Ppo / Pn) > 1.15) and ((Ppo / Pn) <= 1.2):
+                # Kw определяют линейной интерполяцией по (Ppo / Pn) между значениями, полученными по (Д.23) и (Д.24)
+                #return {"err": f"Нет возможности расчитать {data_mean['Kw']} для соотношения 1.1 < Ppo / Pn <= 1.15, при {data_mean['Ppo']} = {Ppo} и {data_mean['Pn']} = {Pn} "}
+
+                # (Д.23)
+                Ppo_Pn_1 = 1.15
+                Kw_1 = 1.2857 - 0.7603 * (Pp / Pno)
+
+                # (Д.24)
+                Ppo_Pn_2 = 1.21
+                Kw_2 = 1
+
+                Kw = _linear_interpolation(Ppo_Pn_1, Kw_1, Ppo_Pn_2, Kw_2, Ppo / Pn)
         
+            n_inf = [param for param in selection_result if param["name"] == 'Показатель адиабаты']
+            n = n_inf[0]["response_value"]
+            Bkr = (2 / (n + 1)) ** (n / (n - 1))
+            # определим режим истечения
+            if B <= Bkr:  #
+                print('критический режим истечения')
+                Kb = 1
+                if n == 1:
+                    Kp_kr = 0.60653 ** 2
+                else:
+                    # Kp_kr = n*(Bkr**((n+1)/n)) #на самом деле, тут корень, но его будем извлекать в конце
+                    Kp_kr = sqrt((2 * n) / (n + 1)) * (2 / (n + 1)) ** (1 / (n - 1))  # или можно так
+            else:  # докритический режим
+                print('докритический режим истечения')
+                Kp_kr = 1
+                if n == 1:
+                    Kb = B ** 2 * -2 * exp * log(B)  # на самом деле, тут корень, но его будем извлекать в конце
+                else:
+                    Kb = (((n + 1) / (n - 1)) * (B ** (2 / n) - B ** ((n + 1) / n)) * ((n + 1) / 2)) ** 2
+
+            # P1 * p1
+            Gideal = Kp_kr * Kb * sqrt(P1 * p1)
+
+            if Gideal <= 0:
+                return {'error': 'ошибка расчетов, Gideal <= 0 там где среда газ'}
+        else:
+            #(Д.21)
+            alpha = 0.6
+            # p1 = dt["density"]
+            if (Pp / Pno) <= 1.15:
+                Kw = 1
+            elif ((Pp / Pno) > 1.15) and ((Pp / Pno) <= 0.25):
+                Kw = 0.875 + 1.8333 * (Pp / Pno) - 6.6667 * (Pp / Pno) ** 2
+            elif (Pp / Pno) > 0.25:
+                Kw = 1.149 - 0.988 * (Pp / Pno)
+
+            Kp = sqrt(2 * (1 - B))  # на самом деле, тут корень, но его будем извлекать в конце
+            Gideal = Kp * sqrt(P1 * p1)
+
+            if Gideal <= 0:
+                return {'error': 'ошибка расчетов, Gideal <= 0 там где среда не газ'}
+        
+        DN_s = None
+        pre_DN = 0
+        Kv = 1
+
+        while DN_s != pre_DN:
+
+            pre_F = Gab / (3.6 * alpha * Kv * Kw * Kc * Gideal * N)
+            print(pre_F, ":", Gab, alpha, Kv, Kw, Kc, Gideal, N)
+            if pre_F == 0:
+                return {"error": f"Ошибка расчета, pre_F == 0"}
+            pre_DN = sqrt((4 * pre_F) / pi)
+
+            Re = (Gideal * p1 * pre_DN) / u  # Gideal
+            if (Re >= 1000) and (Re <= 100000):
+                Kv = (0.9935 + (2.8780 / Re ** 0.5) + (342.75 / Re ** 1.5)) ** (-1)
+            elif (Re < 1000):
+                Kv = 0.975 * sqrt(1 / 170 / (Re + 0.98))
+            else:
+                Kv = 1
+
+            F = Gab / (3.6 * alpha * Kv * Kw * Kc * Gideal * N)
+            DN_s = sqrt((4 * F) / pi)
+        DN_s = math.ceil(DN_s * 10) / 10
+
+        """
+        ТУТ НАЧАЛИСЬ ПРОБЛЕМЫ, ФУНКЦИИ searchT2, searchT10 
+        """
+        """
+        # перевести из МПа в кгс/см2 !!!! ЗАМЕНИТЬ НА ТУ СТРУКТУРУ ЧТО БОЛЬШЕ ПОДХОДИТ НАМ
+        new_dt = {
+            "T_min": T_min,  # Минимальная рабочая температура
+            "T_max": T_max,  # Максивальная рабочая температура
+            "Pno": Pno * 10.197162,  # Давление начала открытия с противодавлением
+            "Ppo": Ppo * 10.197162,  # Давление полного открытия с противодавлением
+            "P1": P1 * 10.197162,  # Давление на входе
+            "P2": P2 * 10.197162,  # Давление на выходе
+            "Kw": Kw,  # Коэффициент, учитывающий эффект неполного открытия разгруженных ПК из-за противодавления
+            "Gideal": Gideal,  # Массовая скорость
+            #"pre_DN": pre_DN,
+            "pre_DN": DN_s  # DN предварительный
+        }
+        new_dt["PN"] = f"Невозмажно подобрать при сочитании параметров: \nТемпература рабочей среды = {T} \n Давление настройки = {Pn}"
+        material_inf = [param for param in selection_result if param["name"] == "Материал"]
+        if material_inf[0]['response_value'] == "20ГЛ" or material_inf[0]['response_value'] == "25Л":
+            ex = searchT2(T, Pn * 10.197162)
+        else:
+            ex = searchT10(T, Pn * 10.197162)
+
+        if ex:
+            PN = ex["PN"]
+        else:
+            return {"error": "Нет возможности подобрать PN"}
+        """
 
         return {"total_change" : res}
-
-def mixture(envs : list, climate : str, T : float):
-    result = {
-        "name" : "",
-        "environment" : "",
-        "molecular_weight" : 0,
-        "density" : 0,
-        "density_ns": 0,
-        "material" : "",
-        "viscosity" : 0,
-        "isobaric_capacity" : 0,
-        "molar_mass" : 0,
-        "isochoric_capacity" : 0,
-        "adiabatic_index" : 0,
-        "compressibility_factor" : 1,
-    }
-
-    
-
-
-    r_max = 0
-    #проверка типа среды смеси
-    if len(env_type) == 1: #если среда однородная
-        result["environment"] = env_type.pop()
-        if result["environment"] == "Жидкость": #если среда - жидкость
-            ch_den = 0
-            zn_den = 0
-            pre_viscosity = 0
-            for env in envs:
-                r = env["r"]
-                result["name"] += f"{env['name']}:{r*100}% "
-                result["molecular_weight"] += env["molecular_weight"] * r
-                ch_den += env["density"] * r
-                zn_den += r
-                pre_viscosity += log10(env["viscosity"]) * r
-
-                '''
-                if r > r_max:
-                    # Плотность несущей среды
-                    r_max = r
-                    result["density_ns"] = env["density"]
-                '''
-
-
-            result["density"] = ch_den/zn_den
-            result["density_ns"] = result["density"]
-            result["viscosity"] = 10**(pre_viscosity)
-            
-            '''
-            #добавить подбор материала result["material"]
-            if "Морская вода" in result["name"]:
-                result["material"] = "12Х18Н12М3ТЛ"
-            elif ("Масло подсолнечное" in result["name"]) or ("Лимонная кислота" in result["name"]) or ("Молочная кислота" in result["name"]):
-                result["material"] = "12Х18Н9ТЛ"
-            '''
-
-        elif result["environment"] == "Газ": #если среда - газ
-            viscosity_сh = 0
-            viscosity_zn = 0
-            pre_M = 0
-            adiabatic_index = 0
-            adiabatic_index_zn = 0
-            density_ns_zn = 0
-            for env in envs:
-                r = env["r"]
-                result["name"] += f"{env['name']}:{r*100}% "
-                M_i = env["molar_mass"]
-                u_i = env["viscosity"]
-                pre_M += M_i * r
-                viscosity_сh += u_i * r * sqrt(M_i)
-                viscosity_zn += r * sqrt(M_i)
-                adiabatic_index += env['adiabatic_index'] * r
-
-                # плотность при н.у.
-                result["density_ns"] += (M_i * r)
-                #density_ns_zn += r
-                '''
-                if r > r_max:
-                    # Плотность несущей среды
-                    r_max = r
-                    result["density_ns"] = ((env["molar_mass"] / 22.4) * r) / r
-                '''
-                
-            result["molar_mass"] = pre_M #/100
-            result["viscosity"] = viscosity_сh / viscosity_zn
-            result["adiabatic_index"] = adiabatic_index
-
-            # плотность при н.у.
-            result["density_ns"] = result["density_ns"] / 22.4
-            result["density"] = None
-            #result["density"] = result["density_ns"] * (273.15) / (T + 273.15)
-
-            print()
-
-    else:
-        result["environment"] = "Смесь"
-        density_ch = 0
-        density_zn = 0
-        pre_u = 0
-        for env in envs:
-
-            r = env["r"]
-            result["name"] += f"{env['name']}:{r*100}% "
-
-            # pre_viscosity += log10(env["viscosity"]) * r
-
-            if env["environment"] == "Газ":
-                M = env["molar_mass"]
-                density_ch += (env["molar_mass"] / 22.4) * r
-                density_zn += r
-            elif env["environment"] == "Жидкость":
-                M = env["molecular_weight"]
-                density_ch += env["density"] * r
-                density_zn += r
-
-            pre_u += r * env["viscosity"] * M
-
-            if r > r_max:
-                # Плотность несущей среды при нормальных условиях
-                r_max = r
-                result["density_ns"] = density_ch / density_zn
-
-        #рабочая плотность
-        result["density"] = density_ch / density_zn
-        result["viscosity"] = pre_u
-        # result["viscosity"] = 10**(pre_viscosity)
-
-    material = []
-    for env in envs:
-        if env['name'] == 'Сероводород' and r < 0.06 and result["environment"] == "Смесь":
-            material.append(f"25Л")
-        else:
-            material.append(env['material'])
-
-    ln = 0
-    for mat in material:
-        if len(mat) > ln:
-            ln = len(mat)
-            result["material"] = mat
-
-    #если климатика => то материал
-    if ((climate == "ХЛ1") or (climate == "УХЛ1")) and (result["material"] == "25Л"):
-        if T < 350.0:
-            result["material"] = "20ГЛ"
-        elif T >= 350.0 and climate == "ХЛ1":
-            result["material"] = "12Х18Н9ТЛ"
-
-    result["T"] = T
-
-    return result
 
 ALLOWED_FUNCTIONS =  [method for method in dir(CodeParametr) if callable(getattr(CodeParametr, method)) and not method.startswith("__")]
