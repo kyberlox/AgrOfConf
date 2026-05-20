@@ -170,6 +170,13 @@ async def process_table_data(
 
     if not selected_params:
 
+        print(
+            db,
+            product_id,
+            table_name,
+            schema_params,
+        )
+
         await ensure_dm_exists(
             db,
             product_id,
