@@ -50,14 +50,14 @@ services:
     networks:
       - app-network
 
-  frontend:
-    build: ./front
-    container_name: frontend
-    ports:
-      #- "127.0.0.1:5173:5173"
-      - "5173:5173"
-    networks:
-      - app-network
+  # frontend:
+  #   build: ./front
+  #   container_name: frontend
+  #   ports:
+  #     #- "127.0.0.1:5173:5173"
+  #     - "5173:5173"
+  #   networks:
+  #     - app-network
 
 
 
