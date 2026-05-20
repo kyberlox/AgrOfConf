@@ -55,9 +55,9 @@ services:
 frontend:
    container_name: frontend
    build: ./front
-   volumes:
+  #  volumes:
      #- ./front/:/app/
-     - ./app_logs/frontend:/app/logs  # Логи фронтенда
+    #  - ./app_logs/frontend:/app/logs  # Логи фронтенда
    ports:
      #- "127.0.0.1:5173:5173"
      - "5173:5173"
