@@ -130,35 +130,29 @@ async def process_table_data(
     )
     
     # product_name = product_result.scalar_one_or_none()
-    products_names = {product.table_name for product in product_result}
+    products_names = list({product.table_name for product in product_result})
     print("Продукт: ", products_names)
 
-    if not product_name:
+    if products_names == []:
         raise HTTPException(status_code=404, detail="Продукция не найдена")
+    
+    #####################################
+    # когда несоклько таблиц у продукта
+    #####################################
 
-    # table_name = f"{to_sql_name_lat(product_name)}_table"
-    table_name = f"{to_sql_name_lat(product_name)}"
+    for product_name in products_names:
 
-    # Получаем параметры продукции
-    # schema_result = await db.execute(
-    #     text("""
-    #         SELECT name
-    #         FROM parameter_schemas
-    #         WHERE product_id = :product_id and type = 'Table'
-    #     """),
-    #     {"product_id": product_id},
-    # )
+        # table_name = f"{to_sql_name_lat(product_name)}_table"
+        table_name = f"{to_sql_name_lat(product_name)}"
 
-    # schema_params = [row[0] for row in schema_result.fetchall()]
-
-    schema_full_result = await db.execute(
-        text("""
-            SELECT *
-            FROM parameter_schemas
-            WHERE product_id = :product_id and type = 'Table' 
-        """),
-        {"product_id": product_id},
-    )
+        schema_full_result = await db.execute(
+            text("""
+                SELECT *
+                FROM parameter_schemas
+                WHERE product_id = :product_id and type = 'Table' 
+            """),
+            {"product_id": product_id},
+        )
 
     full_info = schema_full_result.mappings().all()
 
