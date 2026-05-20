@@ -158,8 +158,6 @@ async def process_table_data(
         {"product_id": product_id},
     )
 
-    print(schema_full_result)
-
     full_info = schema_full_result.mappings().all()
 
     # print("Список табличных параметров по схеме: ", full_info)
@@ -173,6 +171,7 @@ async def process_table_data(
     if not selected_params:
 
         print(
+            "yf 'nj gjl,jh"
             db,
             product_id,
             table_name,
