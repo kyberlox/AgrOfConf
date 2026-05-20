@@ -158,6 +158,8 @@ async def process_table_data(
         {"product_id": product_id},
     )
 
+    print(schema_full_result)
+
     full_info = schema_full_result.mappings().all()
 
     # print("Список табличных параметров по схеме: ", full_info)
