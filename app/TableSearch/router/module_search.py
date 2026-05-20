@@ -131,7 +131,7 @@ async def process_table_data(
     
     # product_name = product_result.scalar_one_or_none()
     products_names = [product.table_name for product in product_result]
-    print("Продукт: ", product_name)
+    print("Продукт: ", products_names)
 
     if not product_name:
         raise HTTPException(status_code=404, detail="Продукция не найдена")
