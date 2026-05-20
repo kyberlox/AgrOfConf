@@ -129,7 +129,8 @@ async def process_table_data(
         {"id": product_id},
     )
     
-    product_name = product_result#.scalar_one_or_none()
+    # product_name = product_result.scalar_one_or_none()
+    products_names = [product.name for pruduct in product_result]
     print("Продукт: ", product_name)
 
     if not product_name:
