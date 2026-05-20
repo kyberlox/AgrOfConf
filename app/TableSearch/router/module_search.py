@@ -125,7 +125,7 @@ async def process_table_data(
 
     # Получаем продукцию
     product_result = await db.execute(
-        text("SELECT name FROM products WHERE id = :id"),
+        text("SELECT table_name FROM parameter_schemas WHERE product_id = :id"),
         {"id": product_id},
     )
     
@@ -135,7 +135,8 @@ async def process_table_data(
     if not product_name:
         raise HTTPException(status_code=404, detail="Продукция не найдена")
 
-    table_name = f"{to_sql_name_lat(product_name)}_table"
+    # table_name = f"{to_sql_name_lat(product_name)}_table"
+    table_name = f"{to_sql_name_lat(product_name)}"
 
     # Получаем параметры продукции
     # schema_result = await db.execute(
@@ -170,13 +171,9 @@ async def process_table_data(
 
     if not selected_params:
 
-        print(
-            "yf 'nj gjl,jh",
-            db,
-            product_id,
-            table_name,
-            schema_params,
-        )
+        print("product_id", product_id)
+        print("table_name", table_name)
+        print("schema_params", schema_params)
 
         await ensure_dm_exists(
             db,
