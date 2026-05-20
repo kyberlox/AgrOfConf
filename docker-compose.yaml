@@ -33,8 +33,6 @@ services:
     networks:
       - app-network
   
-
-
   fastapi:
     build: ./app
     container_name: fastapi_1
