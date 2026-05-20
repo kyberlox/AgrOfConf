@@ -171,7 +171,7 @@ async def process_table_data(
     if not selected_params:
 
         print(
-            "yf 'nj gjl,jh"
+            "yf 'nj gjl,jh",
             db,
             product_id,
             table_name,
