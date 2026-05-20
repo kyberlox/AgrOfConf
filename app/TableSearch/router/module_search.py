@@ -164,6 +164,8 @@ async def process_table_data(
     
     # print("Список имен параметров по схеме: ", schema_params)
 
+    product_name = await db.execute(text("SELECT name FROM products WHERE id = :id"), {"id": product_id}).scalar_one_or_none()
+
     if not selected_params:
 
         print("product_id", product_id)
