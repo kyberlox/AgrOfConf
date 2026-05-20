@@ -1,0 +1,37 @@
+.paramsSelect {
+  @apply p-[16px] border border-transparent flex flex-row gap-[8px] font-[400] text-[16px] rounded-[8px] bg-[#F6F7F9] outline-0 w-full min-h-[54px] cursor-pointer duration-300 transition-all;
+}
+.paramsSelect:hover {
+  border: 1px solid #f36e3c;
+}
+
+.paramsSelect__option--marked {
+  @apply bg-[#61f679] text-[black];
+}
+
+.paramsSelect__wrapper {
+  @apply flex flex-col gap-[6px] w-full;
+}
+
+.paramsSelect__wrapper--disabled {
+  @apply text-gray-200;
+}
+
+.paramsSelect__wrapper--disabled > .paramsSelect__inner > .paramsSelect {
+  @apply bg-[#F6F7F9] appearance-none;
+}
+
+.paramsSelect__label {
+  @apply text-[13px] font-[600] flex flex-row justify-between gap-[4px];
+}
+
+.paramsSelect__error {
+  @apply text-red-600 text-[13px];
+}
+.paramsSelect__error__icon {
+  @apply min-w-[14px] h-[14px];
+}
+
+.paramsSelect__error__wrapper {
+  @apply text-red-600 flex flex-row gap-[4px] items-center;
+}

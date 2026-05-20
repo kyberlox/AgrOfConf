@@ -1,0 +1,6 @@
+.info-circle {
+  @apply text-[var(--icon-color-secondary)];
+}
+.alert-circle {
+  @apply w-[14px] h-[14px] text-[var(--icon-color-secondary)];
+}
