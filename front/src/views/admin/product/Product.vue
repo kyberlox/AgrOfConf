@@ -105,7 +105,6 @@ import CloseIcon from '@/assets/icons/Cross.svg?component';
 import Plus from '@/assets/icons/Plus.svg?component';
 import { useProductsData } from '@/stores/products';
 import { startDrag, onOver, onLeave, onDrop } from '@/utils/DragEvents';
-import { VueDraggable } from 'vue-draggable-plus';
 import SettingsIcon from '@/assets/icons/Settings.svg?component';
 import ParameterSettings from './ParameterSettings.vue';
 import type { IParameter } from '@/assets/interfaces/IParameter';
@@ -118,7 +117,6 @@ export default defineComponent({
         CloseIcon,
         Plus,
         TransitionGroup,
-        VueDraggable,
         SettingsIcon,
         ParameterSettings
     },
