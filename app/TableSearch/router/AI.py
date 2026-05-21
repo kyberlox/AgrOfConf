@@ -7,7 +7,7 @@ from pathlib import Path
 import shutil
 
 from gigachat import GigaChat
-from gigachat.models import Messages, MessagesRole
+from gigachat.models import Chat, Messages, MessagesRole
 
 router = APIRouter(prefix="/AI", tags=[""])
 
@@ -42,16 +42,14 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
         file_id = uploaded_file.id_
         print(f"Файл успешно загружен. ID: {file_id}")
 
-        messages = Messages(
-            messages=[
-                Messages(
-                    role="user",
-                    content="Распознай и выведи весь текст, который содержится в этом файле. "
-                            "Выведи только распознанный текст, без каких-либо дополнительных комментариев.",
-                    attachments=[file_id]
-                )
-            ]
-        )
+        messages=[
+            Messages(
+                role="user",
+                content="Распознай и выведи весь текст, который содержится в этом файле. "
+                        "Выведи только распознанный текст, без каких-либо дополнительных комментариев.",
+                attachments=[file_id]
+            )
+        ]
         response = client.chat(messages, model=model)
         if response and response.choices:
             return response.choices[0].message.content
@@ -79,12 +77,6 @@ async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
             "size": len(content_sample),  # реальный размер требует полного чтения
             "sample_bytes": content_sample.hex()[:100]  # первые байты в hex (для демонстрации)
         })
-
-        from pathlib import Path
-
-        # Получаем список всех файлов и директорий в текущей директории
-        for item in Path('..').iterdir():
-            print(item)
 
         file_path = f"../uploads/{file.filename}"
         with open(file_path, "wb") as buffer:
