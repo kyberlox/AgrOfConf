@@ -6,7 +6,7 @@ from pathlib import Path
 import shutil
 
 from gigachat import GigaChat
-from gigachat.models import Messages, Message
+from gigachat.models import Messages, MessagesRole
 
 router = APIRouter(prefix="/AI", tags=[""])
 
@@ -42,7 +42,7 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
 
         messages = Messages(
             messages=[
-                Message(
+                Messages(
                     role="user",
                     content="Распознай и выведи весь текст, который содержится в этом файле. "
                             "Выведи только распознанный текст, без каких-либо дополнительных комментариев.",
