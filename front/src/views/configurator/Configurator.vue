@@ -99,7 +99,7 @@ export default defineComponent({
         }
 
         onMounted(() => {
-            // paramsUpdate(null);
+            paramsUpdate(null);
             console.log(neuroOlData.value);
 
             if (neuroOlData.value) {

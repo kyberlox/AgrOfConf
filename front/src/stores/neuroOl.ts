@@ -9,6 +9,6 @@ export const useNeuroOlData = defineStore('neuroDataStore', {
         }
     },
     getters: {
-        getOlInfo: (state) => state.olInfo
+        getOlInfo: (state) => Object.keys(state.olInfo).length ? state.olInfo : null
     }
 })

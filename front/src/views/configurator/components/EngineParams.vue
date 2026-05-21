@@ -33,6 +33,7 @@
         <!-- выпадающий список -->
         <BaseSelect v-else-if="(param.name !== 'sep')"
                     :propsLabel="param.name"
+                    :propsId="param.name"
                     :propsClass="'paramsSelect'"
                     :propsValue="(param as IFormattedData).response_value ? String((param as IFormattedData).response_value) : ''"
                     :propsOptions="switchOptions(param as IFormattedData)"
@@ -49,8 +50,7 @@
 </template>
 
 <script lang='ts'>
-import { BaseSelect } from 'beans-ui-kit';
-import { defineComponent, h, ref, computed, render, watchEffect } from 'vue';
+import { defineComponent, ref, computed, render, watchEffect } from 'vue';
 import ParamsHeaderIcons from './ParamsHeaderIcons.vue';
 import type { IFormattedData } from '@/assets/interfaces/IForm';
 import { createLabelIconsComponent } from '@/composables/createComponent';
@@ -58,7 +58,7 @@ import AlertCircle from '@/assets/icons/AlertCircle.svg?component';
 import { useWindowSize } from '@vueuse/core'
 import RequiredIcon from '@/assets/icons/RequiredIcon.svg?component';
 import SelectInput from '@/components/SelectInput.vue';
-import { BaseInput } from 'beans-ui-kit';
+import { BaseInput, BaseSelect } from 'beans-ui-kit';
 
 export default defineComponent({
     components: {
@@ -122,7 +122,6 @@ export default defineComponent({
             AlertCircle,
             gridCols,
             renderData,
-            h,
             createLabelIconsComponent,
             switchOptions
         }
