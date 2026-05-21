@@ -17,12 +17,10 @@
     "axios": "^1.13.6",
     "beans-ui-kit": "^0.0.43",
     "downloadjs": "^1.4.7",
-    "dropzone": "^6.0.0-beta.2",
     "pinia": "^3.0.4",
     "tailwindcss": "^4.2.1",
     "tslint": "^5.20.1",
     "vue": "^3.5.29",
-    "vue-draggable-plus": "^0.6.1",
     "vue-router": "^5.0.3",
     "vue3-toastify": "^0.2.9"
   },

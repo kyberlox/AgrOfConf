@@ -107,15 +107,6 @@ export default defineComponent({
             }
         })
 
-        // const formatData = (data: IFormattedData[]) => {
-        //     const formattedData: IFormattedData[] = [];
-        //     const dataKeys = Object.keys(data)
-        //     dataKeys.forEach(key => {
-        //         formattedData.push({ name: key, values: data[key] as string[] })
-        //     });
-        //     return formattedData;
-        // }
-
         const handleValueChanged = (value: string, key: string) => {
             if (value)
                 console.log(value, '|', key);
