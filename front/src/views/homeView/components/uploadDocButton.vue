@@ -2,9 +2,10 @@
 <div class="dropzone-container p-[20px] w-[480px] max-w-full border border-(--color-information-orange-200) hover:bg-(--color-information-orange-200) transition-all duration-300 cursor-pointer border-dotted flex flex-col gap-[4px] rounded-[12px] text-center"
      :class="[{ 'bg-(--color-information-green-50) hover:bg-(--color-information-green-150)!': type == 'inConfig' },
     isDragOver && type !== 'inConfig' ? 'bg-(--color-information-orange-200)' : isDragOver && type == 'inConfig' ? 'bg-(--color-information-green-150)!' : '']"
-     @dragstart="isDragOver = true"
      @dragend="isDragOver = false"
-     @drop.prevent="dragFile">
+     @drop.prevent="dragFile"
+     @dragover="isDragOver = true"
+     @dragleave="isDragOver = false">
 
     <input type="file"
            ref="fileInput"
