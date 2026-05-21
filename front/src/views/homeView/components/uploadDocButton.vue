@@ -17,11 +17,11 @@
 </template>
 <script lang='ts'>
 import { defineComponent, ref } from 'vue';
-import { DropZone } from 'dropzone-vue';
+// import { DropZone } from 'dropzone-vue';
 
 export default defineComponent({
     components: {
-        DropZone
+        // DropZone
     },
     props: {},
     setup() {

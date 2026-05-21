@@ -17,7 +17,7 @@
     "axios": "^1.13.6",
     "beans-ui-kit": "^0.0.43",
     "downloadjs": "^1.4.7",
-    "dropzone-vue": "^0.1.11",
+    "dropzone": "^6.0.0-beta.2",
     "pinia": "^3.0.4",
     "tailwindcss": "^4.2.1",
     "tslint": "^5.20.1",
