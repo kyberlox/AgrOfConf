@@ -78,12 +78,11 @@ async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
             "sample_bytes": content_sample.hex()[:100]  # первые байты в hex (для демонстрации)
         })
 
-        import os
+        from pathlib import Path
 
-        # Получаем список содержимого текущей директории
-        contents = os.listdir()
-        print("Содержимое папки:")
-        print(contents)
+        # Получаем список всех файлов и директорий в текущей директории
+        for item in Path('..').iterdir():
+            print(item)
 
         file_path = f"../uploads/{file.filename}"
         with open(file_path, "wb") as buffer:
