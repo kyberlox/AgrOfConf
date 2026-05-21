@@ -1,10 +1,12 @@
 <template>
 <div class="dropzone-container p-[20px] w-[480px] max-w-full border border-(--color-information-orange-200) hover:bg-(--color-information-orange-200) transition-all duration-300 cursor-pointer border-dotted flex flex-col gap-[4px] rounded-[12px] text-center"
-     ref="dropzoneElement">
-    <form class="dropzone"
+     :class="{ 'bg-(--color-information-green-50) hover:bg-(--color-information-green-150)!': type == 'inConfig' }"
+     ref="dropzoneElement"
+     @click="handleContainerClick">
+    <form class="dropzone cursor-pointer!"
           id="my-awesome-dropzone">
         <div class="dz-message"
-             v-if="!uploadedFileName"
+             v-if="!uploadedFileName && type == 'outer'"
              data-dz-message>
             <span class="text-[16px] font-semibold text-(--color-information-orange-800)">
                 Распознать ОЛ
@@ -16,8 +18,22 @@
                 Перетащите файл сюда или нажмите для выбора
             </span>
         </div>
+        <div class="flex flex-row items-center justify-between"
+             v-else-if="type == 'inConfig'">
+            <div class="flex flex-col gap-[4px] text-left">
+                <span class="text-[16px] font-semibold text-(--text-text-primary)">
+                    Поля Распознаны
+                </span>
+                <span class="text-[13px] font-normal text-(--text-text-secondary) block">
+                    Перепроверьте на всякий случай
+                </span>
+            </div>
+            <span class="text-[16px] text-(--color-information-orange-800) block ">
+                Загрузить другой
+            </span>
+        </div>
         <div v-else
-             class="text-[16px] text-(--text-text-tertiary) block mt-2">
+             class="text-[16px] text-(--text-text-tertiary) block">
             {{ uploadedFileName }}
         </div>
     </form>
@@ -30,14 +46,33 @@ import { defineComponent, ref, onMounted, onUnmounted } from 'vue';
 import Dropzone from "dropzone";
 import "dropzone/dist/dropzone.css";
 import { useRouter } from 'vue-router';
-import { neuroOlData } from '@/stores/neuroOl';
+import { useNeuroOlData } from '@/stores/neuroOl';
 
 export default defineComponent({
     name: 'UploadDocButton',
+    props: {
+        type: {
+            type: String,
+            default: 'outer'
+        }
+    },
     setup() {
         const dropzoneElement = ref<HTMLElement | null>(null);
         let dropzoneInstance: Dropzone | null = null;
         const uploadedFileName = ref('');
+        const router = useRouter();
+
+        const handleContainerClick = (event: MouseEvent) => {
+            // Предотвращаем двойное срабатывание при клике на форму
+            if ((event.target as HTMLElement).closest('form')) {
+                return;
+            }
+
+            // Если есть экземпляр Dropzone, открываем диалог выбора файла
+            if (dropzoneInstance) {
+                dropzoneInstance.hiddenFileInput?.click();
+            }
+        };
 
         onMounted(() => {
             if (!dropzoneElement.value) return;
@@ -70,8 +105,10 @@ export default defineComponent({
                     });
                     this.on("success", (file, response) => {
                         console.log("Файл успешно загружен:", file, response);
-                        useRouter().push({ name: 'configurator', params: { id: 1 } })
-                        neuroOlData().setData(response)
+                        useNeuroOlData().setData(response as Object)
+                        console.log(useNeuroOlData().getOlInfo);
+
+                        router.push({ name: 'configurator', params: { id: 1 } })
                     });
                     this.on("error", (file, errorMessage) => {
                         console.error("Ошибка загрузки:", errorMessage);
@@ -91,7 +128,8 @@ export default defineComponent({
 
         return {
             uploadedFileName,
-            dropzoneElement
+            dropzoneElement,
+            handleContainerClick
         };
     }
 });
@@ -103,6 +141,15 @@ export default defineComponent({
   background: transparent !important;
   min-height: auto !important;
   padding: 0 !important;
+  cursor: pointer !important;
+}
+
+.dropzone.dz-clickable *{
+  cursor: pointer !important;
+}
+
+.dropzone-container{
+  cursor: pointer !important;
 }
 
 .dropzone .dz-message {
@@ -117,6 +164,8 @@ export default defineComponent({
   border-radius: 8px;
 }
 
+
+
 .dropzone .dz-preview .dz-details {
   padding: 8px;
 }
@@ -127,8 +176,9 @@ export default defineComponent({
 }
 
 .dropzone .dz-preview .dz-error-message {
-  top: 140px;
+  /* top: 140px; */
 }
+
 
 .dropzone .dz-preview .dz-remove {
   font-size: 14px;
@@ -138,5 +188,9 @@ export default defineComponent({
 
 .dropzone .dz-preview .dz-remove:hover {
   color: var(--color-information-orange-600);
+}
+
+.dz-default.dz-message {
+  display: none !important;
 }
 </style>

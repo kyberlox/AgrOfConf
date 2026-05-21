@@ -4,7 +4,7 @@
         <h1 class="max-w-[160px]">
             Выберите изделие
         </h1>
-        <UploadDocButton />
+        <UploadDocButton :type="'outer'" />
     </div>
     <!-- Карточки приводов -->
     <div class="flex flex-col gap-[12px]">
@@ -34,7 +34,7 @@
 <script lang='ts'>
 import { defineComponent, type PropType } from 'vue';
 import type { IProduct } from '@/assets/interfaces/IProduct';
-import UploadDocButton from './UploadDocButton.vue';
+import UploadDocButton from '@/views/homeView/components/uploadDocButton.vue';
 
 export default defineComponent({
     components: {

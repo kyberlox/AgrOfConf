@@ -99,7 +99,6 @@ export default defineComponent({
 
         const switchOptions = (param: IFormattedData) => {
             if (param.response_value || !('filtered_values' in param)) {
-                console.log('1')
                 return Array.isArray(param.all_values) ? param.all_values : [param.all_values];
             }
             else if ('filtered_values' in param && param.filtered_values?.length && !param.response_value) {

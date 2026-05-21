@@ -4,8 +4,8 @@ export const useNeuroOlData = defineStore('neuroDataStore', {
         olInfo: {}
     }),
     actions: {
-        setData(newData) {
-            this.data = newData
+        setData(newData: object) {
+            this.olInfo = newData
         }
     },
     getters: {
