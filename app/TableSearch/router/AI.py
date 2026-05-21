@@ -43,22 +43,13 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
         file_id = uploaded_file.id_
         print(f"Файл успешно загружен. ID: {file_id}")
 
-        messages=[
-            Messages(
-                role=MessagesRole.USER,
-                content="Распознай и выведи весь текст, который содержится в этом файле. "
-                        "Выведи только распознанный текст, без каких-либо дополнительных комментариев.",
-                attachments=[file_id]
-            )
-        ]
-        messages=[
-            {
-                # "role": "user",
-                "content": "Распознай весь текст на изображении и верни его без изменений"#,  # промпт для распознавания
-                # "attachments": [file_id]  # ID загруженного файла
-            }
-        ]
-        response = client.chat(messages)#, model=model)
+        message =Messages(
+            role=MessagesRole.USER,
+            content="Распознай и выведи весь текст, который содержится в этом файле. "
+                    "Выведи только распознанный текст, без каких-либо дополнительных комментариев.",
+            attachments=[file_id]
+        )
+        response = client.chat(message)#messages)#, model=model)
         if response and response.choices:
             return response.choices[0].message.content
         else:
@@ -90,7 +81,7 @@ async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        print(recognize_text_from_file(file_path))
+        print(recognize_text_from_file(file_path)
 
         return {
             "Устройство принудительного открытия": "требуется",
