@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, APIRouter
 import json
 from typing import Dict, Any
 
-router = APIRouter(prefix="AI", tags=["AI Module"])
+router = APIRouter(prefix="/AI", tags=["AI Module"])
 
 @app.post("/upload_OL/")
 async def upload_file(file: UploadFile = File(...)) -> Dict[str, Any]:
