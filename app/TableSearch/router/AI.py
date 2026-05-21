@@ -53,7 +53,7 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
         ]
         messages=[
             {
-                "role": "user",
+                # "role": "user",
                 "content": "Распознай весь текст на изображении и верни его без изменений"#,  # промпт для распознавания
                 # "attachments": [file_id]  # ID загруженного файла
             }
