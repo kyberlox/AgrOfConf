@@ -34,11 +34,11 @@
 <script lang='ts'>
 import { defineComponent, type PropType } from 'vue';
 import type { IProduct } from '@/assets/interfaces/IProduct';
-// import UploadDocButton from './uploadDocButton.vue';
+import UploadDocButton from './UploadDocButton.vue';
 
 export default defineComponent({
     components: {
-        // UploadDocButton
+        UploadDocButton
     },
     props: {
         items: {
