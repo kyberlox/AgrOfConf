@@ -2,7 +2,19 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, APIRouter
 import json
 from typing import Dict, Any
 
-router = APIRouter(prefix="/AI", tags=["AI Module"])
+from gigachat import GigaChat
+
+router = APIRouter(prefix="/AI", tags=["GigaChat-2-Pro"])
+
+client_id = "019cfb75-d657-765b-9e14-8d227ea7449d"
+scope= "GIGACHAT_API_PERS"
+API_KEY = "MDE5Y2ZiNzUtZDY1Ny03NjViLTllMTQtOGQyMjdlYTc0NDlkOmM4YzBlMWFlLWJkNDAtNDM0MC05YmUzLTFkOThmYzU0ZWRlMg=="
+
+def rspozNAT():
+    with GigaChat(credentials=API_KEY, model='название_модели') as client:
+        response = client.chat("Hello, GigaChat!")
+        print(response.choices[0].message.content)
+
 
 @router.post("/upload_OL")
 async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
@@ -23,11 +35,13 @@ async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
             "sample_bytes": content_sample.hex()[:100]  # первые байты в hex (для демонстрации)
         })
 
+        rspozNAT()
+
         return {
             "Устройство принудительного открытия": "требуется",
             "Тип конструкции": "Клапан пружинный с устройством принудительного открытия",
             "Номинальный диаметр": "100",
-            "Номинальное давление": "10.0",
+            "Номинальное давление": "16",
             "Тип присоединения к трубопроводу": "фланцевое",
             "Материал корпуса": "хладостойкая сталь (20ГЛ)"
         }
