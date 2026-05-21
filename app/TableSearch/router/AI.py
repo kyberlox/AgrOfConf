@@ -2,19 +2,62 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, APIRouter
 import json
 from typing import Dict, Any
 
-from gigachat import GigaChat
+from pathlib import Path
+import shutil
 
-router = APIRouter(prefix="/AI", tags=["GigaChat-2-Pro"])
+from gigachat import GigaChat
+from gigachat.models import Messages, Message
+
+router = APIRouter(prefix="/AI", tags=[""])
 
 client_id = "019cfb75-d657-765b-9e14-8d227ea7449d"
 scope= "GIGACHAT_API_PERS"
 API_KEY = "MDE5Y2ZiNzUtZDY1Ny03NjViLTllMTQtOGQyMjdlYTc0NDlkOmM4YzBlMWFlLWJkNDAtNDM0MC05YmUzLTFkOThmYzU0ZWRlMg=="
 
-def rspozNAT():
-    with GigaChat(credentials=API_KEY, model='название_модели') as client:
-        response = client.chat("Hello, GigaChat!")
-        print(response.choices[0].message.content)
+def recognize_text_from_file(file_path: str, credentials: str = None, model: str = "GigaChat-Pro-vision") -> str | None: #GigaChat-2-Pro
+    file_path_obj = Path(file_path)
+    if not file_path_obj.exists():
+        raise FileNotFoundError(f"Файл {file_path} не найден")
 
+    allowed_extensions = ('.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.bmp')
+    if file_path_obj.suffix.lower() not in allowed_extensions:
+        raise ValueError(f"Неподдерживаемый формат. Допустимы: {', '.join(allowed_extensions)}")
+
+    if credentials is None:
+        credentials = os.getenv("GIGACHAT_CREDENTIALS")
+        if not credentials:
+            raise ValueError("Укажите credentials или установите переменную окружения GIGACHAT_CREDENTIALS")
+
+    # Параметр verify_ssl_certs всё ещё нужен, чтобы клиент не пытался использовать внутренний сертификатный бандл
+    client = GigaChat(
+        credentials=credentials,
+        verify_ssl_certs=False,
+        timeout=600
+    )
+
+    try:
+        with open(file_path_obj, "rb") as f:
+            uploaded_file = client.upload_file(f, purpose="general")
+        file_id = uploaded_file.id
+
+        messages = Messages(
+            messages=[
+                Message(
+                    role="user",
+                    content="Распознай и выведи весь текст, который содержится в этом файле. "
+                            "Выведи только распознанный текст, без каких-либо дополнительных комментариев.",
+                    attachments=[file_id]
+                )
+            ]
+        )
+        response = client.chat(messages, model=model)
+        if response and response.choices:
+            return response.choices[0].message.content
+        else:
+            return None
+    except Exception as e:
+        print(f"Ошибка обработки: {e}")
+        raise
 
 @router.post("/upload_OL")
 async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
@@ -35,7 +78,11 @@ async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
             "sample_bytes": content_sample.hex()[:100]  # первые байты в hex (для демонстрации)
         })
 
-        rspozNAT()
+        file_path = f"./{file.filename}"
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        recognize_text_from_file()
 
         return {
             "Устройство принудительного открытия": "требуется",
