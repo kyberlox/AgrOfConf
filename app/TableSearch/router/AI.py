@@ -58,7 +58,7 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
         print(f"Ошибка обработки: {e}")
         raise
 
-print(recognize_text_from_file(file_path))
+# print(recognize_text_from_file(file_path))
 
 @router.post("/upload_OL")
 async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
