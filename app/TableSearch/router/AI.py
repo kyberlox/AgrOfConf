@@ -23,7 +23,7 @@ def extract_any_json(text):
             print(f"Ошибка парсинга JSON: {e}")
             return None
     else:
-        "JSON-объект не найден")
+        print("JSON-объект не найден")
         return None
 
 
