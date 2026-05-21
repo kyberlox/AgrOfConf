@@ -16,12 +16,12 @@ async def upload_file(file: UploadFile = File(...)) -> Dict[str, Any]:
         # Возвращаем указатель файла в начало, если нужно дальнейшее чтение
         await file.seek(0)
 
-        print(
+        print({
             "filename": file.filename,
             "content_type": file.content_type,
             "size": len(content_sample),  # реальный размер требует полного чтения
             "sample_bytes": content_sample.hex()[:100]  # первые байты в hex (для демонстрации)
-        )
+        })
 
         return {
             "Устройство принудительного открытия": "требуется",
