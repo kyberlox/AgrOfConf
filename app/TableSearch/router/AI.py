@@ -45,7 +45,7 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
 
         messages=[
             Messages(
-                role="user",
+                role=MessagesRole.USER,
                 content="Распознай и выведи весь текст, который содержится в этом файле. "
                         "Выведи только распознанный текст, без каких-либо дополнительных комментариев.",
                 attachments=[file_id]
