@@ -55,7 +55,7 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
             {
                 "role": "user",
                 "content": "Распознай весь текст на изображении и верни его без изменений",  # промпт для распознавания
-                "attachments": [uploaded_file.id]  # ID загруженного файла
+                "attachments": [file_id]  # ID загруженного файла
             }
         ]
         response = client.chat(messages)#, model=model)
