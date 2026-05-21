@@ -50,7 +50,7 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
                 attachments=[file_id]
             )
         ]
-        response = client.chat(messages, model=model)
+        response = client.chat(messages)#, model=model)
         if response and response.choices:
             return response.choices[0].message.content
         else:
