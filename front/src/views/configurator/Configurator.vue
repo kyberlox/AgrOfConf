@@ -33,6 +33,7 @@
                 </div>
             </div>
             <EngineParams :form="form"
+                          :type="neuroOlData ? 'free' : 'auto'"
                           :key="paramsRenderKey"
                           @valueChanged="(value: string, key: string) => handleValueChanged(value, key)" />
             <div class="flex flex-row justify-end gap-[8px]">

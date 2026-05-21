@@ -42,7 +42,7 @@
                     :labelIcon="createLabelIconsComponent(param as IFormattedData, () => console.log('abob'))"
                     :error="'error' in param ? param.error : ''"
                     :errorIcon="AlertCircle"
-                    :disabled="(!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')"
+                    :disabled="((!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')) && type == 'auto'"
                     @valueChanged="(value: string) => $emit('valueChanged', value, param.name)" />
     </template>
 </div>
@@ -73,6 +73,10 @@ export default defineComponent({
         form: {
             type: Array<IFormattedData>,
             requied: true
+        },
+        type: {
+            type: String,
+            default: 'auto'
         }
     },
     emits: ['valueChanged'],
@@ -98,7 +102,7 @@ export default defineComponent({
         })
 
         const switchOptions = (param: IFormattedData) => {
-            if (param.response_value || !('filtered_values' in param)) {
+            if (param.response_value || !('filtered_values' in param) || props.type == 'free') {
                 return Array.isArray(param.all_values) ? param.all_values : [param.all_values];
             }
             else if ('filtered_values' in param && param.filtered_values?.length && !param.response_value) {
