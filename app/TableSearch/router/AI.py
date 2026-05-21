@@ -49,7 +49,7 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
                     "Выведи только распознанный текст, без каких-либо дополнительных комментариев.",
             attachments=[file_id]
         )
-        Chat(messages)
+        chat = Chat(messages=messages)
         response = client.chat("ты умеешь распознавать документы?")#messages)#, model=model)
         if response and response.choices:
             return response.choices[0].message.content
