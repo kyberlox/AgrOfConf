@@ -39,6 +39,7 @@ services:
     volumes:
       - ./app:/data/app
       - ./app_logs/fastapi:/etc/loggs/fastapi  # Добавляем том для логов FastAPI
+      - ./uplads:/data/uploads
     env_file:
       - .env
     ports:
