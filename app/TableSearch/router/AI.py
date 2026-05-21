@@ -2,11 +2,12 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, APIRouter
 import json
 from typing import Dict, Any
 
+import os
 from pathlib import Path
 import shutil
 
 from gigachat import GigaChat
-from gigachat.models import Messages, MessagesRole
+from gigachat.models import Chat, Messages, MessagesRole
 
 router = APIRouter(prefix="/AI", tags=[""])
 
@@ -24,7 +25,7 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
         raise ValueError(f"Неподдерживаемый формат. Допустимы: {', '.join(allowed_extensions)}")
 
     if credentials is None:
-        credentials = os.getenv("GIGACHAT_CREDENTIALS")
+        credentials = API_KEY
         if not credentials:
             raise ValueError("Укажите credentials или установите переменную окружения GIGACHAT_CREDENTIALS")
 
@@ -32,25 +33,32 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
     client = GigaChat(
         credentials=credentials,
         verify_ssl_certs=False,
+        model=model,
         timeout=600
     )
 
     try:
         with open(file_path_obj, "rb") as f:
             uploaded_file = client.upload_file(f, purpose="general")
-        file_id = uploaded_file.id
+        file_id = uploaded_file.id_
+        print(f"Файл успешно загружен. ID: {file_id}")
 
-        messages = Messages(
-            messages=[
-                Messages(
-                    role="user",
-                    content="Распознай и выведи весь текст, который содержится в этом файле. "
-                            "Выведи только распознанный текст, без каких-либо дополнительных комментариев.",
-                    attachments=[file_id]
-                )
-            ]
-        )
-        response = client.chat(messages, model=model)
+        messages=[
+            Messages(
+                role=MessagesRole.USER,
+                content="Распознай и выведи весь текст, который содержится в этом файле. "
+                        "Выведи только распознанный текст, без каких-либо дополнительных комментариев.",
+                attachments=[file_id]
+            )
+        ]
+        messages=[
+            {
+                "role": "user",
+                "content": "Распознай весь текст на изображении и верни его без изменений",  # промпт для распознавания
+                "attachments": [file_id]  # ID загруженного файла
+            }
+        ]
+        response = client.chat(messages)#, model=model)
         if response and response.choices:
             return response.choices[0].message.content
         else:
@@ -78,14 +86,7 @@ async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
             "sample_bytes": content_sample.hex()[:100]  # первые байты в hex (для демонстрации)
         })
 
-        import os
-
-        # Получаем список содержимого текущей директории
-        contents = os.listdir()
-        print("Содержимое папки:")
-        print(contents)
-        
-        file_path = f"./uploads/{file.filename}"
+        file_path = f"../uploads/{file.filename}"
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
