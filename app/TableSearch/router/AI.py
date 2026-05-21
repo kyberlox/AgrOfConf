@@ -49,7 +49,8 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
                     "Выведи только распознанный текст, без каких-либо дополнительных комментариев.",
             attachments=[file_id]
         )
-        response = client.chat(Chat(messages))#messages)#, model=model)
+        Chat(messages)
+        response = client.chat("ты умеешь распознавать документы?")#messages)#, model=model)
         if response and response.choices:
             return response.choices[0].message.content
         else:
