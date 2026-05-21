@@ -1,5 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, APIRouter
 import json
+import re
+
 from typing import Dict, Any
 
 import os
@@ -8,6 +10,22 @@ import shutil
 
 from gigachat import GigaChat
 from gigachat.models import Chat, Messages, MessagesRole
+
+def extract_any_json(text):
+    # Находим самую внешнюю пару фигурных скобок — предполагаемый JSON-объект
+    braces_pattern = r'\{.*\}'
+    match = re.search(braces_pattern, text, re.DOTALL)
+    if match:
+        json_str = match.group()
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            print(f"Ошибка парсинга JSON: {e}")
+            return None
+    else:
+        "JSON-объект не найден")
+        return None
+
 
 router = APIRouter(prefix="/AI", tags=[""])
 
@@ -733,12 +751,12 @@ SUPER_PROMPT = """
 ]
 ```
 
-из шаблона нужно взять названия параметров, найти совладение в исходных данных из документа
-выбрать из доступных значений (там где это списко) значение соответствующее исходному или близкое к нему
-если параметра из шаблона нет в исходных данных - пропусти и переходи к следующему
+из шаблона нужно взять названия параметров, найти совпадение в исходных данных из документа, который я прислал,
+выбрать из доступных значений одно (там где это список) значение соответствующее исходному или самое близкое к нему,
+если параметра из шаблона нет в исходных данных - пропусти и переходи к следующему.
 
 результирующий json должен состоять из пар ключ - значение, где ключи - и значения взяты из шаблона в соответсвии с исходным файлом.
-в ответ пришли только json
+в ответ пришли только json!
 """
 
 def recognize_text_from_file(file_path: str, credentials: str = None, model: str = "GigaChat-2-Pro") -> str | None:
@@ -788,7 +806,11 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
         })
         client.close()
         if response and response.choices:
-            return response.choices[0].message.content
+
+            markdown = response.choices[0].message.content
+
+            return extract_any_json(markdown)
+
         else:
             return None
     except Exception as e:
@@ -820,15 +842,15 @@ async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        print(recognize_text_from_file(file_path))
+        return ecognize_text_from_file(file_path)
 
-        return {
-            "Устройство принудительного открытия": "требуется",
-            "Тип конструкции": "Клапан пружинный с устройством принудительного открытия",
-            "Номинальный диаметр": "100",
-            "Номинальное давление": "16",
-            "Тип присоединения к трубопроводу": "фланцевое",
-            "Материал корпуса": "хладостойкая сталь (20ГЛ)"
-        }
+        # return {
+        #     "Устройство принудительного открытия": "требуется",
+        #     "Тип конструкции": "Клапан пружинный с устройством принудительного открытия",
+        #     "Номинальный диаметр": "100",
+        #     "Номинальное давление": "16",
+        #     "Тип присоединения к трубопроводу": "фланцевое",
+        #     "Материал корпуса": "хладостойкая сталь (20ГЛ)"
+        # }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")
