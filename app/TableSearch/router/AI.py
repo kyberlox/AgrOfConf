@@ -43,13 +43,13 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
         file_id = uploaded_file.id_
         print(f"Файл успешно загружен. ID: {file_id}")
 
-        message =Messages(
+        messages = Messages(
             role=MessagesRole.USER,
             content="Распознай и выведи весь текст, который содержится в этом файле. "
                     "Выведи только распознанный текст, без каких-либо дополнительных комментариев.",
             attachments=[file_id]
         )
-        response = client.chat(message)#messages)#, model=model)
+        response = client.chat(Chat(messages))#messages)#, model=model)
         if response and response.choices:
             return response.choices[0].message.content
         else:
@@ -57,6 +57,8 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
     except Exception as e:
         print(f"Ошибка обработки: {e}")
         raise
+
+print(recognize_text_from_file(file_path))
 
 @router.post("/upload_OL")
 async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
@@ -81,7 +83,7 @@ async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        print(recognize_text_from_file(file_path))
+        # print(recognize_text_from_file(file_path))
 
         return {
             "Устройство принудительного открытия": "требуется",
