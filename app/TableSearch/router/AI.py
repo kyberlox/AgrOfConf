@@ -25,7 +25,7 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
         raise ValueError(f"Неподдерживаемый формат. Допустимы: {', '.join(allowed_extensions)}")
 
     if credentials is None:
-        credentials = os.getenv("GIGACHAT_CREDENTIALS")
+        credentials = API_KEY
         if not credentials:
             raise ValueError("Укажите credentials или установите переменную окружения GIGACHAT_CREDENTIALS")
 
