@@ -1,6 +1,7 @@
-import axios, {  type AxiosProgressEvent, type AxiosRequestConfig } from 'axios';
+import axios, { type AxiosProgressEvent, type AxiosRequestConfig } from 'axios';
 import { handleApiErrors } from './apiStatusCodeErrors';
 import type { IProduct } from '@/assets/interfaces/IProduct';
+import type { IParameter } from '@/assets/interfaces/IParameter';
 
 const VITE_API_URL = import.meta.env.VITE_API_URL;
 
@@ -26,26 +27,26 @@ const api = axios.create({
 export default class Api {
     static async get(url: string, config?: AxiosRequestConfig) {
         return await api.get(url, config)
-        .then(resp=>resp.data)
-        .catch(e=> handleApiErrors(e))
+            .then(resp => resp.data)
+            .catch(e => handleApiErrors(e))
     }
 
     static async post(url: string, data?: FormData, config?: AxiosRequestConfig & {
-            onUploadProgress?: (progressEvent: AxiosProgressEvent) => void
-        }
+        onUploadProgress?: (progressEvent: AxiosProgressEvent) => void
+    }
     ) {
-      return await api.post(url, data, config)
-       .then(resp=> config ? resp : resp.data)
-        .catch(e=>handleApiErrors(e))
+        return await api.post(url, data, config)
+            .then(resp => config ? resp : resp.data)
+            .catch(e => handleApiErrors(e))
     }
 
-    static async put(url: string, data?: IProduct | FormData) {
-        return await api.put(url, data)   
-        .catch(e=>handleApiErrors(e))
+    static async put(url: string, data?: IProduct | IParameter[] | FormData | { name?: string, description?: string }) {
+        return await api.put(url, data)
+            .catch(e => handleApiErrors(e))
     }
 
     static async delete(url: string, data?: IProduct) {
         return await api.delete(url, { data })
-        .catch(e=>handleApiErrors(e))
+            .catch(e => handleApiErrors(e))
     }
 }

@@ -109,6 +109,7 @@ import { VueDraggable } from 'vue-draggable-plus';
 import SettingsIcon from '@/assets/icons/Settings.svg?component';
 import ParameterSettings from './ParameterSettings.vue';
 import type { IParameter } from '@/assets/interfaces/IParameter';
+import type { IProduct } from '@/assets/interfaces/IProduct';
 
 export default defineComponent({
     components: {
@@ -165,11 +166,11 @@ export default defineComponent({
             Api.get('http://agrofconf.emk.org.ru/api/user_input/get_user_inputs')
         }
 
-        const addParam = () => {
-            const newBody = {};
-            Api.post('api/parameters/', newBody)
-                .then(() => getParams())
-        }
+        // const addParam = () => {
+        //     const newBody = {};
+        //     Api.post('api/parameters/', newBody)
+        //         .then(() => getParams())
+        // }
 
         onMounted(() => {
             getParams();
@@ -192,7 +193,7 @@ export default defineComponent({
 
         const sendNewSort = () => {
             sortChanged.value = false;
-            const newBody = productTableType.value.map((e, index) => {
+            const newBody: IParameter[] = productTableType.value.map((e, index) => {
                 e.sort = index + 1;
                 return e
             })
@@ -209,7 +210,10 @@ export default defineComponent({
             parameterUpdating.value = true;
             Api.put(`parameters/${id}`, parameter)
                 .then(() => parameterUpdating.value = false)
-                .finally(() => { getParams(); productSettingsVisible.value = false })
+                .finally(() => {
+                    getParams();
+                    productSettingsVisible.value = false
+                })
         }
 
         return {
@@ -223,7 +227,7 @@ export default defineComponent({
             productSettingsVisible,
             idInSettings,
             parameterUpdating,
-            addParam,
+            // addParam,
             downloadExcell,
             sendNewSort,
             handleExcellUpload,

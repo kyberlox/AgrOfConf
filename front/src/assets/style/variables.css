@@ -1,7 +1,10 @@
 :root {
   --text-primary: #171b26;
   --text-secondary: #5e697d;
+  --text-text-secondary: #5e697d;
   --icon-color-secondary: #6b778c;
   --icon-color-primary: #171b26;
   --orange: #f36e3c;
+  --color-information-orange-800: #963314;
+  --color-information-orange-200: #ffcba5;
 }
