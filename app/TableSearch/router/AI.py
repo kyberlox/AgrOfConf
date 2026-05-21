@@ -84,8 +84,8 @@ async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
         contents = os.listdir()
         print("Содержимое папки:")
         print(contents)
-        
-        file_path = f"./uploads/{file.filename}"
+
+        file_path = f"../uploads/{file.filename}"
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
