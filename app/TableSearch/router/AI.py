@@ -78,11 +78,11 @@ async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
             "sample_bytes": content_sample.hex()[:100]  # первые байты в hex (для демонстрации)
         })
 
-        file_path = f"./{file.filename}"
+        file_path = f"./uploads/{file.filename}"
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        recognize_text_from_file()
+        recognize_text_from_file(file_path)
 
         return {
             "Устройство принудительного открытия": "требуется",
