@@ -16,52 +16,24 @@ scope= "GIGACHAT_API_PERS"
 API_KEY = "MDE5Y2ZiNzUtZDY1Ny03NjViLTllMTQtOGQyMjdlYTc0NDlkOmM4YzBlMWFlLWJkNDAtNDM0MC05YmUzLTFkOThmYzU0ZWRlMg=="
 
 SUPER_PROMPT = """
-нужно собрать json по шаблону:
+Мне нужно собрать json по шаблону:
 ```
-"parameters": [
-    {
-      "id": 44,
-      "name": "Устройство принудительного открытия",
-      "description": null,
-      "all_values": [
+{
+    "Устройство принудительного открытия" : [
         "не требуется",
         "требуется"
       ],
-      "response_value": null,
-      "visibility": null,
-      "required_type": null
-    },
-    {
-      "id": 45,
-      "name": "Сильфон",
-      "description": null,
-      "all_values": [
+    "Сильфон" : [
         "не требуется",
         "требуется"
       ],
-      "response_value": null,
-      "visibility": null,
-      "required_type": null
-    },
-    {
-      "id": 46,
-      "name": "Тип конструкции",
-      "description": null,
-      "all_values": [
+    "Тип конструкции" : [
         "Клапан пружинный",
         "Клапан пружинный с устройством принудительного открытия",
         "Клапан пружинный сильфонный",
         "Клапан пружинный сильфонный с устройством принудительного открытия"
       ],
-      "response_value": null,
-      "visibility": null,
-      "required_type": null
-    },
-    {
-      "id": 47,
-      "name": "Номинальный диаметр",
-      "description": null,
-      "all_values": [
+    "Номинальный диаметр" : [
         "100",
         "150",
         "200",
@@ -69,97 +41,25 @@ SUPER_PROMPT = """
         "50",
         "80"
       ],
-      "response_value": null,
-      "visibility": null,
-      "required_type": null
-    },
-    {
-      "id": 48,
-      "name": "Номинальное давление",
-      "description": null,
-      "all_values": [
+    "Номинальное давление" : [
         "100",
         "16",
         "160",
         "40",
         "63"
       ],
-      "response_value": null,
-      "visibility": null,
-      "required_type": null
-    },
-    {
-      "id": 49,
-      "name": "Тип присоединения к трубопроводу",
-      "description": null,
-      "all_values": "фланцевое",
-      "response_value": "фланцевое",
-      "visibility": null,
-      "required_type": null
-    },
-    {
-      "id": 50,
-      "name": "Тип уплотнения затвора",
-      "description": null,
-      "all_values": "металл-металл",
-      "response_value": "металл-металл",
-      "visibility": null,
-      "required_type": null
-    },
-    {
-      "id": 51,
-      "name": "Материал корпуса",
-      "description": null,
-      "all_values": [
+    "Тип присоединения к трубопроводу" : "фланцевое",
+    "Тип уплотнения затвора" : "металл-металл",
+    "Материал корпуса" : [
         "нержавеющая сталь  (12Х18Н9ТЛ)",
         "углеродистая сталь (25Л)",
         "хладостойкая сталь (20ГЛ)"
       ],
-      "response_value": null,
-      "visibility": null,
-      "required_type": null
-    },
-    {
-      "id": 52,
-      "name": "По способу сброса рабочей среды ",
-      "description": null,
-      "all_values": "открытого типа",
-      "response_value": "открытого типа",
-      "visibility": null,
-      "required_type": null
-    },
-    {
-      "id": 53,
-      "name": "Упаковка",
-      "description": null,
-      "all_values": "на поддон",
-      "response_value": "на поддон",
-      "visibility": null,
-      "required_type": null
-    },
-    {
-      "id": 54,
-      "name": "Наличие КОФ",
-      "description": null,
-      "all_values": "без КОФ",
-      "response_value": "без КОФ",
-      "visibility": null,
-      "required_type": null
-    },
-    {
-      "id": 55,
-      "name": "Наличие ЗИП",
-      "description": null,
-      "all_values": "без ЗИП",
-      "response_value": "без ЗИП",
-      "visibility": null,
-      "required_type": null
-    },
-    {
-      "id": 56,
-      "name": "Маркировка",
-      "description": null,
-      "all_values": [
+    "По способу сброса рабочей среды ": "открытого типа",
+    "Упаковка : "на поддон",
+    "Наличие КОФ" : "без КОФ",
+    "Наличие ЗИП" : "без ЗИП",
+    Маркировка : [
         "АМ211.100.16.3310",
         "АМ211.100.16.3320",
         "АМ211.100.16.3330",
@@ -382,15 +282,7 @@ SUPER_PROMPT = """
         "АМ214.80.63.3320",
         "АМ214.80.63.3330"
       ],
-      "response_value": null,
-      "visibility": null,
-      "required_type": null
-    },
-    {
-      "id": 57,
-      "name": "Цена /шт. руб без НДС",
-      "description": null,
-      "all_values": [
+      "Цена /шт. руб без НДС" : [
         "104 005",
         "104 338",
         "105 703",
@@ -614,15 +506,7 @@ SUPER_PROMPT = """
         "99 061",
         "99 497"
       ],
-      "response_value": null,
-      "visibility": null,
-      "required_type": null
-    },
-    {
-      "id": 58,
-      "name": "Цена /шт. руб с НДС 22%",
-      "description": null,
-      "all_values": [
+      "Цена /шт. руб с НДС 22%" : [
         "1 038 406",
         "1 048 156",
         "1 051 939",
@@ -846,12 +730,14 @@ SUPER_PROMPT = """
         "970 666",
         "98 751"
       ]
+]
 ```
 
-из шаблона нужно взять названия параметров, найти совладение в исходных данный и выбрать из доступных значений значение соответствующее исходному
+из шаблона нужно взять названия параметров, найти совладение в исходных данных из документа
+выбрать из доступных значений (там где это списко) значение соответствующее исходному
 если параметра из шаблона нет в исходных данных - пропусти и переходи к следующему
 
-результирующий json должен состоять из пар ключ - значение, где ключи - name из шаблона, а значение - подходящее значение
+результирующий json должен состоять из пар ключ - значение, где ключи - и значения взяты из шаблона в соответсвии с исходным файлом.
 """
 
 def recognize_text_from_file(file_path: str, credentials: str = None, model: str = "GigaChat-2-Pro") -> str | None:
@@ -894,7 +780,7 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
             "messages" : [
                 {
                     "role": "user",
-                    "content": f"Прочитай исходный файл. Выдели из него парметры и их значения. Это и есть исходные данные. \n Теперь {SUPER_PROMPT} \n В ответ пришли только json!",
+                    "content": SUPER_PROMPT,
                     "attachments": [file_id],
                 }
             ]
