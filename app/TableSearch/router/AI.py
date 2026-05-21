@@ -39,7 +39,8 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
     try:
         with open(file_path_obj, "rb") as f:
             uploaded_file = client.upload_file(f, purpose="general")
-        file_id = uploaded_file.id
+        file_id = uploaded_file.id_
+        print(f"Файл успешно загружен. ID: {file_id}")
 
         messages = Messages(
             messages=[
