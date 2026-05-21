@@ -43,14 +43,23 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
         file_id = uploaded_file.id_
         print(f"Файл успешно загружен. ID: {file_id}")
 
-        messages = Messages(
-            role=MessagesRole.USER,
-            content="Распознай и выведи весь текст, который содержится в этом файле. "
-                    "Выведи только распознанный текст, без каких-либо дополнительных комментариев.",
-            attachments=[file_id]
-        )
-        chat = Chat(messages=messages)
-        response = client.chat("ты умеешь распознавать документы?")#messages)#, model=model)
+        # messages = Messages(
+        #     role=MessagesRole.USER,
+        #     content="Распознай и выведи весь текст, который содержится в этом файле. "
+        #             "Выведи только распознанный текст, без каких-либо дополнительных комментариев.",
+        #     attachments=[file_id]
+        # )
+        # chat = Chat(messages=messages)
+        # response = client.chat("ты умеешь распознавать документы?")#messages)#, model=model)
+        response = client.chat({
+            "messages" : [
+                {
+                    "role": "user",
+                    "content": "Распознай и выведи весь текст, который содержится в этом файле.",
+                    "attachments": [file_id],
+                }
+            ]
+        })
         if response and response.choices:
             return response.choices[0].message.content
         else:
