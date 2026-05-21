@@ -834,7 +834,7 @@ async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
-        print(recognize_text_from_file(file_path))
+        # print(recognize_text_from_file(file_path))
         # return recognize_text_from_file(file_path)
 
         return {
@@ -843,7 +843,7 @@ async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
             "Номинальное давление": "16",
             "Тип присоединения к трубопроводу": "фланцевое",
             "Материал корпуса": "хладостойкая сталь (20ГЛ)",
-            "Маркировка": "АМ211.100.16.3330"
+            "Маркировка": "АМ211.100.16.3310"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")

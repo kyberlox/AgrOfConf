@@ -57,8 +57,9 @@ services:
     ports:
       #- "127.0.0.1:5173:5173"
       - "5173:5173"
-    environment:
-      PROD_API_URL: ${DOMAIN}/api
+    # environment:
+      # - API_URL = http://${DOMAIN}/api
+
     networks:
       - app-network
 
