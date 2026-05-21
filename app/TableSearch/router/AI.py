@@ -33,6 +33,7 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
     client = GigaChat(
         credentials=credentials,
         verify_ssl_certs=False,
+        model=model,
         timeout=600
     )
 
