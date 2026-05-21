@@ -4,8 +4,8 @@ from typing import Dict, Any
 
 router = APIRouter(prefix="/AI", tags=["AI Module"])
 
-@app.post("/upload_OL/")
-async def upload_file(file: UploadFile = File(...)) -> Dict[str, Any]:
+@app.post("/upload_OL")
+async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
     """
     Эндпоинт для загрузки файла.
     Принимает файл, читает его метаданные и возвращает JSON.
