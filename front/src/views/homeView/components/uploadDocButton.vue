@@ -11,13 +11,18 @@
            ref=fileInput
            type="file"
            @change="console.log('d')" />
+    <DropZone :maxFiles="1" />
+    <!-- message -->
 </div>
 </template>
 <script lang='ts'>
 import { defineComponent, ref } from 'vue';
+import { DropZone } from 'dropzone-vue';
 
 export default defineComponent({
-    components: {},
+    components: {
+        DropZone
+    },
     props: {},
     setup() {
         const fileInput = ref();
@@ -32,3 +37,9 @@ export default defineComponent({
     }
 });
 </script>
+
+<style>
+.dropzone__message{
+    font-size: 0;
+}
+</style>

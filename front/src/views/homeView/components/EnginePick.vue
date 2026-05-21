@@ -4,15 +4,7 @@
         <h1 class="max-w-[160px]">
             Выберите изделие
         </h1>
-        <div
-             class="p-[20px] w-[480px] max-w-full border border-(--color-information-orange-200) hover:bg-(--color-information-orange-200) transition-all duration-300 cursor-pointer border-dotted flex flex-col gap-[4px] rounded-[12px] text-center">
-            <span class="text-[16px] font-semibold text-(--color-information-orange-800)">Распознать ОЛ</span>
-            <span class="text-[13px] font-normal text-(--text-text-secondary)">Фото или PDF до 20мб</span>
-            <input class="hidden"
-                   ref=fileInput
-                   type="file"
-                   @change="console.log('d')" />
-        </div>
+        <UploadDocButton />
     </div>
     <!-- Карточки приводов -->
     <div class="flex flex-col gap-[12px]">
@@ -42,9 +34,12 @@
 <script lang='ts'>
 import { defineComponent, type PropType } from 'vue';
 import type { IProduct } from '@/assets/interfaces/IProduct';
+import UploadDocButton from './uploadDocButton.vue';
 
 export default defineComponent({
-    components: {},
+    components: {
+        UploadDocButton
+    },
     props: {
         items: {
             type: Array as PropType<IProduct[]>
