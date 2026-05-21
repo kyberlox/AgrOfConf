@@ -11,20 +11,6 @@ import shutil
 from gigachat import GigaChat
 from gigachat.models import Chat, Messages, MessagesRole
 
-def extract_any_json(text):
-    # Находим самую внешнюю пару фигурных скобок — предполагаемый JSON-объект
-    braces_pattern = r'\{.*\}'
-    match = re.search(braces_pattern, text, re.DOTALL)
-    if match:
-        json_str = match.group()
-        try:
-            return json.loads(json_str)
-        except json.JSONDecodeError as e:
-            print(f"Ошибка парсинга JSON: {e}")
-            return None
-    else:
-        print("JSON-объект не найден")
-        return None
 
 
 router = APIRouter(prefix="/AI", tags=[""])
@@ -817,7 +803,20 @@ def recognize_text_from_file(file_path: str, credentials: str = None, model: str
         print(f"Ошибка обработки: {e}")
         raise
 
-# print(recognize_text_from_file(file_path))
+def extract_any_json(text):
+    # Находим самую внешнюю пару фигурных скобок — предполагаемый JSON-объект
+    braces_pattern = r'\{.*\}'
+    match = re.search(braces_pattern, text, re.DOTALL)
+    if match:
+        json_str = match.group()
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            print(f"Ошибка парсинга JSON: {e}")
+            return None
+    else:
+        print("JSON-объект не найден")
+        return None
 
 @router.post("/upload_OL")
 async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
