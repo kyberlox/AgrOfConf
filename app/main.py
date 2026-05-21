@@ -10,6 +10,7 @@ from .TablePakage.router.tables import router as tables_router
 from .TablePakage.router.parameter_values import router as parameter_values_router
 from .TableSearch.router.module_search import router as module_search_router
 from .TableSearch.router.module_search_pandas import router as module_search_router_pandas
+from .TableSearch.router.AI import router as AI_router
 
 from .TablePakage.model.database import create_tables
 import app.logging_config
@@ -73,6 +74,7 @@ app.include_router(tables_router, prefix="/api")
 app.include_router(parameter_values_router, prefix="/api")
 app.include_router(module_search_router, prefix="/api")
 app.include_router(module_search_router_pandas, prefix="/api")
+app.include_router(AI_router, prefix="/api")
 
 # app.include_router(calculated_router, prefix="/api")
 # app.include_router(user_input_router, prefix="/api")

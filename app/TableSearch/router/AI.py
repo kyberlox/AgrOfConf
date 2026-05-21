@@ -2,10 +2,10 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, APIRouter
 import json
 from typing import Dict, Any
 
-router = APIRouter(prefix="AI/", tags=["AI Module"])
+router = APIRouter(prefix="/AI", tags=["AI Module"])
 
-@app.post("/upload_OL/")
-async def upload_file(file: UploadFile = File(...)) -> Dict[str, Any]:
+@router.post("/upload_OL")
+async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
     """
     Эндпоинт для загрузки файла.
     Принимает файл, читает его метаданные и возвращает JSON.
@@ -16,12 +16,12 @@ async def upload_file(file: UploadFile = File(...)) -> Dict[str, Any]:
         # Возвращаем указатель файла в начало, если нужно дальнейшее чтение
         await file.seek(0)
 
-        print(
+        print({
             "filename": file.filename,
             "content_type": file.content_type,
             "size": len(content_sample),  # реальный размер требует полного чтения
             "sample_bytes": content_sample.hex()[:100]  # первые байты в hex (для демонстрации)
-        )
+        })
 
         return {
             "Устройство принудительного открытия": "требуется",
