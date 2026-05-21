@@ -89,7 +89,7 @@ async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        recognize_text_from_file(file_path)
+        # recognize_text_from_file(file_path)
 
         return {
             "Устройство принудительного открытия": "требуется",
