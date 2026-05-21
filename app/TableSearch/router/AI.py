@@ -833,7 +833,8 @@ async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
         file_path = f"../uploads/{file.filename}"
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-
+            
+        print(recognize_text_from_file(file_path))
         # return recognize_text_from_file(file_path)
 
         return {
