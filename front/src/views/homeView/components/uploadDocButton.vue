@@ -2,10 +2,10 @@
 <div class="dropzone-container p-[20px] w-[480px] max-w-full border border-(--color-information-orange-200) hover:bg-(--color-information-orange-200) transition-all duration-300 cursor-pointer border-dotted flex flex-col gap-[4px] rounded-[12px] text-center"
      :class="[{ 'bg-(--color-information-green-50) hover:bg-(--color-information-green-150)!': type == 'inConfig' },
     isDragOver && type !== 'inConfig' ? 'bg-(--color-information-orange-200)' : isDragOver && type == 'inConfig' ? 'bg-(--color-information-green-150)!' : '']"
-     @dragend="isDragOver = false"
-     @drop.prevent="dragFile"
+     @dragover.prevent
      @dragover="isDragOver = true"
-     @dragleave="isDragOver = false">
+     @dragleave="isDragOver = false"
+     @drop.prevent="dragFile">
 
     <input type="file"
            ref="fileInput"
@@ -14,8 +14,8 @@
            @change="uploadFile">
 
     <div @click="handleClick">
-        <div class="dz-message"
-             v-if="!uploadedFileName && type == 'outer'">
+        <div v-if="!uploadedFileName && type == 'outer'"
+             class="dz-message">
             <span class="text-[16px] font-semibold text-(--color-information-orange-800)">
                 Распознать ОЛ
             </span>
@@ -27,14 +27,14 @@
             </span>
         </div>
 
-        <div class="flex flex-row items-center justify-between"
-             v-else-if="type == 'inConfig'">
+        <div v-else-if="type == 'inConfig'"
+             class="flex flex-row items-center justify-between">
             <div class="flex flex-col gap-[4px] text-left">
                 <span class="text-[16px] font-semibold text-(--text-text-primary)">
-                    Поля Распознаны
+                    Поля {{ ' ' + storedFileName + ' ' }} Распознаны
                 </span>
                 <span class="text-[13px] font-normal text-(--text-text-secondary) block">
-                    Перепроверьте на всякий случай
+                    Перепроверьте
                 </span>
             </div>
             <span class="text-[16px] text-(--color-information-orange-800) block">
@@ -51,7 +51,7 @@
 </template>
 
 <script lang='ts'>
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useNeuroOlData } from '@/stores/neuroOl';
 import Api from '@/utils/Api';
@@ -67,6 +67,7 @@ export default defineComponent({
     setup() {
         const fileInput = ref<HTMLInputElement | null>(null);
         const uploadedFileName = ref('');
+        const storedFileName = computed(() => useNeuroOlData().getOlName);
         const router = useRouter();
         const isDragOver = ref(false);
 
@@ -102,6 +103,7 @@ export default defineComponent({
                 .then((data) => {
                     if (data) {
                         useNeuroOlData().setData(data);
+                        useNeuroOlData().setOlName(uploadedFileName.value);
                     }
                 })
                 .finally(() => router.push({ name: 'configurator', params: { id: 1 } }))
@@ -111,6 +113,7 @@ export default defineComponent({
             fileInput,
             uploadedFileName,
             isDragOver,
+            storedFileName,
             handleClick,
             uploadFile,
             dragFile
