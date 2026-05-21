@@ -15,7 +15,7 @@ client_id = "019cfb75-d657-765b-9e14-8d227ea7449d"
 scope= "GIGACHAT_API_PERS"
 API_KEY = "MDE5Y2ZiNzUtZDY1Ny03NjViLTllMTQtOGQyMjdlYTc0NDlkOmM4YzBlMWFlLWJkNDAtNDM0MC05YmUzLTFkOThmYzU0ZWRlMg=="
 
-def recognize_text_from_file(file_path: str, credentials: str = None, model: str = "GigaChat-Pro-vision") -> str | None: #GigaChat-2-Pro
+def recognize_text_from_file(file_path: str, credentials: str = None, model: str = "GigaChat-2-Pro") -> str | None:
     file_path_obj = Path(file_path)
     if not file_path_obj.exists():
         raise FileNotFoundError(f"Файл {file_path} не найден")
