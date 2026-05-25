@@ -745,7 +745,7 @@ SUPER_PROMPT = """
 в ответ пришли только json!
 """
 
-def recognize_text_from_file(file_path: str, credentials: str = None, model: str = "GigaChat-2-Lite") -> str | None:
+def recognize_text_from_file(file_path: str, credentials: str = None, model: str = "GigaChat-Lite") -> str | None:
     file_path_obj = Path(file_path)
     if not file_path_obj.exists():
         raise FileNotFoundError(f"Файл {file_path} не найден")
