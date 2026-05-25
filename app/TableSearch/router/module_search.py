@@ -227,7 +227,7 @@ async def process_table_data(
     allowed_params = set(schema_params)
     formula_params = dict()  # добавляю формульные параметры
     for param_name, value in selected_params.items():
-        # print(param_name, value)
+        print(param_name, value)
 
         if param_name not in allowed_params:
             formula_params[param_name] = value
@@ -263,7 +263,7 @@ async def process_table_data(
         for col, param_name in column_to_param.items()
         if row[col]
     }
-    print(parameters)
+    # print(parameters)
 
     # parameters = dict()
 
