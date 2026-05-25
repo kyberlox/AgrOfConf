@@ -240,12 +240,10 @@ async def process_table_data(
         col = to_sql_name_lat(param_name)
         where_clauses.append(f'"{col}" = :{col}')
         sql_params[col] = str(value)
-        print(sql_params)
         # print("вписан в запрос")
 
     # шлём собранный запрос
-    row, column_to_param = await get_params_from_sql(db, table_name, schema_params, where_clauses, sql_params,
-                                                     allowed_params)
+    row, column_to_param = await get_params_from_sql(db, table_name, schema_params, where_clauses, sql_params, allowed_params)
     full_value_parameters, matched_rows_1 = await get_full_search_from_dm(
         db,
         product_id,
@@ -258,7 +256,7 @@ async def process_table_data(
     }
 
     # Собираем значения параметров ! ???
-    # print("ngfhgfhg", column_to_param.items(), row[col])
+    print("ngfhgfhg", column_to_param.items(), row[col])
     parameters = {
         param_name: sorted(str(v) for v in row[col])
         for col, param_name in column_to_param.items()
