@@ -277,7 +277,7 @@ async def process_table_data(
             parameters[param_name] = sorted(str(v) for v in row[col])
     
     # print(parameters)
-    if parametrs == dict():
+    if parametrs == {}:
         parametrs = pre_params
     # ! ???
 
