@@ -49,9 +49,9 @@ async def get_params_from_sql(db, table_name, schema_params, where_clauses, sql_
     try:
         result = await db.execute(text(query), sql_params)
         row = result.mappings().first()
-        print("что нашлось в БД: ", row)
-        print(row['matched_rows'])
-        print(column_to_param)
+        # print("что нашлось в БД: ", row)
+        # print(row['matched_rows'])
+        # print(column_to_param)
         return row, column_to_param
     except HTTPException:
         raise
