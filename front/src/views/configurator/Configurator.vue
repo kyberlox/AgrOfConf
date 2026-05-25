@@ -3,19 +3,24 @@
     <div class="flex flex-row gap-[24px]">
         <div class="flex flex-col gap-[24px] w-full">
             <div class="flex flex-row justify-between w-full flex-wrap">
-                <div class="flex flex-row gap-[16px] items-center sm:flex-wrap flex-nowrap">
-                    <RouterLink :to="{ name: 'homeview' }"
-                                class="w-[24px] h-[24px] rounded-[16px] bg-[#F6F7F9] cursor-pointer flex ">
-                        <ArrowLeft class="w-full  m-auto max-h-[12px]" />
-                    </RouterLink>
-                    <h1>Конфигуратор ЭПН</h1>
-                    <div
-                         class="rounded-[16px] flex flex-row items-center gap-[4px] bg-[#FFF2E5] pl-[8px] py-[4px] min-w-[104px] font-[500] text-[#752209]">
-                        <Ellipse />
-                        <span>Черновик</span>
+                <div class="flex flex-row  items-center justify-between sm:flex-wrap flex-nowrap w-full">
+                    <div class="flex flex-row gap-[16px] items-center">
+                        <RouterLink :to="{ name: 'homeview' }"
+                                    class="w-[24px] h-[24px] rounded-[16px] bg-[#F6F7F9] cursor-pointer flex ">
+                            <ArrowLeft class="w-full  m-auto max-h-[12px]" />
+                        </RouterLink>
+                        <h1>Конфигуратор ЭПН</h1>
+                        <div
+                             class="rounded-[16px] flex flex-row items-center gap-[4px] bg-[#FFF2E5] pl-[8px] py-[4px] min-w-[104px] font-[500] text-[#752209]">
+                            <Ellipse />
+                            <span>Черновик</span>
+                        </div>
                     </div>
+                    <UploadDocButton v-if="neuroOlData"
+                                     :type="'inConfig'" />
                 </div>
-                <div class="flex flex-row gap-[11px] items-center ml-auto">
+                <div v-if="!neuroOlData"
+                     class="flex flex-row gap-[11px] items-center ml-auto">
                     <div class="font-[400]">
                         Свободный режим
                     </div>
@@ -28,6 +33,7 @@
                 </div>
             </div>
             <EngineParams :form="form"
+                          :type="neuroOlData ? 'free' : 'auto'"
                           :key="paramsRenderKey"
                           @valueChanged="(value: string, key: string) => handleValueChanged(value, key)" />
             <div class="flex flex-row justify-end gap-[8px]">
@@ -57,7 +63,8 @@ import EngineParams from './components/EngineParams.vue';
 import Api from '@/utils/Api';
 import type { IFormattedData, IForm } from '@/assets/interfaces/IForm';
 import SlotModal from '@/components/layout/SlotModal.vue';
-import { neuroOlData } from '@/stores/neuroOl';
+import { useNeuroOlData } from '@/stores/neuroOl';
+import UploadDocButton from '@/views/homeView/components/uploadDocButton.vue';
 
 export default defineComponent({
     components: {
@@ -65,7 +72,8 @@ export default defineComponent({
         Ellipse,
         ArrowLeft,
         EngineParams,
-        SlotModal
+        SlotModal,
+        UploadDocButton
     },
     props: {
         id: {
@@ -79,8 +87,9 @@ export default defineComponent({
         const modalVisible = ref(false);
         const freeConfigMode = ref(false);
         const paramsRenderKey = ref(0);
-        const neuroOlDataStore = neuroOlData();
+        const neuroOlDataStore = useNeuroOlData();
         const neuroOlData = computed(() => neuroOlDataStore.getOlInfo);
+
         const paramsUpdate = (body: any | null) => {
             Api.post(`/module_search/process_table_data?product_id=${props.id}`, body)
                 .then((data) => {
@@ -91,19 +100,12 @@ export default defineComponent({
 
         onMounted(() => {
             paramsUpdate(null);
+            console.log(neuroOlData.value);
+
             if (neuroOlData.value) {
                 paramsUpdate(neuroOlDataStore.getOlInfo)
             }
         })
-
-        // const formatData = (data: IFormattedData[]) => {
-        //     const formattedData: IFormattedData[] = [];
-        //     const dataKeys = Object.keys(data)
-        //     dataKeys.forEach(key => {
-        //         formattedData.push({ name: key, values: data[key] as string[] })
-        //     });
-        //     return formattedData;
-        // }
 
         const handleValueChanged = (value: string, key: string) => {
             if (value)
@@ -117,6 +119,7 @@ export default defineComponent({
             modalVisible,
             freeConfigMode,
             paramsRenderKey,
+            neuroOlData,
             handleValueChanged,
         }
     }

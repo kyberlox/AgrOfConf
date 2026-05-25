@@ -13,3 +13,5 @@ aiofiles==25.1.0
 alembic==1.17.2
 standard-imghdr==3.13.0
 transliterate==1.10.2
+gigachat==0.2.1
+pathlib==1.0.1

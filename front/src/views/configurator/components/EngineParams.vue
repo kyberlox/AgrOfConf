@@ -33,6 +33,7 @@
         <!-- выпадающий список -->
         <BaseSelect v-else-if="(param.name !== 'sep')"
                     :propsLabel="param.name"
+                    :propsId="param.name"
                     :propsClass="'paramsSelect'"
                     :propsValue="(param as IFormattedData).response_value ? String((param as IFormattedData).response_value) : ''"
                     :propsOptions="switchOptions(param as IFormattedData)"
@@ -42,15 +43,14 @@
                     :labelIcon="createLabelIconsComponent(param as IFormattedData, () => console.log('abob'))"
                     :error="'error' in param ? param.error : ''"
                     :errorIcon="AlertCircle"
-                    :disabled="(!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')"
+                    :disabled="((!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')) && type == 'auto'"
                     @valueChanged="(value: string) => $emit('valueChanged', value, param.name)" />
     </template>
 </div>
 </template>
 
 <script lang='ts'>
-import { BaseSelect } from 'beans-ui-kit';
-import { defineComponent, h, ref, computed, render, watchEffect } from 'vue';
+import { defineComponent, ref, computed, render, watchEffect } from 'vue';
 import ParamsHeaderIcons from './ParamsHeaderIcons.vue';
 import type { IFormattedData } from '@/assets/interfaces/IForm';
 import { createLabelIconsComponent } from '@/composables/createComponent';
@@ -58,7 +58,7 @@ import AlertCircle from '@/assets/icons/AlertCircle.svg?component';
 import { useWindowSize } from '@vueuse/core'
 import RequiredIcon from '@/assets/icons/RequiredIcon.svg?component';
 import SelectInput from '@/components/SelectInput.vue';
-import { BaseInput } from 'beans-ui-kit';
+import { BaseInput, BaseSelect } from 'beans-ui-kit';
 
 export default defineComponent({
     components: {
@@ -73,6 +73,10 @@ export default defineComponent({
         form: {
             type: Array<IFormattedData>,
             requied: true
+        },
+        type: {
+            type: String,
+            default: 'auto'
         }
     },
     emits: ['valueChanged'],
@@ -98,8 +102,7 @@ export default defineComponent({
         })
 
         const switchOptions = (param: IFormattedData) => {
-            if (param.response_value || !('filtered_values' in param)) {
-                console.log('1')
+            if (param.response_value || !('filtered_values' in param) || props.type == 'free') {
                 return Array.isArray(param.all_values) ? param.all_values : [param.all_values];
             }
             else if ('filtered_values' in param && param.filtered_values?.length && !param.response_value) {
@@ -119,7 +122,6 @@ export default defineComponent({
             AlertCircle,
             gridCols,
             renderData,
-            h,
             createLabelIconsComponent,
             switchOptions
         }

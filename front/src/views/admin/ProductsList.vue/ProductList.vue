@@ -13,7 +13,7 @@
              :key="product.id">
             <RouterLink class="w-[200px] h-[274] p-[17px] cursor-pointer flex flex-col gap-[10px] border border-[#EAECEF] rounded-[8px] hover:border-orange-500 duration-300 transition-all"
                         :to="{ name: 'productEdit', params: { id: product.id } }">
-                <div class="bg-cover w-full h-[170px]"
+                <div class="bg-contain bg-no-repeat bg-center w-full h-[170px]"
                      :style="{ 'background-image': `url(http://agrofconf.emk.org.ru${product.image_url})` }">
                 </div>
                 <div class="text-[14px] text-(--text-primary)">
@@ -26,7 +26,7 @@
                     {{ product.description }}
                 </div>
                 <div class="mt-2 p-4 grow">
-                    <div class="flex flex-row  gap-2 items-center justify-end group mt-auto h-full">
+                    <div class="flex flex-row gap-2 items-center justify-end group mt-auto h-full">
                         <MoreIcon />
                         <MoreOptions class="hidden group-hover:block"
                                      :list="['Изменить', 'Удалить']"

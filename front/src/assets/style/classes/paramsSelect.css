@@ -10,7 +10,7 @@
 }
 
 .paramsSelect__wrapper {
-  @apply flex flex-col gap-[6px] w-full;
+  @apply flex flex-col gap-[6px] w-full min-h-[124px];
 }
 
 .paramsSelect__wrapper--disabled {

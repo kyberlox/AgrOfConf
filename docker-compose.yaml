@@ -38,7 +38,8 @@ services:
     container_name: fastapi_1
     volumes:
       - ./app:/data/app
-      - ./app_logs/fastapi:/etc/loggs/fastapi  # Добавляем том для логов FastAPI
+      - ./app_logs/fastapi:/etc/loggs/fastapi # Добавляем том для логов FastAPI
+      - ./uploads:/data/uploads
     env_file:
       - .env
     ports:
@@ -56,8 +57,9 @@ services:
     ports:
       #- "127.0.0.1:5173:5173"
       - "5173:5173"
-    environment:
-      PROD_API_URL: ${DOMAIN}
+    # environment:
+      # - API_URL = http://${DOMAIN}/api
+
     networks:
       - app-network
 
