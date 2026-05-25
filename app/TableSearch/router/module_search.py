@@ -227,7 +227,7 @@ async def process_table_data(
     allowed_params = set(schema_params)
     formula_params = dict()  # добавляю формульные параметры
     for param_name, value in selected_params.items():
-        print(param_name, value)
+        # print(param_name, value)
 
         if param_name not in allowed_params:
             formula_params[param_name] = value
@@ -271,7 +271,8 @@ async def process_table_data(
             parameters[param_name] = row[col][0]
         elif row[col] and len(row[col]) > 1:
             parameters[param_name] = sorted(str(v) for v in row[col])
-
+    
+    print(parameters)
     # ! ???
 
     # сюда функция формульного поиска
