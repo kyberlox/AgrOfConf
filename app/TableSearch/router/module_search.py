@@ -292,7 +292,7 @@ async def process_table_data(
     for item in full_info:
         name = item['name']
         value = parameters.get(name, None)
-        response_value = item['response_value']
+        response_value = item['response_value'] if 'response_value' in item.keys() else None
         if isinstance(value, str):
             response_value = value
             value = full_value_parameters[name]
