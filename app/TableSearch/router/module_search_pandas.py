@@ -52,11 +52,11 @@ def process_with_pandas(
 router = APIRouter(prefix="/module_search", tags=["Module_search"])
 
 
-@router.post(
-    "/process_table_data_pandas",
-    response_model=ModuleSearchResponse,
-    description="Модуль подбора",
-)
+# @router.post(
+#     "/process_table_data_pandas",
+#     response_model=ModuleSearchResponse,
+#     description="Модуль подбора",
+# )
 async def process_table_data(
         product_id: int,
         selected_params: dict[str, str | int],
