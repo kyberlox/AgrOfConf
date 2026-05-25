@@ -256,13 +256,13 @@ async def process_table_data(
     }
 
     # Собираем значения параметров ! ???
-    print("ngfhgfhg", column_to_param.items(), row[col])
+    # print("ngfhgfhg", column_to_param.items(), row[col])
     parameters = {
         param_name: sorted(str(v) for v in row[col])
         for col, param_name in column_to_param.items()
         if row[col]
     }
-    # print(parameters)
+    print(parameters)
 
     # parameters = dict()
 
