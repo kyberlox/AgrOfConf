@@ -292,7 +292,7 @@ async def process_table_data(
     for item in full_info:
         name = item['name']
         value = parameters.get(name, None)
-        response_value = None
+        response_value = item['response_value']
         if isinstance(value, str):
             response_value = value
             value = full_value_parameters[name]
@@ -318,7 +318,6 @@ async def process_table_data(
             error_params, req = await find_search_err(db, table_name, schema_params, where_clauses, sql_params, allowed_params, selected_params)
             print("Ошибки: ", error_params)
             for item in new_params:
-                print(item['name'], ' - ', item['response_value'])
                 is_param_error = [err_item for err_item in error_params if err_item['param_name'] == item["name"]]
                 if is_param_error:
                     item['response_value'] = None
