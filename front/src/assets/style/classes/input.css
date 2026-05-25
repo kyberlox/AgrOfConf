@@ -1,0 +1,44 @@
+/* Ввод параметров в подборе */
+.input-param {
+  @apply p-[16px] flex flex-row gap-[8px] font-[400] text-[16px] rounded-[8px] bg-[#F6F7F9] outline-0 w-full;
+}
+.input-param__wrapper {
+  @apply flex flex-col gap-[6px] w-full;
+}
+
+.input-param__label {
+  @apply text-[13px] font-[600] flex flex-row justify-between gap-[4px];
+}
+
+/* Для комбинации инпут + селект */
+
+.input-select {
+  @apply p-[16px] flex flex-row gap-[8px] font-[400] text-[16px] rounded-[8px] bg-[#F6F7F9] outline-0 w-full min-h-[54px];
+}
+.input-select__wrapper {
+  @apply flex flex-col gap-[6px] w-[150px];
+}
+
+.input-select__label {
+  @apply text-[13px] font-[600] flex flex-row justify-between gap-[4px];
+}
+
+/* Для редактирования параметров продукта в админке */
+
+.input-product-edit__wrapper {
+  @apply p-[16px] bg-[#F6F7F9] rounded-[8px] relative flex flex-col gap-[4px] min-h-[76px];
+}
+.input-product-edit {
+  @apply grow block outline-none min-h-full min-w-[500px] placeholder:text-[16px];
+}
+
+.input-product-edit__label {
+  @apply block text-[#6B778C] hidden;
+}
+
+.input-product-edit__placeholder {
+  @apply text-[#6B778C] text-[600];
+}
+.input-product-edit__wrapper:has(.input-product-edit:placeholder-shown) .input-product-edit__label {
+  display: none;
+}

@@ -1,0 +1,14 @@
+.searchInput__wrapper {
+  @apply w-[213px] min-h-[36px] bg-[#FDFDFD] border border-[#D3D7DF] rounded-[8px] relative pr-[16px] max-h-fit;
+}
+
+.searchInput {
+  @apply px-[12px] py-[10px] outline-none max-w-full;
+}
+.searchInput__wrapper:has(.searchInput:focus) {
+  border: 1px solid orange;
+}
+
+.searchInput__icon__wrapper {
+  @apply absolute right-0 top-1/2 -translate-x-1/2 -translate-y-1/2;
+}

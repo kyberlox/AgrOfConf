@@ -1,0 +1,23 @@
+.button-secondary__wrapper {
+  @apply text-center rounded-[16px] bg-gradient-to-br cursor-pointer transition duration-300 ease-in-out bg-[#F6F7F9] hover:bg-[#EAECEF];
+}
+
+.button-secondary {
+  @apply font-semibold text-[16px] px-[32px] py-[17px] flex flex-row items-center justify-center gap-[4px]  rounded-[16px] w-full;
+}
+
+.button-primary__wrapper {
+  @apply rounded-[16px] bg-gradient-to-br from-[#FFCBA5] to-[#F36E3C] hover:from-[#FFE3CC] hover:to-[#FFAB7F] cursor-pointer transition duration-300 ease-in-out;
+}
+
+.button-primary {
+  @apply text-(--text-primary) font-semibold text-[16px] px-[46px] py-[17px] flex flex-row items-center justify-center gap-[4px] min-w-[200px];
+}
+
+.button-primary__wrapper:has(.button-primary:disabled) {
+  @apply bg-gradient-to-br from-[#EAECEF] to-[#8E99A8];
+
+  .button-primary {
+    @apply cursor-not-allowed!;
+  }
+}

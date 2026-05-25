@@ -125,38 +125,34 @@ async def process_table_data(
 
     # Получаем продукцию
     product_result = await db.execute(
-        text("SELECT name FROM products WHERE id = :id"),
+        text("SELECT table_name FROM parameter_schemas WHERE product_id = :id"),
         {"id": product_id},
     )
     
-    product_name = product_result.scalar_one_or_none()
-    # print("Продукт: ", product_name)
+    # product_name = product_result.scalar_one_or_none()
+    products_names = list({product.table_name for product in product_result})
+    print("Продукт: ", products_names)
 
-    if not product_name:
+    if products_names == []:
         raise HTTPException(status_code=404, detail="Продукция не найдена")
+    
+    #####################################
+    # когда несоклько таблиц у продукта
+    #####################################
 
-    table_name = f"{to_sql_name_lat(product_name)}_table"
+    for product_name in products_names:
 
-    # Получаем параметры продукции
-    # schema_result = await db.execute(
-    #     text("""
-    #         SELECT name
-    #         FROM parameter_schemas
-    #         WHERE product_id = :product_id and type = 'Table'
-    #     """),
-    #     {"product_id": product_id},
-    # )
+        # table_name = f"{to_sql_name_lat(product_name)}_table"
+        table_name = f"{to_sql_name_lat(product_name)}"
 
-    # schema_params = [row[0] for row in schema_result.fetchall()]
-
-    schema_full_result = await db.execute(
-        text("""
-            SELECT *
-            FROM parameter_schemas
-            WHERE product_id = :product_id and type = 'Table' 
-        """),
-        {"product_id": product_id},
-    )
+        schema_full_result = await db.execute(
+            text("""
+                SELECT *
+                FROM parameter_schemas
+                WHERE product_id = :product_id and type = 'Table' 
+            """),
+            {"product_id": product_id},
+        )
 
     full_info = schema_full_result.mappings().all()
 
@@ -168,7 +164,14 @@ async def process_table_data(
     
     # print("Список имен параметров по схеме: ", schema_params)
 
+    product_name_sql_result = await db.execute(text("SELECT name FROM products WHERE id = :id"), {"id": product_id})
+    product_name = product_name_sql_result.scalar_one_or_none()
+
     if not selected_params:
+
+        print("product_id", product_id)
+        print("table_name", table_name)
+        print("schema_params", schema_params)
 
         await ensure_dm_exists(
             db,
@@ -254,6 +257,7 @@ async def process_table_data(
     }
 
     # Собираем значения параметров ! ???
+    print("ngfhgfhg", column_to_param.items(), row[col])
     parameters = {
         param_name: sorted(str(v) for v in row[col])
         for col, param_name in column_to_param.items()

@@ -1,0 +1,3 @@
+.sidebar-block {
+  @apply rounded-[12px] max-w-[344px] border border-[#EAECEF] p-[24px];
+}

@@ -33,14 +33,13 @@ services:
     networks:
       - app-network
   
-
-
   fastapi:
     build: ./app
     container_name: fastapi_1
     volumes:
       - ./app:/data/app
-      - ./app_logs/fastapi:/etc/loggs/fastapi  # Добавляем том для логов FastAPI
+      - ./app_logs/fastapi:/etc/loggs/fastapi # Добавляем том для логов FastAPI
+      - ./uploads:/data/uploads
     env_file:
       - .env
     ports:
@@ -52,17 +51,17 @@ services:
     networks:
       - app-network
 
-#  frontend:
-#    container_name: vue
-#    build: ./front
-#    volumes:
-#      #- ./front/:/app/
-#      - ./app_logs/frontend:/app/logs  # Логи фронтенда
-#    ports:
-#      #- "127.0.0.1:5173:5173"
-#      - "5173:5173"
-#    networks:
-#      - app-network
+  frontend:
+    build: ./front
+    container_name: frontend
+    ports:
+      #- "127.0.0.1:5173:5173"
+      - "5173:5173"
+    # environment:
+      # - API_URL = http://${DOMAIN}/api
+
+    networks:
+      - app-network
 
 
 
