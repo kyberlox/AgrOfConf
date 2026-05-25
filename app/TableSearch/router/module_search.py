@@ -314,13 +314,14 @@ async def process_table_data(
         answer["debug"] = False
     else:
         if not row or row["matched_rows"] == 0:
-            error_params, req = await find_search_err(db, table_name, schema_params, where_clauses, sql_params,
-                                                      allowed_params, selected_params)
+
+            error_params, req = await find_search_err(db, table_name, schema_params, where_clauses, sql_params, allowed_params, selected_params)
             print("Ошибки: ", error_params)
             for item in new_params:
+                print(itrm['name'], ' - ', item['response_value'])
                 is_param_error = [err_item for err_item in error_params if err_item['param_name'] == item["name"]]
                 if is_param_error:
-                    # item['response_value'] = None
+                    item['response_value'] = None
                     item["error"] = is_param_error[0]["error"]
 
     parameters = await search_formula(db, new_params, table_name, selected_params, full_info=full_info, column_to_param=column_to_param)
