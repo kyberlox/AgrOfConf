@@ -291,7 +291,7 @@ async def process_table_data(
             )
     new_params = list()
     for item in full_info:
-        print(item)
+        # print(item)
         name = item['name']
         value = parameters.get(name, None)
         response_value = item['response_value'] if 'response_value' in item.keys() else None
