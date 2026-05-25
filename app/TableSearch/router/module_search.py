@@ -240,6 +240,7 @@ async def process_table_data(
         col = to_sql_name_lat(param_name)
         where_clauses.append(f'"{col}" = :{col}')
         sql_params[col] = str(value)
+        print(sql_params)
         # print("вписан в запрос")
 
     # шлём собранный запрос
