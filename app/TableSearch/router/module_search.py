@@ -226,8 +226,9 @@ async def process_table_data(
 
     allowed_params = set(schema_params)
     formula_params = dict()  # добавляю формульные параметры
+    pre_params = dict()
     for param_name, value in selected_params.items():
-        print(param_name, value)
+        # print(param_name, value)
 
         if param_name not in allowed_params:
             formula_params[param_name] = value
@@ -240,6 +241,8 @@ async def process_table_data(
         col = to_sql_name_lat(param_name)
         where_clauses.append(f'"{col}" = :{col}')
         sql_params[col] = str(value)
+
+        pre_params[param_name] = value
         # print("вписан в запрос")
 
     # шлём собранный запрос
@@ -248,6 +251,8 @@ async def process_table_data(
         db,
         product_id,
     )
+
+
     
     # ФОРМИРУЕМ ОТВЕТ
     answer = {
@@ -262,8 +267,7 @@ async def process_table_data(
         for col, param_name in column_to_param.items()
         if row[col]
     }
-    print(parameters)
-
+    # print(parameters)
     # parameters = dict()
 
     for col, param_name in column_to_param.items():
@@ -272,7 +276,9 @@ async def process_table_data(
         elif row[col] and len(row[col]) > 1:
             parameters[param_name] = sorted(str(v) for v in row[col])
     
-    print(parameters)
+    # print(parameters)
+    if parametrs == dict():
+        parametrs = pre_params
     # ! ???
 
     # сюда функция формульного поиска
