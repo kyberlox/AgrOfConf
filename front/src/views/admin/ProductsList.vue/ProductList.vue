@@ -93,9 +93,13 @@ export default defineComponent({
             initProducts();
         })
 
-        const initProducts = () => {
-            Api.get('products/?skip=0&limit=1000')
-                .then((data) => { products.value.length = 0; products.value = data })
+        const initProducts = async () => {
+            try {
+                const data = await Api.get('products/?skip=0&limit=1000')
+                products.value.length = 0;
+                products.value = data
+            }
+            catch (error) { console.error(error) }
         }
 
         const handleValueClick = (value: string) => {
@@ -136,40 +140,47 @@ export default defineComponent({
             }
         }
 
-        const addProduct = (userInputs: IProduct) => {
+        const addProduct = async (userInputs: IProduct) => {
             isLoading.value = true;
             const formInput = new FormData();
             Object.keys(userInputs).forEach(key => formInput.append(key, (userInputs[key as keyof typeof userInputs] as string)))
-            Api.post('products/', formInput)
-                .then(() => closeAllModals())
-                .finally(() => {
-                    initProducts();
-                    isLoading.value = false
-                })
+            try {
+                await Api.post('products/', formInput)
+            }
+            finally {
+                closeAllModals()
+                initProducts();
+                isLoading.value = false
+            }
         }
 
-        const editProduct = (id: number, userInputs: IProduct) => {
+        const editProduct = async (id: number, userInputs: IProduct) => {
             isLoading.value = true;
             const formInput = new FormData();
             Object.keys(userInputs).filter(e => e !== 'image' && e !== 'image_url').forEach(key => formInput.append(key, (userInputs[key as keyof typeof userInputs] as string)))
-            Api.put(`products/${id}`, formInput)
-                .finally(() => {
-                    closeAllModals();
-                    initProducts();
-                    isLoading.value = false;
-                })
+            try {
+                await Api.put(`products/${id}`, formInput)
+            }
+            finally {
+                closeAllModals();
+                initProducts();
+                isLoading.value = false;
+            }
         }
 
-        const deleteProduct = (id: number) => {
+        const deleteProduct = async (id: number) => {
             isLoading.value = true;
-            Api.delete(`products/${id}`)
-                .then(() => {
-                    closeAllModals();
-                    initProducts();
-                })
-                .finally(() => {
-                    isLoading.value = false;
-                })
+            try {
+                await Api.delete(`products/${id}`)
+            }
+            catch (error) {
+                console.error(error)
+            }
+            finally {
+                closeAllModals();
+                initProducts();
+                isLoading.value = false;
+            }
         }
 
         return {

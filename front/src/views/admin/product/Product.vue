@@ -140,37 +140,49 @@ export default defineComponent({
         const idInSettings = ref();
         const parameterUpdating = ref(false);
 
-        const downloadExcell = () => {
-            Api.post(`tables/download_xlsx?product_id=${props.id}`, undefined, { responseType: 'blob' })
-                .then((data) => download(data.data, String(data.headers['content-disposition'].split('=')[1]).replaceAll('"', ''), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'))
+        const downloadExcell = async () => {
+            try {
+                const data = await Api.post(`tables/download_xlsx?product_id=${props.id}`, undefined, { responseType: 'blob' });
+                download(data.data, String(data.headers['content-disposition'].split('=')[1]).replaceAll('"', ''), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            }
+            catch (error) { console.error(error) }
         }
 
-        const handleExcellUpload = () => {
+
+        const handleExcellUpload = async () => {
             const excell = excellFileNode.value.files[0];
             const body = new FormData();
             body.append('file', excell);
-            Api.post(`tables/upload_xlsx?product_id=${props.id}`, body)
-                .then(() => getParams())
+            try {
+                await Api.post(`tables/upload_xlsx?product_id=${props.id}`, body)
+            }
+            finally {
+                getParams()
+            }
         }
 
-        const getParams = () => {
-            Api.get(`parameters/by_product/${props.id}`)
-                .then((data: IParameter[] | { detail: string }) => {
-                    if (!data || 'detail' in data) productTableType.value = []
-                    productTableType.value = (data as IParameter[]).sort((a, b) => Number(a['sort']) - Number(b['sort']));
-                })
-                .catch(() => productTableType.value = [])
+        const getParams = async () => {
+            try {
+                const products = await Api.get(`parameters/by_product/${props.id}`)
+                if (!products || 'detail' in products) { productTableType.value = [] }
+                else
+                    productTableType.value = (products as IParameter[]).sort((a, b) => Number(a['sort']) - Number(b['sort']));
+            }
+            catch {
+                productTableType.value = []
+            }
         }
 
-        const getUserInputType = () => {
-            Api.get('http://agrofconf.emk.org.ru/api/user_input/get_user_inputs')
-        }
-
-        // const addParam = () => {
+        // const addParam = async () => {
         //     const newBody = {};
-        //     Api.post('api/parameters/', newBody)
-        //         .then(() => getParams())
+        //     try {
+        //         Api.post('api/parameters/', newBody)
+        //     }
+        //     finally {
+        //         getParams()
+        //     }
         // }
+
 
         onMounted(() => {
             getParams();
@@ -191,14 +203,16 @@ export default defineComponent({
             })
         }
 
-        const sendNewSort = () => {
+        const sendNewSort = async () => {
             sortChanged.value = false;
-            const newBody: IParameter[] = productTableType.value.map((e, index) => {
+            const newBody = productTableType.value.map((e, index) => {
                 e.sort = index + 1;
                 return e
             })
-            Api.put(`/parameters/sort/${props.id}`, newBody)
-                .catch((err) => console.log(err))
+            try {
+                await Api.put(`/parameters/sort/${props.id}`, newBody)
+            }
+            catch { (err: unknown) => console.error(err) }
         }
 
         const changeSettings = (id: number) => {
@@ -206,14 +220,16 @@ export default defineComponent({
             idInSettings.value = id;
         }
 
-        const updateParameter = (id: number, parameter: { name: string, description: string }) => {
+        const updateParameter = async (id: number, parameter: { name: string, description: string }) => {
             parameterUpdating.value = true;
-            Api.put(`parameters/${id}`, parameter)
-                .then(() => parameterUpdating.value = false)
-                .finally(() => {
-                    getParams();
-                    productSettingsVisible.value = false
-                })
+            try {
+                await Api.put(`parameters/${id}`, parameter)
+            }
+            finally {
+                getParams();
+                parameterUpdating.value = false
+                productSettingsVisible.value = false
+            }
         }
 
         return {
