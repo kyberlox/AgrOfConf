@@ -835,7 +835,7 @@ async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
             shutil.copyfileobj(file.file, buffer)
             
         # print(recognize_text_from_file(file_path))
-        return recognize_text_from_file(file_path)
+        # return recognize_text_from_file(file_path)
 
         return {
             # "Тип конструкции": "Клапан пружинный",
