@@ -403,6 +403,8 @@ async def params_value(
         #     for col, param_name in column_to_param.items()
         #     if row[col]
         # }
+        print(row, '123')
+        print(column_to_param)
         for col, param_name in column_to_param.items():
             if param_name == 'id':
                 continue
