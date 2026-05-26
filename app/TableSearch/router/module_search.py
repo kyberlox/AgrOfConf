@@ -396,7 +396,7 @@ async def params_value(
             """),
             {"table_name": table_name, "table_schema": 'public'}
         )
-        table_columns_lat = [row[0] for row in table_columns_stmt.fetchall()]
+        table_columns = [row[0] for row in table_columns_stmt.fetchall()]
 
         row, column_to_param = await get_params_from_sql(db, table_name, table_columns, where_clauses, sql_params, allowed_params)
         # parameters = {
