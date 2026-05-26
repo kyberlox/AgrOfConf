@@ -410,9 +410,9 @@ async def params_value(
             if col == 'id':
                 continue
             if row[col] and len(row[col]) == 1:
-                parameters[schema_params['col']] = row[col][0]
+                parameters[schema_params[col]] = row[col][0]
             elif row[col] and len(row[col]) > 1:
-                parameters[schema_params['col']] = sorted(str(v) for v in row[col])
+                parameters[schema_params[col]] = sorted(str(v) for v in row[col])
     
     return parameters
 
