@@ -36,7 +36,7 @@ async def get_params_from_sql(db, table_name, schema_params, where_clauses, sql_
         select_parts.append(
             f'array_agg(DISTINCT "{col}") FILTER (WHERE "{col}" IS NOT NULL) AS "{col}"'
         )
-        column_to_param[col] = to_sql_name_kir(param_name)
+        column_to_param[col] = param_name
 
     select_sql = ", ".join(select_parts)
     query = f"""
@@ -373,14 +373,15 @@ async def params_value(
 
     full_info = schema_full_result.mappings().all()
 
-    schema_params = [param_info['name'] for param_info in full_info]
-    print(schema_params)
+    # schema_params = [param_info['name'] for param_info in full_info]
+    schema_params = {param_info['transliterated_name']: param_info['name'] for param_info in full_info}
+    
     if not schema_params:
         raise HTTPException(status_code=404, detail="Параметры не найдены")
 
     where_clauses = []
     sql_params = {}
-    allowed_params = set(schema_params)
+    allowed_params = set()
 
     parameters = dict()
 
@@ -404,14 +405,14 @@ async def params_value(
         #     for col, param_name in column_to_param.items()
         #     if row[col]
         # }
-        print(column_to_param)
+        
         for col, param_name in column_to_param.items():
             if col == 'id':
                 continue
             if row[col] and len(row[col]) == 1:
-                parameters[param_name] = row[col][0]
+                parameters[schema_params['col']] = row[col][0]
             elif row[col] and len(row[col]) > 1:
-                parameters[param_name] = sorted(str(v) for v in row[col])
+                parameters[schema_params['col']] = sorted(str(v) for v in row[col])
     
     return parameters
 
