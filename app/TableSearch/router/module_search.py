@@ -387,11 +387,12 @@ async def params_value(
 
         table_name = f"{to_sql_name_lat(product_name)}"
             
-        table_columns_stmt = await db.execute("""
+        table_columns_stmt = await db.execute(
+            text("""
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name = %s AND table_schema = %s
-        """, (table_name, 'public'))
+        """), (table_name, 'public'))
         table_columns = [row[0] for row in table_columns_stmt.fetchall()]
 
         row, column_to_param = await get_params_from_sql(db, table_name, table_columns, where_clauses, sql_params, allowed_params)
