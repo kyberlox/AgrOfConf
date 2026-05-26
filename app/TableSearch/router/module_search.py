@@ -4,7 +4,7 @@ from sqlalchemy import text
 import time
 
 from app.TablePakage.model.database import get_db
-from app.TablePakage.utils.router_utils import to_sql_name_lat
+from app.TablePakage.utils.router_utils import to_sql_name_lat, to_sql_name_kir
 from app.TableSearch.schema.search import ModuleSearchResponse
 from app.TableSearch.utils.dm_search import ensure_dm_exists, get_full_search_from_dm
 from app.TableSearch.utils.formula_search import search_formula
@@ -36,7 +36,7 @@ async def get_params_from_sql(db, table_name, schema_params, where_clauses, sql_
         select_parts.append(
             f'array_agg(DISTINCT "{col}") FILTER (WHERE "{col}" IS NOT NULL) AS "{col}"'
         )
-        column_to_param[col] = param_name
+        column_to_param[col] = to_sql_name_kir(param_name)
 
     select_sql = ", ".join(select_parts)
     query = f"""
@@ -396,7 +396,7 @@ async def params_value(
             """),
             {"table_name": table_name, "table_schema": 'public'}
         )
-        table_columns = [row[0] for row in table_columns_stmt.fetchall()]
+        table_columns_lat = [row[0] for row in table_columns_stmt.fetchall()]
 
         row, column_to_param = await get_params_from_sql(db, table_name, table_columns, where_clauses, sql_params, allowed_params)
         # parameters = {
@@ -406,12 +406,12 @@ async def params_value(
         # }
         print(column_to_param)
         for col, param_name in column_to_param.items():
-            if param_name == 'id':
+            if col == 'id':
                 continue
             if row[col] and len(row[col]) == 1:
-                parameters[col] = row[col][0]
+                parameters[param_name] = row[col][0]
             elif row[col] and len(row[col]) > 1:
-                parameters[col] = sorted(str(v) for v in row[col])
+                parameters[param_name] = sorted(str(v) for v in row[col])
     
     return parameters
 
