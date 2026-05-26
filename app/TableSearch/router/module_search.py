@@ -346,7 +346,7 @@ async def process_table_data(
 @router.post(
     "/params_value",
     # response_model=ModuleSearchResponse,
-    description="Ищем значения для параметров продукции",
+    description="Модуль подбора",
 )
 async def params_value(
         product_id: int,
