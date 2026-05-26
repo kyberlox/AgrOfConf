@@ -391,7 +391,7 @@ async def params_value(
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name = %s AND table_schema = %s
-        """, (table_name, schema))
+        """, (table_name, 'public'))
         table_columns = [row[0] for row in table_columns_stmt.fetchall()]
 
         row, column_to_param = await get_params_from_sql(db, table_name, table_columns, where_clauses, sql_params, allowed_params)
