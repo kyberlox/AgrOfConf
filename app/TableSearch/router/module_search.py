@@ -407,9 +407,9 @@ async def params_value(
             if param_name == 'id':
                 continue
             if row[col] and len(row[col]) == 1:
-                parameters[param_name] = row[col][0]
+                parameters[col] = row[col][0]
             elif row[col] and len(row[col]) > 1:
-                parameters[param_name] = sorted(str(v) for v in row[col])
+                parameters[col] = sorted(str(v) for v in row[col])
     
     return parameters
 
