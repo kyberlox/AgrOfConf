@@ -374,6 +374,7 @@ async def params_value(
     full_info = schema_full_result.mappings().all()
 
     schema_params = [param_info['name'] for param_info in full_info]
+    print(schema_params)
     if not schema_params:
         raise HTTPException(status_code=404, detail="Параметры не найдены")
 
@@ -403,7 +404,6 @@ async def params_value(
         #     for col, param_name in column_to_param.items()
         #     if row[col]
         # }
-        print(row, '123')
         print(column_to_param)
         for col, param_name in column_to_param.items():
             if param_name == 'id':
