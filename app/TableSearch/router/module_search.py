@@ -342,3 +342,72 @@ async def process_table_data(
     # print("На выходе: ", answer["parameters"])
 
     return answer
+
+@router.post(
+    "/params_value",
+    # response_model=ModuleSearchResponse,
+    description="Ищем значения для параметров продукции",
+)
+async def params_value(
+        product_id: int,
+        db: AsyncSession = Depends(get_db)
+):
+    # Получаем продукцию
+    product_result = await db.execute(
+        text("SELECT table_name FROM parameter_schemas WHERE product_id = :id"),
+        {"id": product_id},
+    )
+
+    products_names = list({product.table_name for product in product_result})
+    if products_names == []:
+        raise HTTPException(status_code=404, detail="Продукция не найдена")
+
+    schema_full_result = await db.execute(
+            text("""
+                SELECT *
+                FROM parameter_schemas
+                WHERE product_id = :product_id and type = 'Table' 
+            """),
+            {"product_id": product_id},
+        )
+
+    full_info = schema_full_result.mappings().all()
+
+    schema_params = [param_info['name'] for param_info in full_info]
+    if not schema_params:
+        raise HTTPException(status_code=404, detail="Параметры не найдены")
+
+    where_clauses = []
+    sql_params = {}
+    allowed_params = set(schema_params)
+
+    parameters = dict()
+
+    for product_name in products_names:
+
+        table_name = f"{to_sql_name_lat(product_name)}"
+            
+        table_columns_stmt = await db.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = %s AND table_schema = %s
+        """, (table_name, schema))
+        table_columns = [row[0] for row in table_columns_stmt.fetchall()]
+
+        row, column_to_param = await get_params_from_sql(db, table_name, table_columns, where_clauses, sql_params, allowed_params)
+        # parameters = {
+        #     param_name: sorted(str(v) for v in row[col])
+        #     for col, param_name in column_to_param.items()
+        #     if row[col]
+        # }
+        for col, param_name in column_to_param.items():
+            if row[col] and len(row[col]) == 1:
+                parameters[param_name] = row[col][0]
+            elif row[col] and len(row[col]) > 1:
+                parameters[param_name] = sorted(str(v) for v in row[col])
+
+    return parameters
+
+
+
+    
