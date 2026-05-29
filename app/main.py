@@ -1,6 +1,10 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request, Response, HTTPException
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+
+import json
+from typing import List
 #from .TablePakage.model.product import Product
 # from .FormulaPakage.model import *
 
@@ -16,17 +20,11 @@ from .TablePakage.model.database import create_tables
 import app.logging_config
 from .TablePakage.model.database import create_tables
 
-# from .FormulaPakage.router.calculate import router as calculated_router
-# from .FormulaPakage.router.user_inputs import router as user_input_router
-# from .FormulaPakage.router.conditions import router as condition_router
-# from .FormulaPakage.router.selected_files import router as selected_file_router
-# from .FormulaPakage.router.fields_of_view import router as fields_of_view_router
-# from .FormulaPakage.router.constants import router as constants_router
-# from .FormulaPakage.router.code_param import router as code_router
-
-# from .TablePakage.router.formulas import router as formulas_router
-
-# import app.logging_config
+from .UserService.services.redis_service import RedisStorage
+from .UserService.utils.auth_utils import validate_users_sessions, create_session, refresh_session_id
+from .UserService.router.users_router import router as users_router
+from .UserService.router.auth_router import router as auth_router
+from .UserService.router.roots_router import router as roots_router
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -57,6 +55,74 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+#Открытые эндпоинты
+open_links = ["/api/docs", "/api/openapi.json"]
+
+redis_storage = RedisStorage()
+
+# @app.middleware("http")
+# async def session_middleware(request: Request, call_next):
+#     try:
+#         ttl_refresh_threshold = 300
+#         path = request.url.path
+#         # Пропускаем открытые эндпоинты
+#         if path in open_links:
+#             return await call_next(request)
+
+#         # Получаем session_id из cookie
+#         session_id = request.cookies.get("session_id")
+#         if not session_id:
+#             raise HTTPException(status_code=401, detail="Missing session cookie")
+
+#         # Проверяем существование и TTL сессии в Redis
+#         user_id = redis_storage.get_session(session_id)
+#         if user_id is None:
+#             raise HTTPException(status_code=401, detail="Invalid or expired session")
+
+#         ttl = redis_storage.get_ttl(session_id)
+#         # Если ключ есть, но TTL == -1 (нет истечения) – не нужно обновлять
+#         # Если TTL < 0 (ошибка) – считаем, что сессия не валидна
+#         if ttl < 0 and ttl != -1:
+#             raise HTTPException(status_code=401, detail="Session error")
+
+#         # Обновление сессии, если осталось меньше порога
+#         if ttl > 0 and ttl <= ttl_refresh_threshold:
+#             # Вызываем внешнее API для получения нового session_id
+#             refresh_data = await refresh_session_id(session_id)
+#             if refresh_data['status'] != "success":
+#                 # Не удалось обновить – можно либо вернуть 401, либо продолжить с той же сессией
+#                 # По логике – лучше вернуть 401, так как сессия скоро истечёт и токен не продлён
+#                 raise HTTPException(status_code=401, detail="Session refresh failed")
+
+#             new_session_id = refresh_data["session_id"]
+
+#             # Удаляем все старые сессии пользователя
+#             await validate_users_sessions(user_id)
+
+#             # Создаём новую сессию
+#             await create_session(new_session_id, user_id)  # create_session асинхронная
+
+#             # Устанавливаем новую cookie
+#             resp = await call_next(request)
+#             resp.set_cookie(
+#                 key="session_id",
+#                 value=new_session_id,
+#                 samesite="lax"
+#             )
+#             return resp
+
+#         # Если TTL > порога – просто продлеваем время жизни (скользящая сессия)
+#         if ttl > 0:
+#             # Продлеваем на стандартное время (например, 1 час)
+#             redis_storage.expire_session(session_id, int(redis_storage.session_ttl.total_seconds()))
+
+#         # Обычный случай – вызываем следующий обработчик
+#         response = await call_next(request)
+#         return response
+#     except HTTPException as e:
+#         return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+
+
 # Создаём таблицы при старте приложения
 @app.on_event("startup")
 async def startup_event():
@@ -75,6 +141,9 @@ app.include_router(parameter_values_router, prefix="/api")
 app.include_router(module_search_router, prefix="/api")
 app.include_router(module_search_router_pandas, prefix="/api")
 app.include_router(AI_router, prefix="/api")
+app.include_router(users_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
+app.include_router(roots_router, prefix="/api")
 
 # app.include_router(calculated_router, prefix="/api")
 # app.include_router(user_input_router, prefix="/api")

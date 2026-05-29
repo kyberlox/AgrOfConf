@@ -19,7 +19,7 @@ async def rebuild_dm(
 
         # 2️⃣ CREATE отдельно
         union_queries = []
-        
+        print()
         for param in schema_params:
             col = to_sql_name_lat(param)
             union_queries.append(f"""
@@ -63,7 +63,9 @@ async def rebuild_dm(
         })
         
         await db.commit()
-        
+    except Exception as e:
+        await db.rollback()
+        print("Ошибка", str(e))
     finally:
         # unlock всегда в finally
         await db.execute(text("SELECT pg_advisory_unlock(:pid)"), {"pid": product_id})

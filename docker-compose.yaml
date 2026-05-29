@@ -33,6 +33,22 @@ services:
     networks:
       - app-network
   
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      #- "6379:6379"
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - ./redis_data:/data
+      # - ./app_logs/redis:/var/log/redis  # Добавляем, если redis настроен писать логи в файл
+    environment:
+      - REDIS_PASSWORD=${pswd}  # пароль из .env
+    command: [ "redis-server", "--requirepass", "${pswd}" ]
+    restart: unless-stopped
+    networks:
+      - app-network
+
   fastapi:
     build: ./app
     container_name: fastapi_1
