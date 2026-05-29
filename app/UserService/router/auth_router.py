@@ -17,7 +17,8 @@ router = APIRouter(prefix="/auth", tags=["Авторизация"])
 redis_storage = RedisStorage()
 
 async def check_session_id(token: str):
-    url = "https://intranet.emk.ru/api/auth_router/check"
+    # url = "http://intranet.emk.org.ru/api/auth_router/check"
+    url = "http://intranet.emk.org.ru/api/auth_router/check"
     async with httpx.AsyncClient(timeout=30.0) as client:
         res = await client.get(url, cookies={'session_id': token})
         if res.status_code == 200:

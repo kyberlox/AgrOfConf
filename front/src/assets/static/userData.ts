@@ -1,14 +1,14 @@
 export const userData = {
     fio: 'Газинский Игорь Владимирович',
     position: 'Ведущий разработчик',
-    avatar: 'https://intranet.emk.ru/api/user_files/2366_2.png',
+    avatar: 'http://intranet.emk.org.ru/api/user_files/2366_2.png',
     requestsData: {
         ko: [
             {
             id: 1, name: 'Ко Земская',
              users: [
                 {
-                    id: 1, fio: 'Тест тестович тестов', avatar: 'https://intranet.emk.ru/api/user_files/2521_1.png'
+                    id: 1, fio: 'Тест тестович тестов', avatar: 'http://intranet.emk.org.ru/api/user_files/2521_1.png'
                 }
             ]}
         ],
