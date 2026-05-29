@@ -48,15 +48,12 @@ async def get_user(
             raise HTTPException(status_code=401, detail="Проверьте авторизацию в Интранете")
         
         user_id = int(is_active['user']['ID'])
-        print(user_id, 'че получили на пользователя')
         stmt = await db.execute(select(Users).filter(Users.id == user_id))
         user = stmt.scalar_one_or_none()
         if not user:
             user_data = await parse_user_data(is_active['user'])
             new_user = Users(**user_data)
-            print(123)
-            await db.add(new_user)
-            print(123)
+            db.add(new_user)
             await db.commit()
             await db.refresh(new_user)
         print('Создали юзера', user)
