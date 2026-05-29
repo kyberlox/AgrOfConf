@@ -56,6 +56,7 @@ async def get_user(
             new_user = Users(**user_data)
             print(123)
             await db.add(new_user)
+            print(123)
             await db.commit()
             await db.refresh(new_user)
         print('Создали юзера', user)
