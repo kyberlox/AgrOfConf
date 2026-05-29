@@ -4,7 +4,7 @@ from sqlalchemy import text
 import time
 
 from app.TablePakage.model.database import get_db
-from app.TablePakage.utils.router_utils import to_sql_name_lat
+from app.TablePakage.utils.router_utils import to_sql_name_lat, to_sql_name_kir
 from app.TableSearch.schema.search import ModuleSearchResponse
 from app.TableSearch.utils.dm_search import ensure_dm_exists, get_full_search_from_dm
 from app.TableSearch.utils.formula_search import search_formula
@@ -226,6 +226,7 @@ async def process_table_data(
 
     allowed_params = set(schema_params)
     formula_params = dict()  # добавляю формульные параметры
+    pre_params = dict()
     for param_name, value in selected_params.items():
         # print(param_name, value)
 
@@ -240,15 +241,18 @@ async def process_table_data(
         col = to_sql_name_lat(param_name)
         where_clauses.append(f'"{col}" = :{col}')
         sql_params[col] = str(value)
+
+        pre_params[param_name] = value
         # print("вписан в запрос")
 
     # шлём собранный запрос
-    row, column_to_param = await get_params_from_sql(db, table_name, schema_params, where_clauses, sql_params,
-                                                     allowed_params)
+    row, column_to_param = await get_params_from_sql(db, table_name, schema_params, where_clauses, sql_params, allowed_params)
     full_value_parameters, matched_rows_1 = await get_full_search_from_dm(
         db,
         product_id,
     )
+
+
     
     # ФОРМИРУЕМ ОТВЕТ
     answer = {
@@ -257,13 +261,13 @@ async def process_table_data(
     }
 
     # Собираем значения параметров ! ???
-    print("ngfhgfhg", column_to_param.items(), row[col])
+    # print("ngfhgfhg", column_to_param.items(), row[col])
     parameters = {
         param_name: sorted(str(v) for v in row[col])
         for col, param_name in column_to_param.items()
         if row[col]
     }
-
+    # print(parameters)
     # parameters = dict()
 
     for col, param_name in column_to_param.items():
@@ -271,6 +275,10 @@ async def process_table_data(
             parameters[param_name] = row[col][0]
         elif row[col] and len(row[col]) > 1:
             parameters[param_name] = sorted(str(v) for v in row[col])
+    
+    # print(parameters)
+    if parameters == {}:
+        parameters = pre_params
     # ! ???
 
     # сюда функция формульного поиска
@@ -290,9 +298,10 @@ async def process_table_data(
             )
     new_params = list()
     for item in full_info:
+        # print(item)
         name = item['name']
         value = parameters.get(name, None)
-        response_value = None
+        response_value = item['response_value'] if 'response_value' in item.keys() else None
         if isinstance(value, str):
             response_value = value
             value = full_value_parameters[name]
@@ -314,8 +323,8 @@ async def process_table_data(
         answer["debug"] = False
     else:
         if not row or row["matched_rows"] == 0:
-            error_params, req = await find_search_err(db, table_name, schema_params, where_clauses, sql_params,
-                                                      allowed_params, selected_params)
+
+            error_params, req = await find_search_err(db, table_name, schema_params, where_clauses, sql_params, allowed_params, selected_params)
             print("Ошибки: ", error_params)
             for item in new_params:
                 is_param_error = [err_item for err_item in error_params if err_item['param_name'] == item["name"]]
@@ -333,3 +342,80 @@ async def process_table_data(
     # print("На выходе: ", answer["parameters"])
 
     return answer
+
+@router.post(
+    "/params_value",
+    # response_model=ModuleSearchResponse,
+    description="Модуль подбора",
+)
+async def params_value(
+        product_id: int,
+        db: AsyncSession = Depends(get_db)
+):
+    # Получаем продукцию
+    product_result = await db.execute(
+        text("SELECT table_name FROM parameter_schemas WHERE product_id = :id"),
+        {"id": product_id},
+    )
+
+    products_names = list({product.table_name for product in product_result})
+    if products_names == []:
+        raise HTTPException(status_code=404, detail="Продукция не найдена")
+
+    schema_full_result = await db.execute(
+            text("""
+                SELECT *
+                FROM parameter_schemas
+                WHERE product_id = :product_id and type = 'Table' 
+            """),
+            {"product_id": product_id},
+        )
+
+    full_info = schema_full_result.mappings().all()
+
+    # schema_params = [param_info['name'] for param_info in full_info]
+    schema_params = {param_info['transliterated_name']: param_info['name'] for param_info in full_info}
+    
+    if not schema_params:
+        raise HTTPException(status_code=404, detail="Параметры не найдены")
+
+    where_clauses = []
+    sql_params = {}
+    allowed_params = set()
+
+    parameters = dict()
+
+    for product_name in products_names:
+
+        table_name = f"{to_sql_name_lat(product_name)}"
+            
+        table_columns_stmt = await db.execute(
+            text("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = :table_name AND table_schema = :table_schema
+            """),
+            {"table_name": table_name, "table_schema": 'public'}
+        )
+        table_columns = [row[0] for row in table_columns_stmt.fetchall()]
+
+        row, column_to_param = await get_params_from_sql(db, table_name, table_columns, where_clauses, sql_params, allowed_params)
+        # parameters = {
+        #     param_name: sorted(str(v) for v in row[col])
+        #     for col, param_name in column_to_param.items()
+        #     if row[col]
+        # }
+        
+        for col, param_name in column_to_param.items():
+            if col == 'id':
+                continue
+            if row[col] and len(row[col]) == 1:
+                parameters[schema_params[col]] = row[col][0]
+            elif row[col] and len(row[col]) > 1:
+                parameters[schema_params[col]] = sorted(str(v) for v in row[col])
+    
+    return parameters
+
+
+
+    

@@ -745,7 +745,7 @@ SUPER_PROMPT = """
 в ответ пришли только json!
 """
 
-def recognize_text_from_file(file_path: str, credentials: str = None, model: str = "GigaChat-2-Pro") -> str | None:
+def recognize_text_from_file(file_path: str, credentials: str = None, model: str = "GigaChat-2") -> str | None:
     file_path_obj = Path(file_path)
     if not file_path_obj.exists():
         raise FileNotFoundError(f"Файл {file_path} не найден")
@@ -845,5 +845,6 @@ async def upload_OL(file: UploadFile = File(...)) -> Dict[str, Any]:
             # "Материал корпуса": "хладостойкая сталь (20ГЛ)",
             "Маркировка": "АМ211.100.16.3330"
         }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")
