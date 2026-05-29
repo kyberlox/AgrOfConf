@@ -54,6 +54,7 @@ async def get_user(
         if not user:
             user_data = await parse_user_data(is_active['user'])
             new_user = Users(**user_data)
+            print(123)
             await db.add(new_user)
             await db.commit()
             await db.refresh(new_user)
