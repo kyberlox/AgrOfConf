@@ -57,7 +57,7 @@ async def get_user(
             await db.add(new_user)
             await db.commit()
             await db.refresh(new_user)
-        
+        print('Создали юзера', user)
         # Проверяем создание сессии
         is_valid = await validate_users_sessions(user_id=user_id)
         
@@ -67,6 +67,7 @@ async def get_user(
             value=session, 
             samesite="lax"
         )
+        print("Отправляем на главную")
         return RedirectResponse(url="/")
     except HTTPException:
         raise
