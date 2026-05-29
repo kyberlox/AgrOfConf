@@ -419,6 +419,57 @@ class CodeParametr:
 
         return {"total_change" : res}
 
+    async def _searchT2(self, T, Pn, db):
+        #print(f"T2: {Pn}")
+        #найти все подходящие строки их DNS и P1 - больше искомых
+        request = await db.execute(text(f"SELECT * FROM table2 WHERE t >= {T} AND pn >= {Pn}")).fetchall()
+        # request = db.query("table2").filter(Table2.t >= T, Table2.pn >= Pn).all()
+
+        if request == None or len(request) == 0:
+            return False
+        ans = False
+
+        #найти самый подходящий - MIN по DNS и P1
+        minT = request[0].T
+        minPn = request[0].Pn
+        for example in request:
+            if (example.t <= minT) and (example.pn <= minPn):
+                minT = example.t
+                minPn = example.pn
+                ans = {
+                    "ID" : example.id,  
+                    "T" : example.t, 
+                    "Pn" : example.pn * 10, 
+                    "PN" : example.p
+                }
+        #print(ans)
+        return ans
+    
+    async def _searchT10(self, T, Pn, db):
+        #print(f"T10: {Pn}")
+        #найти все подходящие строки их DNS и P1 - больше искомых
+        # request = db.query(Table10).filter(Table10.T >= T, Table10.Pn >= Pn).all()
+        request = await db.execute(text(f"SELECT * FROM table10 WHERE t10 >= {T} AND pn10 >= {Pn}")).fetchall()
+
+        if request == None or len(request) == 0:
+            return False
+        ans = False
+
+        #найти самы подходящий - MIN по DNS и P1
+        minT = request[0].t10
+        minPn = request[0].pn10
+        for example in request:
+            if (example.t10 <= minT) and (example.pn10 <= minPn):
+                minT = example.t10
+                minPn = example.pn10
+                ans = {
+                    "ID" : example.id,  
+                    "T" : example.t10, 
+                    "Pn" : example.pn10, 
+                    "PN" : example.p10
+                }
+        #print(ans)
+        return ans
 
     async def raschet(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
         from copy import deepcopy
@@ -711,6 +762,13 @@ class CodeParametr:
             DN_s = sqrt((4 * F) / pi)
         DN_s = math.ceil(DN_s * 10) / 10
 
+        material_inf = [param for param in selection_result if param["name"] == "Материал"]
+        if material_inf[0]['response_value'] == "20ГЛ" or material_inf[0]['response_value'] == "25Л":
+            ex = await self._searchT2(T, Pn * 10.197162, db)
+        else:
+            ex = await self._searchT10(T, Pn * 10.197162, db)
+        print(ex, 'че получили')
+
         """
         ТУТ НАЧАЛИСЬ ПРОБЛЕМЫ, ФУНКЦИИ searchT2, searchT10 
         """
@@ -740,7 +798,6 @@ class CodeParametr:
         else:
             return {"error": "Нет возможности подобрать PN"}
         """
-
         return {"total_change" : res}
 
 ALLOWED_FUNCTIONS =  [method for method in dir(CodeParametr) if callable(getattr(CodeParametr, method)) and not method.startswith("__")]
