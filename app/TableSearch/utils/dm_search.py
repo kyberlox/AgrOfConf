@@ -160,15 +160,30 @@ async def get_full_search_from_dm(
 
     rows = result.mappings().all()
 
+    parameters = {}
+    matched_rows_list = []
+
+    for row in rows:
+        param_name = row["param_name"]
+        values = row["values"]
+        matched_rows = row["matched_rows"] or 0
+
+        matched_rows_list.append(matched_rows)
+
+        if not values:
+            continue
+
+        if param_name not in parameters:
+            parameters[param_name] = set()
+
+        for value in values:
+            parameters[param_name].add(str(value))
+
     parameters = {
-        row["param_name"]: sorted(map(str, row["values"]))
-        for row in rows
-        if row["values"]
+        param_name: sorted(values)
+        for param_name, values in parameters.items()
     }
 
-    max_rows = max(
-        row["matched_rows"]
-        for row in rows
-    ) if rows else 0
+    max_rows = max(matched_rows_list) if matched_rows_list else 0
 
     return parameters, max_rows
