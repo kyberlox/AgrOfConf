@@ -17,7 +17,8 @@ router = APIRouter(prefix="/auth", tags=["Авторизация"])
 redis_storage = RedisStorage()
 
 async def check_session_id(token: str):
-    url = "https://intranet.emk.ru/api/auth_router/check"
+    # url = "http://intranet.emk.org.ru/api/auth_router/check"
+    url = "http://intranet.emk.org.ru/api/auth_router/check"
     async with httpx.AsyncClient(timeout=30.0) as client:
         res = await client.get(url, cookies={'session_id': token})
         if res.status_code == 200:
@@ -46,13 +47,13 @@ async def get_user(
         if not is_auth:
             raise HTTPException(status_code=401, detail="Проверьте авторизацию в Интранете")
         
-        user_id = is_active['user']['ID']
+        user_id = int(is_active['user']['ID'])
         stmt = await db.execute(select(Users).filter(Users.id == user_id))
         user = stmt.scalar_one_or_none()
         if not user:
             user_data = await parse_user_data(is_active['user'])
             new_user = Users(**user_data)
-            await db.add(new_user)
+            db.add(new_user)
             await db.commit()
             await db.refresh(new_user)
         

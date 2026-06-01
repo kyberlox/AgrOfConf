@@ -31,7 +31,7 @@ async def delete_session(session_id: str, key: Optional[str] = None) -> None:
         redis_storage.delete_session(session_id)
 
 async def refresh_session_id(token: str):
-    url = "https://intranet.emk.ru/api/auth_router/refresh"
+    url = "http://intranet.emk.org.ru/api/auth_router/refresh"
     async with httpx.AsyncClient(timeout=30.0) as client:
         res = await client.get(url, cookies={'session_id': token})
         if res.status_code == 200:

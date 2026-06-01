@@ -2,420 +2,367 @@ from fastapi import APIRouter, Depends, Body, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 import time
+from collections import defaultdict
 
 from app.TablePakage.model.database import get_db
-from app.TablePakage.utils.router_utils import to_sql_name_lat, to_sql_name_kir
-from app.TableSearch.schema.search import ModuleSearchResponse
 from app.TableSearch.utils.dm_search import ensure_dm_exists, get_full_search_from_dm
-from app.TableSearch.utils.formula_search import search_formula
 
 router = APIRouter(prefix="/module_search", tags=["Module_search"])
 
 
-# {
-#     'id': int,
-#     'name': str,
-#     'description': str,
-#     'all_values': list|str,
-#     'response_value': str,
-#     'visibility': bool,
-#     'required_type': str ('list'|'input')
-# }
+async def get_table_params_from_sql(
+        db: AsyncSession,
+        table_name: str,
+        table_params: list[dict],
+        selected_params: dict[str, str | int | list],
+):
+    """
+    Делает подбор внутри одной конкретной таблицы Excel.
+    table_params — параметры только этой таблицы.
+    selected_params — выбранные пользователем параметры.
+    """
 
-async def get_params_from_sql(db, table_name, schema_params, where_clauses, sql_params, allowed_params):
+    where_clauses = []
+    sql_params = {}
+
+    for item in table_params:
+        param_name = item["name"]
+        col = item["transliterated_name"]
+
+        if param_name not in selected_params:
+            continue
+
+        value = selected_params[param_name]
+
+        if value is None:
+            continue
+
+        if isinstance(value, list):
+            placeholders = []
+
+            for idx, v in enumerate(value):
+                param_key = f"{col}_{idx}"
+                placeholders.append(f":{param_key}")
+                sql_params[param_key] = str(v)
+
+            if placeholders:
+                where_clauses.append(f'"{col}" IN ({", ".join(placeholders)})')
+        else:
+            where_clauses.append(f'"{col}" = :{col}')
+            sql_params[col] = str(value)
+
     where_sql = ""
     if where_clauses:
         where_sql = "WHERE " + " AND ".join(where_clauses)
 
-    # Запрашиваем строки
     select_parts = []
     column_to_param = {}
 
-    for param_name in schema_params:
-        col = to_sql_name_lat(param_name)
+    for item in table_params:
+        param_name = item["name"]
+        col = item["transliterated_name"]
+
         select_parts.append(
             f'array_agg(DISTINCT "{col}") FILTER (WHERE "{col}" IS NOT NULL) AS "{col}"'
         )
         column_to_param[col] = param_name
 
-    select_sql = ", ".join(select_parts)
+    if not select_parts:
+        return None, {}
+
     query = f"""
-            SELECT
-                {select_sql},
-                COUNT(*) AS matched_rows
-            FROM "{table_name}"
-            {where_sql}
-        """
+        SELECT
+            {", ".join(select_parts)},
+            COUNT(*) AS matched_rows
+        FROM "{table_name}"
+        {where_sql}
+    """
+
     try:
         result = await db.execute(text(query), sql_params)
         row = result.mappings().first()
-        # print("что нашлось в БД: ", row)
-        # print(row['matched_rows'])
-        # print(column_to_param)
         return row, column_to_param
-    except HTTPException:
-        raise
+
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=404, detail=f"Проверьте провильность значений табличных параметров: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Ошибка подбора по таблице {table_name}: {e}"
+        )
 
 
-async def find_search_err(db, table_name, schema_params, where_clauses, sql_params, allowed_params,
-                          selected_params: dict[str, str | int] | None = dict()):
-    # ищем неверно подобранный параметр
-    where_clauses = []
-    res = []
-    sql_params = {}
+async def find_search_errors_multi_table(
+        db: AsyncSession,
+        tables_map: dict[str, list[dict]],
+        selected_params: dict[str, str | int | list],
+):
+    """
+    Проверяет ошибки подбора отдельно по каждой таблице.
+    """
 
-    for param_name, value in selected_params.items():
-        # if param_name not in allowed_params:
-        #     continue
+    errors = []
 
-        # if value is None:
-        #     continue
+    for table_name, table_params in tables_map.items():
+        table_param_names = {item["name"] for item in table_params}
 
-        col = to_sql_name_lat(param_name)
-        where_clauses.append(f'"{col}" = :{col}')
-        sql_params[col] = str(value)
+        selected_for_table = {
+            key: value
+            for key, value in selected_params.items()
+            if key in table_param_names
+        }
 
-        req, column_to_param = await get_params_from_sql(db, table_name, schema_params, where_clauses, sql_params,
-                                                         allowed_params)
+        if not selected_for_table:
+            continue
 
-        # Проверяем на наличие ошибок в выбранных параметрах
-        if not req or req["matched_rows"] == 0:
-            print(f"Параметр {param_name} выбран не верно! \n Вы выбрали значение: {value}.")
-            err_param = {
-                "param_name": param_name,
-                "error": f"Параметр {param_name} выбран не верно! \n Вы выбрали значение: {value}."
-            }
-            res.append(err_param)
-            break
+        incremental_selected = {}
 
-        '''
-        # Проверяем на наличие ошибок в выбранных параметрах
-        for param_name_next, value_next in selected_params.items():
-            name_lat = to_sql_name_lat(param_name_next)
-            if value_next is None or value_next not in req[name_lat]:
-                #Ошибка, собираем json из тех что подходят и добавляем в значение ошибочного параметра ошибку
-                err_param = {
-                    "param_name" : param_name_next,
-                    "error": f"Параметр {param_name_next} выбран не верно! \n Вы выбрали значение: {value_next}."
-                }
-                res.append(err_param)
+        for param_name, value in selected_for_table.items():
+            incremental_selected[param_name] = value
+
+            row, _ = await get_table_params_from_sql(
+                db=db,
+                table_name=table_name,
+                table_params=table_params,
+                selected_params=incremental_selected,
+            )
+
+            if not row or row["matched_rows"] == 0:
+                errors.append({
+                    "param_name": param_name,
+                    "table_name": table_name,
+                    "error": f"Параметр {param_name} выбран неверно. Вы выбрали значение: {value}."
+                })
                 break
-            #если все ок, продолжаем итерацию пока не найдем ошибку
-        '''
 
-    return res, req
+    return errors
 
 
 @router.post(
     "/process_table_data",
-    # response_model=ModuleSearchResponse,
-    description="Модуль подбора",
+    description="Модуль табличного подбора",
 )
 async def process_table_data(
         product_id: int,
-        selected_params: dict[str, str | int | list ] | None = Body(None),
+        selected_params: dict[str, str | int | list] | None = Body(None),
         db: AsyncSession = Depends(get_db),
 ):
-    # print("На входе: ", selected_params)
     start_time = time.perf_counter()
     selected_params = selected_params or {}
 
-    # Получаем продукцию
-    product_result = await db.execute(
-        text("SELECT table_name FROM parameter_schemas WHERE product_id = :id"),
-        {"id": product_id},
+    product_name_result = await db.execute(
+        text("""
+            SELECT name
+            FROM products
+            WHERE id = :product_id
+        """),
+        {"product_id": product_id}
     )
-    
-    # product_name = product_result.scalar_one_or_none()
-    products_names = list({product.table_name for product in product_result})
-    print("Продукт: ", products_names)
 
-    if products_names == []:
+    product_name = product_name_result.scalar_one_or_none()
+
+    if product_name is None:
         raise HTTPException(status_code=404, detail="Продукция не найдена")
-    
-    #####################################
-    # когда несоклько таблиц у продукта
-    #####################################
 
-    for product_name in products_names:
+    schema_result = await db.execute(
+        text("""
+            SELECT
+                id,
+                name,
+                transliterated_name,
+                description,
+                type,
+                measuring_unit,
+                table_name,
+                visibility,
+                required_type,
+                sort
+            FROM parameter_schemas
+            WHERE product_id = :product_id
+              AND type = 'Table'
+              AND table_name IS NOT NULL
+            ORDER BY
+                COALESCE(sort, id),
+                id
+        """),
+        {"product_id": product_id}
+    )
 
-        # table_name = f"{to_sql_name_lat(product_name)}_table"
-        table_name = f"{to_sql_name_lat(product_name)}"
+    full_info = schema_result.mappings().all()
 
-        schema_full_result = await db.execute(
-            text("""
-                SELECT *
-                FROM parameter_schemas
-                WHERE product_id = :product_id and type = 'Table' 
-            """),
-            {"product_id": product_id},
-        )
-
-    full_info = schema_full_result.mappings().all()
-
-    # print("Список табличных параметров по схеме: ", full_info)
-    
-    schema_params = [param_info['name'] for param_info in full_info]
-    if not schema_params:
+    if not full_info:
         raise HTTPException(status_code=404, detail="Параметры не найдены")
-    
-    # print("Список имен параметров по схеме: ", schema_params)
 
-    product_name_sql_result = await db.execute(text("SELECT name FROM products WHERE id = :id"), {"id": product_id})
-    product_name = product_name_sql_result.scalar_one_or_none()
+    tables_map = defaultdict(list)
 
+    for item in full_info:
+        tables_map[item["table_name"]].append(dict(item))
+
+    await ensure_dm_exists(db, product_id)
+
+    full_value_parameters, full_matched_rows = await get_full_search_from_dm(
+        db=db,
+        product_id=product_id,
+    )
+
+    # Если пользователь ничего не выбрал — просто возвращаем все доступные значения
     if not selected_params:
+        response_params = []
 
-        print("product_id", product_id)
-        print("table_name", table_name)
-        print("schema_params", schema_params)
-
-        await ensure_dm_exists(
-            db,
-            product_id,
-            table_name,
-            schema_params,
-        )
-
-        parameters, matched_rows = await get_full_search_from_dm(
-            db,
-            product_id,
-        )
-
-        new_params = list()
         for item in full_info:
-            name = item['name']
-            value = parameters.get(name, None)
+            name = item["name"]
+
+            all_values = full_value_parameters.get(name)
             response_value = None
-            if len(value) == 1:
-                value = value[0]
-                response_value = value
-            param_info = {
-                'id': item.get('id', None),
-                'name': name,
-                'description': item.get('description', None),
-                'all_values': value,
-                'response_value': response_value,
-                'visibility': item.get('visibility', None),
-                'required_type': item.get('required_type', None)
-            }
-            new_params.append(param_info)
 
-        # тут возвращаются формульные параметры
-        # parameters = await search_formula(db, parameters, table_name)
-        # print(new_params, table_name)
-        parameters = await search_formula(db, new_params, table_name, full_info=full_info)
+            if isinstance(all_values, list) and len(all_values) == 1:
+                response_value = all_values[0]
 
-        parameters = sorted(parameters, key=lambda param: param['id'])
+            response_params.append({
+                "id": item["id"],
+                "name": name,
+                "description": item["description"],
+                "table_name": item["table_name"],
+                "all_values": all_values,
+                "response_value": response_value,
+                "visibility": item["visibility"],
+                "required_type": item["required_type"],
+                "sort": item["sort"],
+            })
+
+        response_params = sorted(
+            response_params,
+            key=lambda param: param.get("sort") or param["id"]
+        )
 
         return {
             "product_id": product_id,
             "product_name": product_name,
-            "parameters": parameters,
-            # "parameters": new_params,
-            "matched_rows": matched_rows,
+            "parameters": response_params,
+            "matched_rows": full_matched_rows,
             "request_time": time.perf_counter() - start_time,
         }
 
-    # Формируем WHERE
-    where_clauses = []
-    sql_params = {}
+    # Если параметры выбраны — делаем подбор отдельно по каждой таблице
+    allowed_params = {item["name"] for item in full_info}
 
-    allowed_params = set(schema_params)
-    formula_params = dict()  # добавляю формульные параметры
-    pre_params = dict()
-    for param_name, value in selected_params.items():
-        # print(param_name, value)
+    unknown_params = [
+        param_name
+        for param_name in selected_params
+        if param_name not in allowed_params
+    ]
 
-        if param_name not in allowed_params:
-            formula_params[param_name] = value
-            # print("формульный")
+    if unknown_params:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Неизвестные параметры: {unknown_params}"
+        )
+
+    merged_filtered_values = defaultdict(set)
+    total_matched_rows = 0
+    has_any_match = False
+
+    for table_name, table_params in tables_map.items():
+        table_param_names = {item["name"] for item in table_params}
+
+        selected_for_table = {
+            key: value
+            for key, value in selected_params.items()
+            if key in table_param_names
+        }
+
+        # Если в этой таблице нет выбранных пользователем параметров,
+        # значит она не участвует в фильтрации.
+        if not selected_for_table:
             continue
 
-        if value is None:
+        row, column_to_param = await get_table_params_from_sql(
+            db=db,
+            table_name=table_name,
+            table_params=table_params,
+            selected_params=selected_for_table,
+        )
+
+        if not row:
             continue
 
-        col = to_sql_name_lat(param_name)
-        where_clauses.append(f'"{col}" = :{col}')
-        sql_params[col] = str(value)
+        matched_rows = row["matched_rows"] or 0
+        total_matched_rows += matched_rows
 
-        pre_params[param_name] = value
-        # print("вписан в запрос")
+        if matched_rows > 0:
+            has_any_match = True
 
-    # шлём собранный запрос
-    row, column_to_param = await get_params_from_sql(db, table_name, schema_params, where_clauses, sql_params, allowed_params)
-    full_value_parameters, matched_rows_1 = await get_full_search_from_dm(
-        db,
-        product_id,
+        for col, param_name in column_to_param.items():
+            values = row[col]
+
+            if not values:
+                continue
+
+            for value in values:
+                merged_filtered_values[param_name].add(str(value))
+
+    parameters_for_response = {}
+
+    for param_name, values in merged_filtered_values.items():
+        sorted_values = sorted(values)
+
+        if len(sorted_values) == 1:
+            parameters_for_response[param_name] = sorted_values[0]
+        else:
+            parameters_for_response[param_name] = sorted_values
+
+    response_params = []
+
+    for item in full_info:
+        name = item["name"]
+
+        all_values = full_value_parameters.get(name)
+        filtered_value = parameters_for_response.get(name)
+        response_value = None
+
+        if isinstance(filtered_value, str):
+            response_value = filtered_value
+
+        response_params.append({
+            "id": item["id"],
+            "name": name,
+            "description": item["description"],
+            "table_name": item["table_name"],
+            "all_values": all_values,
+            "response_value": response_value,
+            "visibility": item["visibility"],
+            "required_type": item["required_type"],
+            "filtered_values": filtered_value,
+            "sort": item["sort"],
+        })
+
+    if not has_any_match:
+        errors = await find_search_errors_multi_table(
+            db=db,
+            tables_map=tables_map,
+            selected_params=selected_params,
+        )
+
+        for item in response_params:
+            item_errors = [
+                err
+                for err in errors
+                if err["param_name"] == item["name"]
+                and err["table_name"] == item["table_name"]
+            ]
+
+            if item_errors:
+                item["response_value"] = None
+                item["error"] = item_errors[0]["error"]
+
+    response_params = sorted(
+        response_params,
+        key=lambda param: param.get("sort") or param["id"]
     )
 
-
-    
-    # ФОРМИРУЕМ ОТВЕТ
-    answer = {
+    return {
         "product_id": product_id,
         "product_name": product_name,
+        "parameters": response_params,
+        "matched_rows": total_matched_rows,
+        "request_time": time.perf_counter() - start_time,
     }
-
-    # Собираем значения параметров ! ???
-    # print("ngfhgfhg", column_to_param.items(), row[col])
-    parameters = {
-        param_name: sorted(str(v) for v in row[col])
-        for col, param_name in column_to_param.items()
-        if row[col]
-    }
-    # print(parameters)
-    # parameters = dict()
-
-    for col, param_name in column_to_param.items():
-        if row[col] and len(row[col]) == 1:
-            parameters[param_name] = row[col][0]
-        elif row[col] and len(row[col]) > 1:
-            parameters[param_name] = sorted(str(v) for v in row[col])
-    
-    # print(parameters)
-    if parameters == {}:
-        parameters = pre_params
-    # ! ???
-
-    # сюда функция формульного поиска
-    """
-    функция формульного поиска
-    аргументы id продукта и словарь с параметрами
-    """
-    select_formula_params = []
-    if formula_params:
-        for key, value in formula_params.items():
-            parameters[key] = value
-            select_formula_params.append(
-                {
-                    "name" : key,
-                    "response_value" : value
-                }
-            )
-    new_params = list()
-    for item in full_info:
-        # print(item)
-        name = item['name']
-        value = parameters.get(name, None)
-        response_value = item['response_value'] if 'response_value' in item.keys() else None
-        if isinstance(value, str):
-            response_value = value
-            value = full_value_parameters[name]
-        param_info = {
-            'id': item.get('id', None),
-            'name': name,
-            'description': item.get('description', None),
-            'all_values': full_value_parameters[name],
-            'response_value': response_value,
-            'visibility': item.get('visibility', None),
-            'required_type': item.get('required_type', None),
-            'filtered_values': parameters.get(name, None),
-            'sort': item.get('sort', None)
-        }
-        new_params.append(param_info)
-
-    # вылавливаю ошибку подбора
-    if "debug" in parameters and parameters["debug"] == False:
-        answer["debug"] = False
-    else:
-        if not row or row["matched_rows"] == 0:
-
-            error_params, req = await find_search_err(db, table_name, schema_params, where_clauses, sql_params, allowed_params, selected_params)
-            print("Ошибки: ", error_params)
-            for item in new_params:
-                is_param_error = [err_item for err_item in error_params if err_item['param_name'] == item["name"]]
-                if is_param_error:
-                    item['response_value'] = None
-                    item["error"] = is_param_error[0]["error"]
-
-    parameters = await search_formula(db, new_params, table_name, selected_params, full_info=full_info, column_to_param=column_to_param)
-    parameters = sorted(parameters, key=lambda param: param.get('sort') or param['id'])
-
-    answer["parameters"] = parameters
-    answer["matched_rows"] = row["matched_rows"]
-    answer["request_time"] = time.perf_counter() - start_time
-
-    # print("На выходе: ", answer["parameters"])
-
-    return answer
-
-@router.post(
-    "/params_value",
-    # response_model=ModuleSearchResponse,
-    description="Модуль подбора",
-)
-async def params_value(
-        product_id: int,
-        db: AsyncSession = Depends(get_db)
-):
-    # Получаем продукцию
-    product_result = await db.execute(
-        text("SELECT table_name FROM parameter_schemas WHERE product_id = :id"),
-        {"id": product_id},
-    )
-
-    products_names = list({product.table_name for product in product_result})
-    if products_names == []:
-        raise HTTPException(status_code=404, detail="Продукция не найдена")
-
-    schema_full_result = await db.execute(
-            text("""
-                SELECT *
-                FROM parameter_schemas
-                WHERE product_id = :product_id and type = 'Table' 
-            """),
-            {"product_id": product_id},
-        )
-
-    full_info = schema_full_result.mappings().all()
-
-    # schema_params = [param_info['name'] for param_info in full_info]
-    schema_params = {param_info['transliterated_name']: param_info['name'] for param_info in full_info}
-    
-    if not schema_params:
-        raise HTTPException(status_code=404, detail="Параметры не найдены")
-
-    where_clauses = []
-    sql_params = {}
-    allowed_params = set()
-
-    parameters = dict()
-
-    for product_name in products_names:
-
-        table_name = f"{to_sql_name_lat(product_name)}"
-            
-        table_columns_stmt = await db.execute(
-            text("""
-                SELECT column_name
-                FROM information_schema.columns
-                WHERE table_name = :table_name AND table_schema = :table_schema
-            """),
-            {"table_name": table_name, "table_schema": 'public'}
-        )
-        table_columns = [row[0] for row in table_columns_stmt.fetchall()]
-
-        row, column_to_param = await get_params_from_sql(db, table_name, table_columns, where_clauses, sql_params, allowed_params)
-        # parameters = {
-        #     param_name: sorted(str(v) for v in row[col])
-        #     for col, param_name in column_to_param.items()
-        #     if row[col]
-        # }
-        
-        for col, param_name in column_to_param.items():
-            if col == 'id':
-                continue
-            if row[col] and len(row[col]) == 1:
-                parameters[schema_params[col]] = row[col][0]
-            elif row[col] and len(row[col]) > 1:
-                parameters[schema_params[col]] = sorted(str(v) for v in row[col])
-    
-    return parameters
-
-
-
-    
