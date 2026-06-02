@@ -343,7 +343,7 @@ async def process_table_data(
 
     return answer
 
-@router.post(
+@router.get(
     "/params_value",
     # response_model=ModuleSearchResponse,
     description="Модуль подбора",
