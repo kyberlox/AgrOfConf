@@ -6,6 +6,8 @@ from collections import defaultdict
 
 from app.TablePakage.model.database import get_db
 from app.TableSearch.utils.dm_search import ensure_dm_exists, get_full_search_from_dm
+from ..utils.formula_search import search_formula
+
 
 router = APIRouter(prefix="/module_search", tags=["Module_search"])
 
@@ -203,7 +205,7 @@ async def process_table_data(
         db=db,
         product_id=product_id,
     )
-
+    column_to_param = {param['transliterated_name']: param['name']for param in full_info}
     # Если пользователь ничего не выбрал — просто возвращаем все доступные значения
     if not selected_params:
         response_params = []
@@ -228,12 +230,13 @@ async def process_table_data(
                 "required_type": item["required_type"],
                 "sort": item["sort"],
             })
-
+        formula_params = await search_formula(db, response_params, table_name_params=list(tables_map.keys()), column_to_param=column_to_param)
+        
         response_params = sorted(
-            response_params,
+            formula_params,
             key=lambda param: param.get("sort") or param["id"]
         )
-
+        
         return {
             "product_id": product_id,
             "product_name": product_name,
@@ -245,17 +248,17 @@ async def process_table_data(
     # Если параметры выбраны — делаем подбор отдельно по каждой таблице
     allowed_params = {item["name"] for item in full_info}
 
-    unknown_params = [
-        param_name
-        for param_name in selected_params
-        if param_name not in allowed_params
-    ]
+    # unknown_params = [
+    #     param_name
+    #     for param_name in selected_params
+    #     if param_name not in allowed_params
+    # ]
 
-    if unknown_params:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Неизвестные параметры: {unknown_params}"
-        )
+    # if unknown_params:
+    #     raise HTTPException(
+    #         status_code=400,
+    #         detail=f"Неизвестные параметры: {unknown_params}"
+    #     )
 
     merged_filtered_values = defaultdict(set)
     total_matched_rows = 0
@@ -354,8 +357,10 @@ async def process_table_data(
                 item["response_value"] = None
                 item["error"] = item_errors[0]["error"]
 
+    formula_params = await search_formula(db, response_params, table_name_params=list(tables_map.keys()), select_formula_params=selected_params, column_to_param=column_to_param)
+    
     response_params = sorted(
-        response_params,
+        formula_params,
         key=lambda param: param.get("sort") or param["id"]
     )
 
