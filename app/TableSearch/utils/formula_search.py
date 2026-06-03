@@ -167,7 +167,7 @@ async def get_dependencies_for_param(param, db):
 
 async def search_formula(db, params, table_name_params, select_formula_params=[], full_info=[], column_to_param=[]):
     # 1. Получаем все формульные параметры (кроме selected_file)
-    stmt_formula_params = select(ParameterSchema).where(ParameterSchema.type == 'Formula', ParameterSchema.table_name == table_name_params ) #! искать формульные параметры только для этого же продукта
+    stmt_formula_params = select(ParameterSchema).where(ParameterSchema.type == 'Formula', ParameterSchema.table_name.in_(table_name_params) ) #! искать формульные параметры только для этого же продукта
     res = await db.execute(stmt_formula_params)
     all_formula_params = res.scalars().all()
     

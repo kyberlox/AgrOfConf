@@ -1,4 +1,4 @@
-fastapi[all]==0.121.2
+fastapi[all]==0.136.3
 uvicorn==0.38.0
 python-dotenv==1.2.1
 pydentic==0.0.1.dev3
