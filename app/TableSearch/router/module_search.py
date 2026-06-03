@@ -291,21 +291,6 @@ async def process_table_data(
         matched_rows = row["matched_rows"] or 0
         total_matched_rows += matched_rows
 
-@router.get(
-    "/params_value",
-    # response_model=ModuleSearchResponse,
-    description="Модуль подбора",
-)
-async def params_value(
-        product_id: int,
-        db: AsyncSession = Depends(get_db)
-):
-    # Получаем продукцию
-    product_result = await db.execute(
-        text("SELECT table_name FROM parameter_schemas WHERE product_id = :id"),
-        {"id": product_id},
-    )
-
         for col, param_name in column_to_param.items():
             values = row[col]
 
