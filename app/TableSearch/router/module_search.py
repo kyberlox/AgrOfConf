@@ -8,7 +8,6 @@ from app.TablePakage.model.database import get_db
 from app.TableSearch.utils.dm_search import ensure_dm_exists, get_full_search_from_dm
 from ..utils.formula_search import search_formula
 
-
 router = APIRouter(prefix="/module_search", tags=["Module_search"])
 
 
@@ -205,7 +204,7 @@ async def process_table_data(
         db=db,
         product_id=product_id,
     )
-    column_to_param = {param['transliterated_name']: param['name']for param in full_info}
+    column_to_param = {param['transliterated_name']: param['name'] for param in full_info}
     # Если пользователь ничего не выбрал — просто возвращаем все доступные значения
     if not selected_params:
         response_params = []
@@ -230,13 +229,14 @@ async def process_table_data(
                 "required_type": item["required_type"],
                 "sort": item["sort"],
             })
-        formula_params = await search_formula(db, response_params, table_name_params=list(tables_map.keys()), column_to_param=column_to_param)
-        
+        formula_params = await search_formula(db, response_params, table_name_params=list(tables_map.keys()),
+                                              column_to_param=column_to_param)
+
         response_params = sorted(
             formula_params,
             key=lambda param: param.get("sort") or param["id"]
         )
-        
+
         return {
             "product_id": product_id,
             "product_name": product_name,
@@ -291,6 +291,9 @@ async def process_table_data(
         matched_rows = row["matched_rows"] or 0
         total_matched_rows += matched_rows
 
+        if matched_rows > 0:
+            has_any_match = True
+
         for col, param_name in column_to_param.items():
             values = row[col]
 
@@ -310,30 +313,7 @@ async def process_table_data(
         else:
             parameters_for_response[param_name] = sorted_values
 
-    response_params = []
-
-    for item in full_info:
-        name = item["name"]
-
-        all_values = full_value_parameters.get(name)
-        filtered_value = parameters_for_response.get(name)
-        response_value = None
-
-        if isinstance(filtered_value, str):
-            response_value = filtered_value
-
-        response_params.append({
-            "id": item["id"],
-            "name": name,
-            "description": item["description"],
-            "table_name": item["table_name"],
-            "all_values": all_values,
-            "response_value": response_value,
-            "visibility": item["visibility"],
-            "required_type": item["required_type"],
-            "filtered_values": filtered_value,
-            "sort": item["sort"],
-        })
+    errors = []
 
     if not has_any_match:
         errors = await find_search_errors_multi_table(
@@ -342,20 +322,66 @@ async def process_table_data(
             selected_params=selected_params,
         )
 
-        for item in response_params:
-            item_errors = [
-                err
-                for err in errors
-                if err["param_name"] == item["name"]
-                and err["table_name"] == item["table_name"]
-            ]
+    error_by_key = {
+        (err["table_name"], err["param_name"]): err
+        for err in errors
+    }
 
-            if item_errors:
-                item["response_value"] = None
-                item["error"] = item_errors[0]["error"]
+    response_params = []
 
-    formula_params = await search_formula(db, response_params, table_name_params=list(tables_map.keys()), select_formula_params=selected_params, column_to_param=column_to_param)
-    
+    for item in full_info:
+        name = item["name"]
+        table_name = item["table_name"]
+
+        all_values = full_value_parameters.get(name)
+        filtered_value = parameters_for_response.get(name)
+
+        response_value = None
+
+        error_item = error_by_key.get((table_name, name))
+
+        # Если параметр ошибочный — именно его сбрасываем
+        if error_item:
+            response_value = None
+
+        # Если параметр был выбран пользователем и он не ошибочный —
+        # оставляем выбранное значение, чтобы фронт не сбрасывал весь подбор
+        elif name in selected_params and selected_params[name] is not None:
+            response_value = selected_params[name]
+
+        # Если после фильтрации осталось одно значение — можно подставить его
+        elif isinstance(filtered_value, str):
+            response_value = filtered_value
+
+        elif isinstance(filtered_value, int):
+            response_value = str(filtered_value)
+
+        param_info = {
+            "id": item["id"],
+            "name": name,
+            "description": item["description"],
+            "table_name": table_name,
+            "all_values": all_values,
+            "response_value": response_value,
+            "visibility": item["visibility"],
+            "required_type": item["required_type"],
+            "filtered_values": filtered_value,
+            "sort": item["sort"],
+        }
+
+        if error_item:
+            param_info["error"] = error_item["error"]
+
+        response_params.append(param_info)
+
+    formula_params = await search_formula(
+        db,
+        response_params,
+        table_name_params=list(tables_map.keys()),
+        select_formula_params=selected_params,
+        column_to_param=column_to_param
+    )
+
     response_params = sorted(
         formula_params,
         key=lambda param: param.get("sort") or param["id"]
