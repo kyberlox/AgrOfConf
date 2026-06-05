@@ -364,14 +364,11 @@ async def process_table_data(
         else:
             parameters_for_response[param_name] = sorted_values
 
-    errors = []
-
-    if not has_any_match:
-        errors = await find_search_errors_multi_table(
-            db=db,
-            tables_map=tables_map,
-            selected_params=selected_params,
-        )
+    errors = await find_search_errors_multi_table(
+        db=db,
+        tables_map=tables_map,
+        selected_params=selected_params,
+    )
 
     error_by_key = {
         (err["table_name"], err["param_name"]): err
@@ -415,7 +412,7 @@ async def process_table_data(
             filtered_value = error_filtered_values.get((table_name, name))
 
             if filtered_value is None:
-                filtered_value = all_values
+                filtered_value = all_values or []
 
         response_value = None
 
