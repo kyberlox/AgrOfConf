@@ -138,6 +138,57 @@ async def find_search_errors_multi_table(
     return errors
 
 
+async def get_available_values_for_error_param(
+        db: AsyncSession,
+        table_name: str,
+        table_params: list[dict],
+        error_param_name: str,
+        selected_params: dict[str, str | int | list],
+):
+    """
+    Возвращает допустимые значения для ошибочного параметра,
+    убирая сам ошибочный параметр из фильтрации.
+    """
+
+    selected_without_error = {
+        key: value
+        for key, value in selected_params.items()
+        if key != error_param_name
+    }
+
+    row, column_to_param = await get_table_params_from_sql(
+        db=db,
+        table_name=table_name,
+        table_params=table_params,
+        selected_params=selected_without_error,
+    )
+
+    if not row:
+        return None
+
+    error_col = None
+
+    for item in table_params:
+        if item["name"] == error_param_name:
+            error_col = item["transliterated_name"]
+            break
+
+    if not error_col:
+        return None
+
+    values = row[error_col]
+
+    if not values:
+        return None
+
+    values = sorted(str(value) for value in values)
+
+    if len(values) == 1:
+        return values[0]
+
+    return values
+
+
 @router.post(
     "/process_table_data",
     description="Модуль табличного подбора",
@@ -327,6 +378,28 @@ async def process_table_data(
         for err in errors
     }
 
+    error_filtered_values = {}
+
+    for err in errors:
+        table_name = err["table_name"]
+        param_name = err["param_name"]
+
+        table_params = tables_map.get(table_name)
+
+        if not table_params:
+            continue
+
+        available_values = await get_available_values_for_error_param(
+            db=db,
+            table_name=table_name,
+            table_params=table_params,
+            error_param_name=param_name,
+            selected_params=selected_params,
+        )
+
+        if available_values is not None:
+            error_filtered_values[(table_name, param_name)] = available_values
+
     response_params = []
 
     for item in full_info:
@@ -336,9 +409,15 @@ async def process_table_data(
         all_values = full_value_parameters.get(name)
         filtered_value = parameters_for_response.get(name)
 
-        response_value = None
-
         error_item = error_by_key.get((table_name, name))
+
+        if error_item:
+            filtered_value = error_filtered_values.get((table_name, name))
+
+            if filtered_value is None:
+                filtered_value = all_values
+
+        response_value = None
 
         # Если параметр ошибочный — именно его сбрасываем
         if error_item:
