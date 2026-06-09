@@ -1,12 +1,18 @@
 :root {
   --text-primary: #171b26;
+  --icon-primary: #171b26;
+  --icon-secondary: #5e697d;
   --text-secondary: #5e697d;
   --text-text-secondary: #5e697d;
   --icon-color-secondary: #6b778c;
   --icon-color-primary: #171b26;
   --orange: #f36e3c;
   --color-information-orange-800: #963314;
+  --color-information-orange-500: #F36E3C;
   --color-information-orange-200: #ffcba5;
-  --color-information-green-50: #EBF5EC;
+  --color-information-green-50: #ebf5ec;
   --color-information-green-150: #c8efcb;
+  --color-information-gray-100: #EAECEF;
+  --color-information-gray-400: #8E99A8;
+  --color-information-gray-800: #343B4C;
 }

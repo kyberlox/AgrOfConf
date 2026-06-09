@@ -1,0 +1,15 @@
+export interface IUser {
+    id: number,
+    office: number,
+    is_active: true,
+    last_name: string,
+    second_name: string,
+    work_phone: string,
+    department: string,
+    work_city: string,
+    uuid: string,
+    name: string,
+    email: string,
+    directorate: string,
+    work_position: string,
+}

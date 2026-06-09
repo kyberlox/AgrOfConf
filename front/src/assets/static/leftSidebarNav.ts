@@ -4,26 +4,28 @@ import SettingsIcon from '@/assets/icons/Settings.svg?component';
 import AdminIcon from '@/assets/icons/UserAdmin.svg?component';
 
 export const sidebarLinks = [
-                {
-                    name: 'myRequests',
-                    title: 'Мои запросы',
-                    icon: UserIcon,
-                },
-                {
-                    name: 'koRequests',
-                    title: 'Запросы КО',
-                    icon: TeamIcon,
-                },
-                {
-                    name: 'profileSettings',
-                    title: 'Настройки профиля',
-                    icon: SettingsIcon,
-                    route: '1'
-                },
-                {
-                    name: 'admin',
-                    title: 'Администрирование',
-                    icon: AdminIcon,
-                    route: 'admin'
-                },
-            ]
+    {
+        name: 'myRequests',
+        title: 'Мои запросы',
+        icon: UserIcon,
+        route: 'myRequests'
+    },
+    {
+        name: 'koRequests',
+        title: 'Запросы КО',
+        icon: TeamIcon,
+        route: 'koRequests'
+    },
+    {
+        name: 'profileSettings',
+        title: 'Мой профиль',
+        icon: SettingsIcon,
+        route: 'user'
+    },
+    {
+        name: 'admin',
+        title: 'Администрирование',
+        icon: AdminIcon,
+        route: 'admin'
+    },
+]

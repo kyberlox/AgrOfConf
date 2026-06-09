@@ -3,7 +3,7 @@
 }
 
 .button-secondary {
-  @apply font-semibold text-[16px] px-[32px] py-[17px] flex flex-row items-center justify-center gap-[4px]  rounded-[16px] w-full;
+  @apply font-semibold text-[16px]  py-[17px] flex flex-row items-center justify-center gap-[4px]  rounded-[16px] w-full;
 }
 
 .button-primary__wrapper {

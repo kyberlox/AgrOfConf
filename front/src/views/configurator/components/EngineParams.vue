@@ -8,13 +8,13 @@
         <div>— обязательные поля</div>
     </div>
 </div>
-<div class="border border-[#EAECEF] w-full h-[1px] col-span-full m-auto"></div>
-<div class="grid gap-x-[16px] gap-y-[24px] items-end"
+<div class="border border-[#EAECEF] w-full h-[1px] col-span-full"></div>
+<div class="grid gap-[25px] items-end"
      :class="`grid-cols-${gridCols}`">
     <template v-for="(param, index) in renderData.filter(e => (e as IFormattedData).visibility || (e as IFormattedData).visibility == null)"
               :key="'formParam' + param.name + index">
         <div v-if="param.name == 'sep' && index !== 0"
-             class="border border-[#EAECEF] w-full h-[1px] col-span-full m-auto">
+             class="divider">
         </div>
         <!-- Смежный селект + инпут для сред -->
         <SelectInput v-else-if="(param as IFormattedData).required_type == 'select-input'"
@@ -67,7 +67,7 @@ export default defineComponent({
         AlertCircle,
         RequiredIcon,
         SelectInput,
-        BaseInput
+        BaseInput,
     },
     props: {
         form: {
@@ -102,7 +102,7 @@ export default defineComponent({
         })
 
         const switchOptions = (param: IFormattedData) => {
-            if (param.response_value || !('filtered_values' in param) || props.type == 'free') {
+            if ("error" in param || param.response_value || !('filtered_values' in param) || props.type == 'free') {
                 return Array.isArray(param.all_values) ? param.all_values : [param.all_values];
             }
             else if ('filtered_values' in param && param.filtered_values?.length && !param.response_value) {

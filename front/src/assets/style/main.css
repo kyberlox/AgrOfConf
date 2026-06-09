@@ -38,13 +38,17 @@ span {
   font-weight: 600;
 }
 
+.divider {
+  @apply border border-[#EAECEF] w-full h-[1px] col-span-full m-auto;
+}
+
 .tableNav::before {
   position: absolute;
   content: '';
   width: 100%;
   height: 3px;
   border-radius: 4px 4px 0 0;
-  background-color: orange;
+  background-color: var(--color-information-orange-500);
   bottom: -2px;
   left: 50%;
   transform: translate(-50%);

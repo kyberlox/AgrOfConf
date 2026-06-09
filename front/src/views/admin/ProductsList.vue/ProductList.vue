@@ -11,7 +11,7 @@
         <div class="cursor-pointer bg-white relative "
              v-for="product in products"
              :key="product.id">
-            <RouterLink class="w-[200px] h-[274] p-[17px] cursor-pointer flex flex-col gap-[10px] border border-[#EAECEF] rounded-[8px] hover:border-orange-500 duration-300 transition-all"
+            <RouterLink class="w-[200px] h-[274] p-[17px] cursor-pointer flex flex-col gap-[10px] border border-[#EAECEF] rounded-[8px] h-full hover:border-orange-500 duration-300 transition-all"
                         :to="{ name: 'productEdit', params: { id: product.id } }">
                 <div class="bg-contain bg-no-repeat bg-center w-full h-[170px]"
                      :style="{ 'background-image': `url(http://agrofconf.emk.org.ru${product.image_url})` }">

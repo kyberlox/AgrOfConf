@@ -44,7 +44,7 @@
             </BaseButton>
         </div>
         <!--  Таблица запросов-->
-        <div class="max-w-[calc(100vw-350px)] overflow-x-auto">
+        <div class=" overflow-x-auto">
             <table class="w-full table-auto">
                 <thead>
                     <tr class="bg-[#F6F7F9] h-[56px]">
