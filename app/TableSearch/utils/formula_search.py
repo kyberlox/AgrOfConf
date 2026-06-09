@@ -167,7 +167,7 @@ async def get_dependencies_for_param(param, db):
 
 async def search_formula(db, params, table_name_params, select_formula_params=[], full_info=[], column_to_param=[]):
     # 1. Получаем все формульные параметры (кроме selected_file)
-    stmt_formula_params = select(ParameterSchema).where(ParameterSchema.type == 'Formula', ParameterSchema.table_name == table_name_params ) #! искать формульные параметры только для этого же продукта
+    stmt_formula_params = select(ParameterSchema).where(ParameterSchema.type == 'Formula', ParameterSchema.table_name.in_(table_name_params) ) #! искать формульные параметры только для этого же продукта
     res = await db.execute(stmt_formula_params)
     all_formula_params = res.scalars().all()
     
@@ -177,24 +177,27 @@ async def search_formula(db, params, table_name_params, select_formula_params=[]
     for param in all_formula_params:
         # async def code_params(db, func_name, param_info, user_params, select_formula_params):
         func_name = param.field_of_view
+        
         res = await code_params(db, func_name, param, params, select_formula_params, column_to_param) #####!ВОЗМОЖНО ТАК НЕЛЬЗЯ - table_formula_params[0]
         if res is not None:
             if "total_change" in res:
                 # print(res["total_change"][-1])
                 params = res["total_change"]
-                return params
+                # return params
+                continue
 
-            item = {
-                'id': param.id,
-                'name': param.name,
-                'description': param.description,
-                'visibility': param.visibility,
-                'required_type': param.required_type
-            }
+            # item = {
+            #     'id': param.id,
+            #     'name': param.name,
+            #     'description': param.description,
+            #     'visibility': param.visibility,
+            #     'required_type': param.required_type
+            # }
             
             if "error" in res:
-                item['error'] = res["error"]
-            if "result" in res:
-                item['result'] = res["result"]
-            params.append(item)
+                params.append(res)
+            #     item['error'] = res["error"]
+            # if "result" in res:
+            #     item['result'] = res["result"]
+            # params.append(item)
     return params

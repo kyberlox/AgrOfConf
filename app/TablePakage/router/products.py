@@ -132,7 +132,6 @@ async def get_products(skip: int = 0, limit: int = 100, db: AsyncSession = Depen
     result = await db.execute(select(Product).offset(skip).limit(limit))
     return result.scalars().all()
 
-
 @router.get("/{product_id}", response_model=ProductResponse,
             description="Выведение вариации всех параметров товара по его {ID}.")
 async def get_product(product_id: int, db: AsyncSession = Depends(get_db)):

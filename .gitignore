@@ -9,3 +9,4 @@
 /nginx/ssl
 /app/static
 /uploads
+/redis_data
