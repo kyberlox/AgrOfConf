@@ -473,6 +473,9 @@ async def process_table_data(
             response_value = selected_params[name]
 
         # Если после фильтрации осталось одно значение — можно подставить его
+        elif isinstance(filtered_value, list) and len(filtered_value) == 1:
+            response_value = filtered_value[0]
+
         elif isinstance(filtered_value, str):
             response_value = filtered_value
 
