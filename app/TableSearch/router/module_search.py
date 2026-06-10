@@ -415,6 +415,22 @@ async def process_table_data(
         for err in errors
     }
 
+    # Определяем позицию первой ошибки выбора пользователя
+
+    error_positions = []
+
+    for item in full_info:
+        key = (item["table_name"], item["name"])
+
+        if key in error_by_key:
+            error_positions.append(
+                item.get("sort")
+                if item.get("sort") is not None
+                else float(item["id"])
+            )
+
+    first_error_position = min(error_positions) if error_positions else None
+
     error_filtered_values = {}
 
     for err in errors:
@@ -443,16 +459,51 @@ async def process_table_data(
         name = item["name"]
         table_name = item["table_name"]
 
-        all_values = full_value_parameters.get(name)
+        current_position = (
+            item.get("sort")
+            if item.get("sort") is not None
+            else float(item["id"])
+        )
+
+        selected_value = selected_params.get(name)
+
+        is_selected = selected_value is not None
+
+        if isinstance(selected_value, str):
+            is_selected = bool(selected_value.strip())
+
+        elif isinstance(selected_value, list):
+            is_selected = bool([
+                value
+                for value in selected_value
+                if value is not None and str(value).strip()
+            ])
+
+        is_after_error = (
+                first_error_position is not None
+                and current_position > first_error_position
+        )
+
+        all_values = full_value_parameters.get(name) or []
         filtered_value = parameters_for_response.get(name)
 
         error_item = error_by_key.get((table_name, name))
 
+        # Для ошибочного параметра показываем допустимые варианты,
+        # чтобы пользователь мог исправить ошибку
         if error_item:
             filtered_value = error_filtered_values.get((table_name, name))
 
-        if filtered_value is None:
-            filtered_value = all_values or []
+            if filtered_value is None:
+                filtered_value = all_values
+
+        # После первой ошибки незаполненные параметры пока недоступны
+        elif is_after_error and not is_selected:
+            filtered_value = []
+
+        # Обычный fallback применяется только до ошибки
+        elif filtered_value is None:
+            filtered_value = all_values
 
         response_value = None
 
@@ -462,15 +513,8 @@ async def process_table_data(
 
         # Если параметр был выбран пользователем и он не ошибочный —
         # оставляем выбранное значение, чтобы фронт не сбрасывал весь подбор
-        elif (
-                name in selected_params
-                and selected_params[name] is not None
-                and (
-                        not isinstance(selected_params[name], str)
-                        or selected_params[name].strip()
-                )
-        ):
-            response_value = selected_params[name]
+        elif is_selected:
+            response_value = selected_value
 
         # Если после фильтрации осталось одно значение — можно подставить его
         elif isinstance(filtered_value, list) and len(filtered_value) == 1:
