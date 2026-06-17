@@ -28,8 +28,7 @@
 
 <script lang='ts'>
 import { defineComponent, type PropType, ref, watch } from 'vue';
-import { BaseInput } from 'beans-ui-kit';
-import { BaseSelect } from 'beans-ui-kit';
+import { BaseInput, BaseSelect } from 'beans-ui-kit';
 import type { IFormattedData } from '@/assets/interfaces/IForm';
 import AlertCircle from '@/assets/icons/AlertCircle.svg?component';
 

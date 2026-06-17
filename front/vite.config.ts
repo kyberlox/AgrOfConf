@@ -14,6 +14,9 @@ export default defineConfig({
     tailwindcss(),
     svgLoader()
   ],
+  build: {
+    sourcemap: true
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

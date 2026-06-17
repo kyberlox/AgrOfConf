@@ -1,8 +1,8 @@
 <template>
 <div class="p-[32px] w-full bg-[#FDFDFD] max-w-full border border-gray-200 rounded-xl">
-    <div class="flex flex-row gap-[24px]">
+    <div class="flex flex-row gap-[24px] flex-wrap md:flex-wrap lg:flex-nowrap">
         <div class="flex flex-col gap-[24px] w-full">
-            <div class="flex flex-row  items-start justify-between sm:flex-wrap flex-nowrap w-full gap-y-[20px] ">
+            <div class="flex flex-row items-start justify-between lg:flex-wrap xl:flex-nowrap w-full gap-y-[20px] ">
                 <div class="flex flex-row gap-[16px] items-center w-full max-w-[650px]">
                     <RouterLink :to="{ name: 'homeview' }"
                                 class="w-[24px] h-[24px] rounded-[16px] bg-[#F6F7F9] cursor-pointer flex self-start mt-[7px]">
@@ -34,9 +34,12 @@
                           :type="neuroOlData ? 'free' : 'auto'"
                           :key="paramsRenderKey"
                           @valueChanged="(value: string, key: string) => handleValueChanged(value, key)" />
-            <div class="flex flex-row justify-end gap-[8px]">
+            <div class="flex flex-row justify-end gap-[8px] flex-wrap">
                 <BaseButton :propsClass="'button-secondary'">
-                    Удалить из Избранных ОЛ
+                    <span class="block px-[40px] flex flex-row items-center gap-[4px]">
+                        <FavoriteIcon />
+                        Удалить из Избранных ОЛ
+                    </span>
                 </BaseButton>
                 <BaseButton :propsClass="'button-primary'"
                             :disabled="true">
@@ -66,12 +69,14 @@ import { useNeuroOlData } from '@/stores/neuroOl';
 import UploadDocButton from '@/views/homeView/components/uploadDocButton.vue';
 import RightSidebar from '@/components/layout/RightSidebar.vue';
 import { useConfiguratorStore } from '@/stores/configurator.ts';
+import FavoriteIcon from '@/assets/icons/Favorite.svg?component';
 
 export default defineComponent({
     components: {
         BaseButton,
         Ellipse,
         ArrowLeft,
+        FavoriteIcon,
         EngineParams,
         SlotModal,
         UploadDocButton,
@@ -96,7 +101,6 @@ export default defineComponent({
         const paramsUpdate = async (body: any | null) => {
             try {
                 const data = await Api.post(`/module_search/process_table_data?product_id=${props.id}`, body)
-                console.log(data)
                 const errors: string[] = [];
                 data.parameters.forEach((e: IFormattedData) => {
                     if ('error' in e && e.error) {

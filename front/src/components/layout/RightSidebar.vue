@@ -1,5 +1,5 @@
 <template>
-<div class="flex flex-col gap-[16px] max-w-[344px]">
+<div class="flex flex-col gap-[16px] lg:max-w-[344px] md:max-w-fit">
     <!-- Блок параметров запроса -->
     <div class="sidebar-block">
         <div class="text-[13px]">Параметры запроса</div>
@@ -41,7 +41,7 @@
     <div class="sidebar-block p-[24px] bg-[#FFF2E5] border-[#FFCBA5]! text-[#B8461F]"
          :class="[{ 'border-red-600! text-gray-800 bg-[#ff00000f]': errorStatus == 'error' }]">
         <div class=" text-[#963314] font-[600]">
-            Подсказка
+            {{ errorStatus == 'error' ? 'Ошибка!' : 'Подсказка' }}
         </div>
         <ul class="mt-[10px] ">
             <li v-for="(i, index) in error"
@@ -51,8 +51,8 @@
         </ul>
     </div>
     <!-- Блок с картинокй -->
-    <div class="sidebar-block p-[24px]">
-        <div class="flex flex-nowrap gap-[10px] overflow-x-auto">
+    <div class="sidebar-block p-[24px] max-w-[505px]">
+        <div class="flex max-w-full w-full flex-nowrap gap-[10px] overflow-x-auto">
             <div v-for="i in 10"
                  :key="i"
                  class="text-center w-full text-(--color-information-gray-400) min-w-[74px] cursor-pointer duration-300 transition-all hover:text-(--color-information-gray-800)"

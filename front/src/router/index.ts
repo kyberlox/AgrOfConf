@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import HomeView from '@/views/homeView/HomeView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -7,14 +8,7 @@ const router = createRouter({
     {
       path: '/',
       name: 'homeview',
-      props: () => ({ type: 'requests' }),
-      component: () => import('../views/homeView/HomeView.vue')
-    },
-    {
-      path: '/statistics/user',
-      name: 'userStatistics',
-      props: () => ({ type: 'statistics' }),
-      component: () => import('../views/homeView/HomeView.vue')
+      redirect: '/my_requests',
     },
     {
       path: '/admin',
@@ -40,16 +34,14 @@ const router = createRouter({
       props: (route) => ({ id: route.params.id })
     },
     {
-      path: '/my_requests/:id',
+      path: '/my_requests',
       name: 'myRequests',
-      component: () => import('../views/userPage/UserPage.vue'),
-      props: (route) => ({ id: route.params.id })
+      component: HomeView,
     },
     {
       path: '/ko_requests',
       name: 'koRequests',
-      component: () => import('../views/userPage/UserPage.vue'),
-      props: (route) => ({ id: route.params.id })
+      component: HomeView,
     },
 
   ]

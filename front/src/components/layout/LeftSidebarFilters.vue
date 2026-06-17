@@ -3,18 +3,18 @@
     <BaseSelect v-for="(item, index) in tabs"
                 :key="'leftSideNav' + index"
                 :propsLabel="item.title"
-                :props-options="['1', '2']"
-                :props-placeholder="''"
+                :props-options="(['Все', '1', '2'])"
+                :props-placeholder="'Выберите значение'"
                 :propsClass="'sidebar__filter'"
                 :props-id="'sidebar__filter' + index"
                 @value-changed="(value) => handleFilterChange(value, item.name)" />
 </div>
 </template>
+
 <script lang='ts'>
 import { BaseSelect } from 'beans-ui-kit';
-import { defineComponent, ref, type Ref, onMounted } from 'vue';
+import { defineComponent, ref, type Ref } from 'vue';
 import { useRouter } from 'vue-router';
-
 export default defineComponent({
     components: { BaseSelect },
     props: {
@@ -24,12 +24,10 @@ export default defineComponent({
         }
     },
     setup(props) {
-        const filtersQuery = ref({}) as Ref<{ key: string, value: string }>;
+        const filtersQuery = ref<Record<string, string>>({});
         const router = useRouter();
-
         const handleFilterChange = (value: string, key: string) => {
-            console.log(filtersQuery.value);
-
+            console.log(value, key)
             filtersQuery.value[key as keyof typeof filtersQuery.value] = value;
             // router.push({ name: props.link, query: { [key]: value } })
             router.push({ name: props.link, query: filtersQuery.value })

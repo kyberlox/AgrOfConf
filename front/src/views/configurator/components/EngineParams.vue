@@ -59,6 +59,7 @@ import { useWindowSize } from '@vueuse/core'
 import RequiredIcon from '@/assets/icons/RequiredIcon.svg?component';
 import SelectInput from '@/components/SelectInput.vue';
 import { BaseInput, BaseSelect } from 'beans-ui-kit';
+import { screenMixins } from '@/assets/static/screenMixins';
 
 export default defineComponent({
     components: {
@@ -82,7 +83,7 @@ export default defineComponent({
     emits: ['valueChanged'],
     setup(props) {
         const { width } = useWindowSize()
-        const gridCols = computed(() => width.value < 992 ? 2 : width.value < 1200 ? 3 : 4);
+        const gridCols = computed(() => width.value < screenMixins.md ? 1 : width.value < screenMixins.lg ? 2 : 3);
         const renderData = computed(() => {
             const rows: Array<IFormattedData | { name: string }> = [];
             if (!props.form) return rows;
@@ -93,8 +94,7 @@ export default defineComponent({
                     count++;
                 }
                 else {
-                    rows.push({ name: 'sep' } as { name: string });
-                    rows.push(e)
+                    rows.push({ name: 'sep' } as { name: string }, e)
                     count = 1;
                 }
             })

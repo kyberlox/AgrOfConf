@@ -1,5 +1,5 @@
 <template>
-<div class="p-[80px] flex flex-col gap-[16px] w-[calc(100vw-348px)]">
+<div class="p-[80px] flex flex-col gap-[16px] w-max-content">
     <div class="flex flex-row items-center justify-between gap-[20px]">
         <h1 class="max-w-[160px]">
             Выберите изделие

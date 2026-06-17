@@ -1,4 +1,4 @@
-export interface IParameter{
+export interface IParameter {
     name: string,
     description: string,
     type: string,

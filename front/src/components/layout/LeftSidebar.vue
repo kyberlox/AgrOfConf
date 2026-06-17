@@ -85,7 +85,7 @@ export default defineComponent({
     setup() {
         const router = useRouter();
         const route = useRoute();
-        const activeTab = ref(route.name);
+        const activeTab = ref();
         const sidebarRolledUp = ref(false);
 
         watch((route), () => {
@@ -97,20 +97,24 @@ export default defineComponent({
         const checkRights = (route: string | 'myRequests' | 'koRequests' | 'profileSettings' | 'admin', data: IRequestsData) => {
             if (route == 'admin' && !data.isAdmin) return false
             else if (route == 'koRequests' && !('requestsData' in data)) return false
-            // else if (route == 'koRequests' && data.requestsData.ko.length == 1) return false
             else
                 return true
         }
 
         const handleRoute = (route: string) => {
-            if (route == 'user' || route == 'myRequests') {
+            // if (route == 'user' || route == 'myRequests') {
+            //     router.push({ name: route, params: { id: 2366 } })
+            // }
+            // else
+            //     router.push({ name: route })
+            if (route == 'user') {
                 router.push({ name: route, params: { id: 2366 } })
-            }
-            else
+            } else if (route == 'admin') {
                 router.push({ name: route })
+            } else
+                router.push({ name: route })
+            activeTab.value = route
         }
-
-        // $router.push(link.route == 'user' ? ({ name: link.route, params: { id: userId } }) : ({ name: link.route })) : activeTab == link.name ? activeTab = '' : activeTab = link.name" handleRoute
 
         return {
             requestsData,
