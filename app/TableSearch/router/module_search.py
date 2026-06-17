@@ -38,19 +38,41 @@ async def get_table_params_from_sql(
         if value is None:
             continue
 
+        if isinstance(value, str):
+            value = value.strip()
+
+            if not value:
+                continue
+
         if isinstance(value, list):
+            normalized_values = []
+
+            for item_value in value:
+                if item_value is None:
+                    continue
+
+                normalized_value = str(item_value).strip()
+
+                if normalized_value:
+                    normalized_values.append(normalized_value)
+
+            # Если после очистки список пустой, параметр не выбран
+            if not normalized_values:
+                continue
+
             placeholders = []
 
-            for idx, v in enumerate(value):
+            for idx, normalized_value in enumerate(normalized_values):
                 param_key = f"{col}_{idx}"
                 placeholders.append(f":{param_key}")
-                sql_params[param_key] = str(v)
+                sql_params[param_key] = normalized_value
 
-            if placeholders:
-                where_clauses.append(f'"{col}" IN ({", ".join(placeholders)})')
+            where_clauses.append(
+                f'"{col}" IN ({", ".join(placeholders)})'
+            )
         else:
             where_clauses.append(f'"{col}" = :{col}')
-            sql_params[col] = str(value)
+            sql_params[col] = str(value).strip()
 
     where_sql = ""
     if where_clauses:
@@ -118,6 +140,25 @@ async def find_search_errors_multi_table(
         incremental_selected = {}
 
         for param_name, value in selected_for_table.items():
+            if value is None:
+                continue
+
+            if isinstance(value, str):
+                value = value.strip()
+
+                if not value:
+                    continue
+
+            if isinstance(value, list):
+                value = [
+                    str(item).strip()
+                    for item in value
+                    if item is not None and str(item).strip()
+                ]
+
+                if not value:
+                    continue
+
             incremental_selected[param_name] = value
 
             row, _ = await get_table_params_from_sql(
@@ -131,7 +172,10 @@ async def find_search_errors_multi_table(
                 errors.append({
                     "param_name": param_name,
                     "table_name": table_name,
-                    "error": f"Параметр {param_name} выбран неверно. Вы выбрали значение: {value}."
+                    "error": (
+                        f"Параметр {param_name} выбран неверно. "
+                        f"Вы выбрали значение: {value}."
+                    )
                 })
                 break
 
@@ -255,7 +299,7 @@ async def process_table_data(
         db=db,
         product_id=product_id,
     )
-    column_to_param = {param['transliterated_name']: param['name'] for param in full_info}
+    all_column_to_param = {param['transliterated_name']: param['name'] for param in full_info}
     # Если пользователь ничего не выбрал — просто возвращаем все доступные значения
     if not selected_params:
         response_params = []
@@ -281,7 +325,7 @@ async def process_table_data(
                 "sort": item["sort"],
             })
         formula_params = await search_formula(db, response_params, table_name_params=list(tables_map.keys()),
-                                              column_to_param=column_to_param)
+                                              column_to_param=all_column_to_param)
 
         response_params = sorted(
             formula_params,
@@ -313,7 +357,6 @@ async def process_table_data(
 
     merged_filtered_values = defaultdict(set)
     total_matched_rows = 0
-    has_any_match = False
 
     for table_name, table_params in tables_map.items():
         table_param_names = {item["name"] for item in table_params}
@@ -329,7 +372,7 @@ async def process_table_data(
         if not selected_for_table:
             continue
 
-        row, column_to_param = await get_table_params_from_sql(
+        row, table_column_to_param = await get_table_params_from_sql(
             db=db,
             table_name=table_name,
             table_params=table_params,
@@ -342,10 +385,7 @@ async def process_table_data(
         matched_rows = row["matched_rows"] or 0
         total_matched_rows += matched_rows
 
-        if matched_rows > 0:
-            has_any_match = True
-
-        for col, param_name in column_to_param.items():
+        for col, param_name in table_column_to_param.items():
             values = row[col]
 
             if not values:
@@ -375,6 +415,22 @@ async def process_table_data(
         for err in errors
     }
 
+    # Определяем позицию первой ошибки выбора пользователя
+
+    error_positions = []
+
+    for item in full_info:
+        key = (item["table_name"], item["name"])
+
+        if key in error_by_key:
+            error_positions.append(
+                item.get("sort")
+                if item.get("sort") is not None
+                else float(item["id"])
+            )
+
+    first_error_position = min(error_positions) if error_positions else None
+
     error_filtered_values = {}
 
     for err in errors:
@@ -403,16 +459,51 @@ async def process_table_data(
         name = item["name"]
         table_name = item["table_name"]
 
-        all_values = full_value_parameters.get(name)
+        current_position = (
+            item.get("sort")
+            if item.get("sort") is not None
+            else float(item["id"])
+        )
+
+        selected_value = selected_params.get(name)
+
+        is_selected = selected_value is not None
+
+        if isinstance(selected_value, str):
+            is_selected = bool(selected_value.strip())
+
+        elif isinstance(selected_value, list):
+            is_selected = bool([
+                value
+                for value in selected_value
+                if value is not None and str(value).strip()
+            ])
+
+        is_after_error = (
+                first_error_position is not None
+                and current_position > first_error_position
+        )
+
+        all_values = full_value_parameters.get(name) or []
         filtered_value = parameters_for_response.get(name)
 
         error_item = error_by_key.get((table_name, name))
 
+        # Для ошибочного параметра показываем допустимые варианты,
+        # чтобы пользователь мог исправить ошибку
         if error_item:
             filtered_value = error_filtered_values.get((table_name, name))
 
             if filtered_value is None:
-                filtered_value = all_values or []
+                filtered_value = all_values
+
+        # После первой ошибки незаполненные параметры пока недоступны
+        elif is_after_error and not is_selected:
+            filtered_value = []
+
+        # Обычный fallback применяется только до ошибки
+        elif filtered_value is None:
+            filtered_value = all_values
 
         response_value = None
 
@@ -422,10 +513,13 @@ async def process_table_data(
 
         # Если параметр был выбран пользователем и он не ошибочный —
         # оставляем выбранное значение, чтобы фронт не сбрасывал весь подбор
-        elif name in selected_params and selected_params[name] is not None:
-            response_value = selected_params[name]
+        elif is_selected:
+            response_value = selected_value
 
         # Если после фильтрации осталось одно значение — можно подставить его
+        elif isinstance(filtered_value, list) and len(filtered_value) == 1:
+            response_value = filtered_value[0]
+
         elif isinstance(filtered_value, str):
             response_value = filtered_value
 
@@ -455,7 +549,7 @@ async def process_table_data(
         response_params,
         table_name_params=list(tables_map.keys()),
         select_formula_params=selected_params,
-        column_to_param=column_to_param
+        column_to_param=all_column_to_param
     )
 
     response_params = sorted(
