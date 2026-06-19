@@ -35,7 +35,7 @@ load_dotenv()
 key_api = os.getenv("key_api")
 model_type = os.getenv("model_type")
 vseGPTurl = os.getenv("vseGPTurl")
-print(model_type, 'какая модель')
+
 client = AsyncOpenAI(api_key = key_api, base_url=vseGPTurl) 
 
 router = APIRouter(prefix="/AI", tags=[""])
