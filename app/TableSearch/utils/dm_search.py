@@ -8,7 +8,6 @@ from app.TablePakage.utils.router_utils import to_sql_name_lat
 def natural_sort_key(value):
     value = str(value).strip().lower()
 
-    # Такие значения лучше отправлять в конец списка
     if value in {"нет", "nan", "none", ""}:
         return (1, value)
 
@@ -29,9 +28,10 @@ def natural_sort_key(value):
 
     return (0, key)
 
+
 async def rebuild_dm(
-    db: AsyncSession,
-    product_id: int,
+        db: AsyncSession,
+        product_id: int,
 ):
     await db.execute(
         text("SELECT pg_advisory_lock(:pid)"),
@@ -127,9 +127,10 @@ async def rebuild_dm(
             {"pid": product_id}
         )
 
+
 async def ensure_dm_exists(
-    db: AsyncSession,
-    product_id: int,
+        db: AsyncSession,
+        product_id: int,
 ):
     registry = await db.execute(text("""
         SELECT is_dirty

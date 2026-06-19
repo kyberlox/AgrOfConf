@@ -12,10 +12,10 @@ from ..utils.formula_search import search_formula
 
 router = APIRouter(prefix="/module_search", tags=["Module_search"])
 
+
 def natural_sort_key(value):
     value = str(value).strip().lower()
 
-    # Такие значения лучше отправлять в конец списка
     if value in {"нет", "nan", "none", ""}:
         return (1, value)
 
@@ -35,7 +35,6 @@ def natural_sort_key(value):
             key.append((1, part))
 
     return (0, key)
-
 
 
 async def get_table_params_from_sql(
@@ -258,10 +257,10 @@ async def get_available_values_for_error_param(
         item["name"]
         for item in table_params
         if (
-            item.get("sort")
-            if item.get("sort") is not None
-            else float(item["id"])
-        ) < error_position
+               item.get("sort")
+               if item.get("sort") is not None
+               else float(item["id"])
+           ) < error_position
     }
 
     selected_before_error = {
