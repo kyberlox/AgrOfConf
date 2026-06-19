@@ -2,7 +2,7 @@
 # import json
 # import re
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional 
 
 # import os
 # from pathlib import Path
@@ -35,7 +35,7 @@ load_dotenv()
 key_api = os.getenv("key_api")
 model_type = os.getenv("model_type")
 vseGPTurl = os.getenv("vseGPTurl")
-
+print(model_type, 'какая модель')
 client = AsyncOpenAI(api_key = key_api, base_url=vseGPTurl) 
 
 router = APIRouter(prefix="/AI", tags=[""])
@@ -48,6 +48,7 @@ router = APIRouter(prefix="/AI", tags=[""])
 @router.post("/upload_OL")
 async def upload_OL(
     product_id: int, 
+    user_promt: Optional[str],
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, Any]:
@@ -58,7 +59,11 @@ async def upload_OL(
         fin_params = time.time()
         print(f"Нашли параметры за {fin_params - start_all}")
         res_params = {key: value for key, value in params.items() if key not in ['Цена /шт. руб без НДС', 'Цена /шт. руб с НДС 22%']}
-        promt = get_promt(res_params)
+        
+        if user_promt:
+            promt = f"{user_promt}. Шаблон - {params}"
+        else:
+            promt = get_promt(res_params)
         fin_promt = time.time()
         print(f"Собрали промт за {fin_promt - fin_params}")
         content = await convert_file_to_jpeg_content(file)
