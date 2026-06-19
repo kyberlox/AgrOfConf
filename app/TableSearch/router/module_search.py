@@ -148,9 +148,25 @@ async def find_search_errors_multi_table(
         if not selected_for_table:
             continue
 
+        ordered_table_params = sorted(
+            table_params,
+            key=lambda item: (
+                item.get("sort")
+                if item.get("sort") is not None
+                else float(item["id"])
+            )
+        )
+
         incremental_selected = {}
 
-        for param_name, value in selected_for_table.items():
+        for param in ordered_table_params:
+            param_name = param["name"]
+
+            if param_name not in selected_for_table:
+                continue
+
+            value = selected_for_table[param_name]
+
             if value is None:
                 continue
 
@@ -201,47 +217,64 @@ async def get_available_values_for_error_param(
         selected_params: dict[str, str | int | list],
 ):
     """
-    Возвращает допустимые значения для ошибочного параметра,
-    убирая сам ошибочный параметр из фильтрации.
+    Возвращает допустимые значения для ошибочного параметра.
     """
 
-    selected_without_error = {
-        key: value
-        for key, value in selected_params.items()
-        if key != error_param_name
+    error_param = next(
+        (
+            item
+            for item in table_params
+            if item["name"] == error_param_name
+        ),
+        None
+    )
+
+    if error_param is None:
+        return []
+
+    error_position = (
+        error_param.get("sort")
+        if error_param.get("sort") is not None
+        else float(error_param["id"])
+    )
+
+    params_before_error = {
+        item["name"]
+        for item in table_params
+        if (
+            item.get("sort")
+            if item.get("sort") is not None
+            else float(item["id"])
+        ) < error_position
     }
 
-    row, column_to_param = await get_table_params_from_sql(
+    selected_before_error = {
+        key: value
+        for key, value in selected_params.items()
+        if key in params_before_error
+    }
+
+    row, _ = await get_table_params_from_sql(
         db=db,
         table_name=table_name,
         table_params=table_params,
-        selected_params=selected_without_error,
+        selected_params=selected_before_error,
     )
 
     if not row:
-        return None
+        return []
 
-    error_col = None
-
-    for item in table_params:
-        if item["name"] == error_param_name:
-            error_col = item["transliterated_name"]
-            break
-
-    if not error_col:
-        return None
+    error_col = error_param["transliterated_name"]
 
     values = row[error_col]
 
     if not values:
-        return None
+        return []
 
-    values = sorted((str(value) for value in values), key=natural_sort_key)
-
-    if len(values) == 1:
-        return values[0]
-
-    return values
+    return sorted(
+        (str(value) for value in values),
+        key=natural_sort_key
+    )
 
 
 @router.post(
@@ -514,7 +547,7 @@ async def process_table_data(
 
         # Обычный fallback применяется только до ошибки
         elif filtered_value is None:
-            filtered_value = all_values
+            filtered_value = all_values or []
 
         response_value = None
 
