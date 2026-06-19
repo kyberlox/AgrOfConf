@@ -236,7 +236,7 @@ async def get_available_values_for_error_param(
     if not values:
         return None
 
-    values = sorted(str(value) for value in values)
+    values = sorted((str(value) for value in values), key=natural_sort_key)
 
     if len(values) == 1:
         return values[0]
@@ -408,7 +408,7 @@ async def process_table_data(
     parameters_for_response = {}
 
     for param_name, values in merged_filtered_values.items():
-        sorted_values = sorted(values)
+        sorted_values = sorted(values, key=natural_sort_key)
 
         if len(sorted_values) == 1:
             parameters_for_response[param_name] = sorted_values[0]
@@ -506,7 +506,7 @@ async def process_table_data(
             filtered_value = error_filtered_values.get((table_name, name))
 
             if filtered_value is None:
-                filtered_value = all_values
+                filtered_value = all_values or []
 
         # После первой ошибки незаполненные параметры пока недоступны
         elif is_after_error and not is_selected:
