@@ -27,8 +27,8 @@ from fastapi import Request, HTTPException, status
 import os
 from dotenv import load_dotenv
 
-from ..utils.convert_ol_file import get_params_and_values_of_product, convert_file_to_jpeg_content
-from ..utils.promt_ol import get_promt
+from app.TablePakage.utils.convert_ol_file import get_params_and_values_of_product, convert_file_to_jpeg_content
+from app.TablePakage.utils.promt_ol import get_promt
 
 load_dotenv()
 #делаю изменения
