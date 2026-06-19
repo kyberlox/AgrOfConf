@@ -13,12 +13,28 @@ from ..utils.formula_search import search_formula
 router = APIRouter(prefix="/module_search", tags=["Module_search"])
 
 def natural_sort_key(value):
-    value = str(value)
+    value = str(value).strip().lower()
 
-    return [
-        int(part) if part.isdigit() else part.lower()
-        for part in re.split(r"(\d+)", value)
-    ]
+    # Такие значения лучше отправлять в конец списка
+    if value in {"нет", "nan", "none", ""}:
+        return (1, value)
+
+    parts = re.split(r"(\d+(?:[.,]\d+)?)", value)
+
+    key = []
+
+    for part in parts:
+        if not part:
+            continue
+
+        normalized_part = part.replace(",", ".")
+
+        if re.fullmatch(r"\d+(?:\.\d+)?", normalized_part):
+            key.append((0, float(normalized_part)))
+        else:
+            key.append((1, part))
+
+    return (0, key)
 
 
 
