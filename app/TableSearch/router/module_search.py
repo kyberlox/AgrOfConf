@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, Body, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -9,6 +11,15 @@ from app.TableSearch.utils.dm_search import ensure_dm_exists, get_full_search_fr
 from ..utils.formula_search import search_formula
 
 router = APIRouter(prefix="/module_search", tags=["Module_search"])
+
+def natural_sort_key(value):
+    value = str(value)
+
+    return [
+        int(part) if part.isdigit() else part.lower()
+        for part in re.split(r"(\d+)", value)
+    ]
+
 
 
 async def get_table_params_from_sql(
