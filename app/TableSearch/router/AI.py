@@ -885,6 +885,7 @@ async def upload_OL(
         start_all = time.time()
         params = await get_params_and_values_of_product(db, product_id)
         fin_params = time.time()
+        print(params, 'параметры')
         print(f"Нашли параметры за {fin_params - start_all}")
         promt = get_promt(params)
         fin_promt = time.time()
