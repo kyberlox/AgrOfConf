@@ -57,6 +57,7 @@ async def upload_OL(
         params = await get_params_and_values_of_product(db, product_id)
         fin_params = time.time()
         print(f"Нашли параметры за {fin_params - start_all}")
+        print(params.keys())
         promt = get_promt(params)
         fin_promt = time.time()
         print(f"Собрали промт за {fin_promt - fin_params}")
@@ -68,20 +69,20 @@ async def upload_OL(
 
         content.append({"type": "text", "text": promt})
 
-        response = await client.chat.completions.create(
-            model=model_type,
-            max_tokens=8000,
-            messages=[{"role": "user", "content": content}],
-            response_format={"type": "json_object"}
-        )
-        res = response.model_dump()
+        # response = await client.chat.completions.create(
+        #     model=model_type,
+        #     max_tokens=8000,
+        #     messages=[{"role": "user", "content": content}],
+        #     response_format={"type": "json_object"}
+        # )
+        # res = response.model_dump()
         fin_response = time.time()
         print(f"Получили результат за {fin_response - fin_content}")
-        need = res['choices'][0]['message']['content']
-        parsed_need = json.loads(need)
+        # need = res['choices'][0]['message']['content']
+        # parsed_need = json.loads(need)
         fin_all = time.time()
         print(f"Собрали все за {fin_all - start_all}")
-        return parsed_need
+        return True
     except HTTPException:
         raise
     except Exception as e:
