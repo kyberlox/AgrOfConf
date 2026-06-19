@@ -82,7 +82,7 @@ async def upload_OL(
         # parsed_need = json.loads(need)
         fin_all = time.time()
         print(f"Собрали все за {fin_all - start_all}")
-        return True
+        return {}
     except HTTPException:
         raise
     except Exception as e:
