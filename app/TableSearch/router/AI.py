@@ -48,7 +48,7 @@ router = APIRouter(prefix="/AI", tags=[""])
 @router.post("/upload_OL")
 async def upload_OL(
     product_id: int, 
-    user_promt: Optional[str],
+    user_promt: Optional[str] = Body(),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, Any]:
