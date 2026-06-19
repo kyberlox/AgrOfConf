@@ -27,6 +27,9 @@ class CodeParametr:
     def _get_param_by_name(self, param_name, selection_result):
         #найти параметр
         for param in selection_result:
+            if "debug" in param: 
+                continue #пропускаем дебаг-параметр -1, который нужен для проверки, что все работает правильно. "debug": True
+            
             if param["name"] == param_name:
                 #нет ли ошибки
                 if "error" in param:
@@ -83,7 +86,6 @@ class CodeParametr:
         # print(selection_result)
         # print(param_info)
         # print(select_formula_params)
-        
         #чтобы не падала ошибка табличного подбора
         debug_param = {
             "id" : -1,
@@ -168,21 +170,21 @@ class CodeParametr:
             #список ВСЕХ климатик
             all_type_names = self._get_param_by_name("Тип клапана", selection_result)["all_values"]
             # type_param = self._get_param_by_name("Тип предохранительного клапана", select_formula_params)
-            type_param = [value for param_name, value in select_formula_params.items() if param_name == "Тип предохранительного клапана"]
+            type_param = [value for param_name, value in select_formula_params.items() if param_name == "Тип клапана"]
             
             type_val = type_param[0] if type_param else None # is not None
 
             #если нет
             if type_val is None:
-                res = self._set_params(res, param_info.id, "Тип предохранительного клапана", all_values=all_type_names, sort=4)
+                res = self._set_params(res, param_info.id, "Тип клапана", all_values=all_type_names, sort=4)
 
             #валидация нужна
             elif type_val not in all_type_names:
                 error = "Надо выбрать один из предложеннных вариантов"
-                res = self._set_params(res, param_info.id, "Тип предохранительного клапана", all_values=all_type_names, sort=4, error=error, response_value=type_val)
+                res = self._set_params(res, param_info.id, "Тип клапана", all_values=all_type_names, sort=4, error=error, response_value=type_val)
 
             else:
-                res = self._set_params(res, param_info.id, "Тип предохранительного клапана", all_values=all_type_names, sort=4, response_value=type_val)
+                res = self._set_params(res, param_info.id, "Тип клапана", all_values=all_type_names, sort=4, response_value=type_val)
                 got_type = True
         
         #Температура
@@ -213,7 +215,7 @@ class CodeParametr:
         ################# РАСЧЕТ #################
         if got_T:
             #ключи === названия колонок БД
-            searching_table_name = "reguljator_table"
+            searching_table_name = "pktable_1"
 
             #чтобы проще было заполнять
             # all_columns_names = await db.execute(text(f"SELECT column_name FROM information_schema.columns WHERE table_name = \'{searching_table_name}\';"))
@@ -297,7 +299,7 @@ class CodeParametr:
                 "vjazkost_pa_s" : 0,
                 "udel_naja_izobarnaja_teploemkost_kdzh_kg_k" : 0,
                 "moljarnaja_massa" : 0,
-                "udel_naja_izohornaja_teploemkost_kdzh_kg_k" : 0,
+                # "udel_naja_izohornaja_teploemkost_kdzh_kg_k" : 0,
                 "pokazatel_adiabaty" : 0,
                 "faktor_szhimaemosti" : 1,
             }
@@ -421,8 +423,15 @@ class CodeParametr:
 
     async def _searchT2(self, T, Pn, db):
         #print(f"T2: {Pn}")
-        #найти все подходящие строки их DNS и P1 - больше искомых
-        request = await db.execute(text(f"SELECT * FROM table2 WHERE t >= {T} AND pn >= {Pn}")).fetchall()
+        #найти все подходящие строки их DNS и P1 - больше искомых)
+        query = """
+            SELECT * FROM table2 
+            WHERE t::float >= :T_val
+            AND pn::float >= :Pn_val
+        """
+        params = {"T_val": T, "Pn_val": Pn}
+        stmt = await db.execute(text(query), params) 
+        request = stmt.fetchall()
         # request = db.query("table2").filter(Table2.t >= T, Table2.pn >= Pn).all()
 
         if request == None or len(request) == 0:
@@ -430,8 +439,8 @@ class CodeParametr:
         ans = False
 
         #найти самый подходящий - MIN по DNS и P1
-        minT = request[0].T
-        minPn = request[0].Pn
+        minT = request[0].t
+        minPn = request[0].pn
         for example in request:
             if (example.t <= minT) and (example.pn <= minPn):
                 minT = example.t
@@ -449,7 +458,14 @@ class CodeParametr:
         #print(f"T10: {Pn}")
         #найти все подходящие строки их DNS и P1 - больше искомых
         # request = db.query(Table10).filter(Table10.T >= T, Table10.Pn >= Pn).all()
-        request = await db.execute(text(f"SELECT * FROM table10 WHERE t10 >= {T} AND pn10 >= {Pn}")).fetchall()
+        query = """
+            SELECT * FROM table10 
+            WHERE t10::float >= :T_val 
+            AND pn10::float >= :Pn_val
+        """
+        params = {"T_val": T, "Pn_val": Pn}
+        stmt = await db.execute(text(query), params) 
+        request = stmt.fetchall()
 
         if request == None or len(request) == 0:
             return False
@@ -470,6 +486,77 @@ class CodeParametr:
                 }
         #print(ans)
         return ans
+
+    async def _searchParams(self, db, DNS, Pn, PN, valve_type):
+        print(DNS, PN, valve_type)
+        #найти все подходящие строки их DNS и P1 - больше искомых
+        # request = db.query(Params).filter(Params.DNS >= DNS, Params.PN == PN, Params.valve_type == valve_type).all()
+        query = """
+            SELECT * FROM table3 
+            WHERE dns3::float >= :DNS_val 
+            AND pn3::float >= :Pn_val
+            AND tip_predohranitel_nogo_klapana = :valve_type
+        """
+        params = {"DNS_val": DNS, "Pn_val": PN, "valve_type": valve_type}
+        stmt = await db.execute(text(query), params) 
+        request = stmt.all()
+
+        if request == None or request == []:
+            return False
+        ans = False
+
+        #найти самый подходящий - MIN по DNS и P1
+        minDNS = request[0].dns3
+        #minP1 = request[0].P1
+        minPN = request[0].pn3
+        ##print("###")
+        for example in request:
+
+            #print(example.id, example.DNS, example.valve_type, example.DN, example.PN)
+
+            try:
+                Pn1 = str(example.pnd3).split("...")[0]
+                Pn2 = str(example.pnd3).split("...")[1]
+                #print(Pn1, Pn2)
+
+                #print(f"example.DNS <= minDNS {example.DNS <= minDNS} example.PN == minPN {example.PN == minPN} float(Pn1) <= Pn <= float(Pn2) {float(Pn1)} {Pn} {float(Pn2)} {float(Pn1) <= Pn <= float(Pn2)}")
+                if (example.dns3 <= minDNS)  and (example.pn3 == minPN) and (float(Pn1) <= Pn <= float(Pn2)):
+                    minDNS = example.dns3
+                    #minP1 = example.P1
+                    minPN = example.pn3
+                    ans = {
+                        "ID" : example.id,
+                        "DNS" : example.dns3,
+                        "Pnd" : example.pnd3,
+                        "DN" : example.dn3,
+                        "PN" : example.pn3,
+                        "spring_material" : example.material_pruzhiny,
+                        "spring_number" : example.nomer_pruzhiny,
+                        "valve_type" : valve_type
+                    }
+                elif (Pn <= float(Pn2)) and (Pn <= 4) and (example.dns3 <= minDNS)  and (example.pn3 == minPN):
+                    minDNS = example.dns3
+                    # minP1 = example.P1
+                    minPN = example.pn3
+                    ans = {
+                        "ID" : example.id,
+                        "DNS" : example.dns3,
+                        "Pnd" : example.pnd3,
+                        "DN" : example.dn3,
+                        "PN" : example.pn3,
+                        "spring_material" : example.material_pruzhiny,
+                        "spring_number" : example.nomer_pruzhiny,
+                        "valve_type" : valve_type
+                    }
+            except:
+                print("###")
+                print(example.id)
+                print(example.Pnd)
+                print("###")
+        #print("###")
+        #print(ans)
+
+        return ans 
 
     async def raschet(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
         from copy import deepcopy
@@ -679,7 +766,7 @@ class CodeParametr:
                 Ppo_Pn_2 = 1.15
                 Kw_2 = 1.2857 - 0.7603 * (Pp / Pno)
 
-                Kw = _linear_interpolation(Ppo_Pn_1, Kw_1, Ppo_Pn_2, Kw_2, Ppo / Pn)
+                Kw = self._linear_interpolation(Ppo_Pn_1, Kw_1, Ppo_Pn_2, Kw_2, Ppo / Pn)
 
             # (Д.26)
             elif ((Ppo / Pn) > 1.15) and ((Ppo / Pn) <= 1.2):
@@ -694,14 +781,13 @@ class CodeParametr:
                 Ppo_Pn_2 = 1.21
                 Kw_2 = 1
 
-                Kw = _linear_interpolation(Ppo_Pn_1, Kw_1, Ppo_Pn_2, Kw_2, Ppo / Pn)
+                Kw = self._linear_interpolation(Ppo_Pn_1, Kw_1, Ppo_Pn_2, Kw_2, Ppo / Pn)
         
             n_inf = [param for param in selection_result if param["name"] == 'Показатель адиабаты']
             n = n_inf[0]["response_value"]
             Bkr = (2 / (n + 1)) ** (n / (n - 1))
             # определим режим истечения
             if B <= Bkr:  #
-                print('критический режим истечения')
                 Kb = 1
                 if n == 1:
                     Kp_kr = 0.60653 ** 2
@@ -709,7 +795,6 @@ class CodeParametr:
                     # Kp_kr = n*(Bkr**((n+1)/n)) #на самом деле, тут корень, но его будем извлекать в конце
                     Kp_kr = sqrt((2 * n) / (n + 1)) * (2 / (n + 1)) ** (1 / (n - 1))  # или можно так
             else:  # докритический режим
-                print('докритический режим истечения')
                 Kp_kr = 1
                 if n == 1:
                     Kb = B ** 2 * -2 * exp * log(B)  # на самом деле, тут корень, но его будем извлекать в конце
@@ -767,37 +852,142 @@ class CodeParametr:
             ex = await self._searchT2(T, Pn * 10.197162, db)
         else:
             ex = await self._searchT10(T, Pn * 10.197162, db)
-        print(ex, 'че получили')
-
-        """
-        ТУТ НАЧАЛИСЬ ПРОБЛЕМЫ, ФУНКЦИИ searchT2, searchT10 
-        """
-        """
-        # перевести из МПа в кгс/см2 !!!! ЗАМЕНИТЬ НА ТУ СТРУКТУРУ ЧТО БОЛЬШЕ ПОДХОДИТ НАМ
-        new_dt = {
-            "T_min": T_min,  # Минимальная рабочая температура
-            "T_max": T_max,  # Максивальная рабочая температура
-            "Pno": Pno * 10.197162,  # Давление начала открытия с противодавлением
-            "Ppo": Ppo * 10.197162,  # Давление полного открытия с противодавлением
-            "P1": P1 * 10.197162,  # Давление на входе
-            "P2": P2 * 10.197162,  # Давление на выходе
-            "Kw": Kw,  # Коэффициент, учитывающий эффект неполного открытия разгруженных ПК из-за противодавления
-            "Gideal": Gideal,  # Массовая скорость
-            #"pre_DN": pre_DN,
-            "pre_DN": DN_s  # DN предварительный
-        }
-        new_dt["PN"] = f"Невозмажно подобрать при сочитании параметров: \nТемпература рабочей среды = {T} \n Давление настройки = {Pn}"
-        material_inf = [param for param in selection_result if param["name"] == "Материал"]
-        if material_inf[0]['response_value'] == "20ГЛ" or material_inf[0]['response_value'] == "25Л":
-            ex = searchT2(T, Pn * 10.197162)
-        else:
-            ex = searchT10(T, Pn * 10.197162)
+        
 
         if ex:
             PN = ex["PN"]
         else:
             return {"error": "Нет возможности подобрать PN"}
+
+        param = self._get_param_by_name("Тип клапана", selection_result)
+        valve_type = param["response_value"][-2]
+        example = await self._searchParams(db, float(DN_s), Pn * 10.197162, int(PN), valve_type)
+
+        #Собираем ответ
+        #Получаем последний айдишник
+        param = self._get_param_by_name("Мембранно-предохранительное устройство", res)
+        counter = param['sort'] + 1 #Счетчик для увеличения порядкового номера
+
+        #Минимальная рабочая температура
+        res = self._set_params(res, counter, "Минимальная рабочая температура", param_type='raschet', response_value=T_min, sort=counter, visibility=False)
+        counter += 1
+        #Максимальная рабочая температура
+        res = self._set_params(res, counter, "Максимальная рабочая температура", param_type='raschet', response_value=T_max, sort=counter, visibility=False)
+        counter += 1
+        # Давление начала открытия с противодавлением
+        res = self._set_params(res, counter, "Давление начала открытия с противодавлением", param_type='raschet', response_value=Pno * 10.197162, sort=counter)
+        counter += 1
+        # Давление полного открытия с противодавлением
+        res = self._set_params(res, counter, "Давление полного открытия с противодавлением", param_type='raschet', response_value=Ppo * 10.197162, sort=counter)
+        counter += 1
+        # Давление на входе
+        res = self._set_params(res, counter, "Давление на входе", param_type='raschet', response_value=P1 * 10.197162, sort=counter)
+        counter += 1
+        # Давление на выходе
+        res = self._set_params(res, counter, "Давление на выходе", param_type='raschet', response_value=P2 * 10.197162, sort=counter)
+        counter += 1
+        # Коэффициент, учитывающий эффект неполного открытия разгруженных ПК из-за противодавления
+        res = self._set_params(res, counter, "Коэффициент, учитывающий эффект неполного открытия разгруженных ПК из-за противодавления", param_type='raschet', response_value=Kw, sort=counter)
+        counter += 1
+        # Массовая скорость
+        res = self._set_params(res, counter, "Массовая скорость", param_type='raschet', response_value=Gideal, sort=counter)
+        counter += 1
+        # Предварительный Диаметр седла клапана, мм
+        res = self._set_params(res, counter, "Диаметр седла клапана, мм:", param_type='raschet', response_value=DN_s, sort=counter)
+        counter += 1
+        # Номиннальный диаметр седла !f example:
+        res = self._set_params(res, counter, "Номиннальный диаметр седла", param_type='raschet', response_value=example["DNS"], sort=counter)
+        counter += 1
+        # Номиннальный диаметр !f example:
+        res = self._set_params(res, counter, "Номиннальный диаметр", param_type='raschet', response_value=example["DN"], sort=counter)
+        counter += 1
+        # Номиннальное давление !f example:
+        res = self._set_params(res, counter, "Номиннальное давление", param_type='raschet', response_value=example["PN"], sort=counter)
+        counter += 1
+        # Номиннальный диаметр на выходе
+        DN2 = {
+            25.0: 40.0,
+            50.0: 80.0,
+            80.0: 100.0,
+            100.0: 150.0,
+            150.0: 200.0,
+            200.0: 300.0
+        }
+        res = self._set_params(res, counter, "Номиннальный диаметр на выходе", param_type='raschet', response_value=DN2[int(example["DN"])], sort=counter)
+        counter += 1
+        # Номинальное давление на выходе
+        PN2 = {
+            16.0: 6,
+            40.0: 16.0,
+            63.0: 40.0,
+            100.0: 40.0,
+            160.0: 40.0,
+            250.0: 40.0
+        }
+        res = self._set_params(res, counter, "Номинальное давление на выходе", param_type='raschet', response_value=PN2[int(example["PN"])], sort=counter)
+        counter += 1
+        # Площадь седла клапана
+        DN_s = int(example["DNS"])
+        S = (pi * DN_s**2 )/ 4
+        res = self._set_params(res, counter, "Площадь седла клапана", param_type='raschet', response_value=S, sort=counter)
+        counter += 1
+        # Эффективная площадь седла калапана
+        res = self._set_params(res, counter, "Эффективная площадь седла калапана", param_type='raschet', response_value=S * alpha, sort=counter)
+        counter += 1
+        # Материал пружины
+        res = self._set_params(res, counter, "Материал пружины", param_type='raschet', response_value=example["spring_material"], sort=counter, visibility=False)
+        counter += 1
+        # Номер пружины
+        res = self._set_params(res, counter, "Номер пружины", param_type='raschet', response_value=example["spring_number"], sort=counter, visibility=False)
+        counter += 1
+        # Диапазон давлений настройки
+        res = self._set_params(res, counter, "Диапазон давлений настройки", param_type='raschet', response_value=example["Pnd"], sort=counter, visibility=False)
+        counter += 1
+        # Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ
+        new_list = []
+        for param in res:
+            if 'table_name' in param:
+                continue
+            new_list.append(param)
+
+        return {"total_change" : new_list}
+
+    async def mark_params(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
         """
-        return {"total_change" : res}
+        Параметры которые нужны для расчета:
+        - Тип предохранительного клапана Пружинный или Пилотный (B/H) (valve_type)
+        - Номинальное давление (PN)
+        - Номинальное давление на выходе (PN2)
+        - Номиннальный диаметр (DN)
+        - Температура рабочей среды (T)
+        - Тип присоединения (joining_type)
+        - Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ (need_bellows)
+        - Маркировка (mark)
+        """
+        # need_bellows = False
+        # if (dt["valve_type"] == 'В') and (((example["spring_material"] == '51ХФА') and (T > 120)) or ((example["spring_material"] == '50ХФА') and (T > 250))):
+        #     new_dt["need_bellows"] = True
+        # # elif dt["valve_type"] == 'В':
+        # #         new_dt["need_bellows"] = [True, False]
+
+        # # вода агрессиваня?
+        # cool_env = ["Вода", "Водяной пар", "Воздух", "Азот", "Вода"]
+
+
+        # cool = 0
+        # for en in env_names:
+        #     # убрать из смеси неагрессивные среды
+        #     if en in cool_env:
+        #         # print(en)
+        #         cool += 1
+        # open_close_type = "закрытого типа"
+        # if cool == len(env_names) and (dt["valve_type"] == 'В') and (((example["spring_material"] == '51ХФА') and (T > 120)) or ((example["spring_material"] == '50ХФА') and (T > 250))):
+
+        #     if T:
+        #         open_close_type = "открытого типа"
+        #         dt["need_bellows"] = False
+        pass
+
+
 
 ALLOWED_FUNCTIONS =  [method for method in dir(CodeParametr) if callable(getattr(CodeParametr, method)) and not method.startswith("__")]
