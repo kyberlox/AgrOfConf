@@ -1,11 +1,37 @@
+import re
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.TablePakage.utils.router_utils import to_sql_name_lat
 
 
+def natural_sort_key(value):
+    value = str(value).strip().lower()
+
+    if value in {"нет", "nan", "none", ""}:
+        return (1, value)
+
+    parts = re.split(r"(\d+(?:[.,]\d+)?)", value)
+
+    key = []
+
+    for part in parts:
+        if not part:
+            continue
+
+        normalized_part = part.replace(",", ".")
+
+        if re.fullmatch(r"\d+(?:\.\d+)?", normalized_part):
+            key.append((0, float(normalized_part)))
+        else:
+            key.append((1, part))
+
+    return (0, key)
+
+
 async def rebuild_dm(
-    db: AsyncSession,
-    product_id: int,
+        db: AsyncSession,
+        product_id: int,
 ):
     await db.execute(
         text("SELECT pg_advisory_lock(:pid)"),
@@ -101,9 +127,10 @@ async def rebuild_dm(
             {"pid": product_id}
         )
 
+
 async def ensure_dm_exists(
-    db: AsyncSession,
-    product_id: int,
+        db: AsyncSession,
+        product_id: int,
 ):
     registry = await db.execute(text("""
         SELECT is_dirty
@@ -180,7 +207,7 @@ async def get_full_search_from_dm(
             parameters[param_name].add(str(value))
 
     parameters = {
-        param_name: sorted(values)
+        param_name: sorted(values, key=natural_sort_key)
         for param_name, values in parameters.items()
     }
 
