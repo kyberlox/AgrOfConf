@@ -1,5 +1,5 @@
 from typing import Dict, Any
-def get_prompt(params: Dict[str, Any]) -> str:
+def get_promt(params: Dict[str, Any]) -> str:
     super_promt = f"""
     Мне нужно собрать json по шаблону:
     {params}

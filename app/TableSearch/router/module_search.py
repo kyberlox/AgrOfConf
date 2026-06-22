@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, Body, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -9,6 +11,30 @@ from app.TableSearch.utils.dm_search import ensure_dm_exists, get_full_search_fr
 from ..utils.formula_search import search_formula
 
 router = APIRouter(prefix="/module_search", tags=["Module_search"])
+
+
+def natural_sort_key(value):
+    value = str(value).strip().lower()
+
+    if value in {"нет", "nan", "none", ""}:
+        return (1, value)
+
+    parts = re.split(r"(\d+(?:[.,]\d+)?)", value)
+
+    key = []
+
+    for part in parts:
+        if not part:
+            continue
+
+        normalized_part = part.replace(",", ".")
+
+        if re.fullmatch(r"\d+(?:\.\d+)?", normalized_part):
+            key.append((0, float(normalized_part)))
+        else:
+            key.append((1, part))
+
+    return (0, key)
 
 
 async def get_table_params_from_sql(
@@ -137,9 +163,25 @@ async def find_search_errors_multi_table(
         if not selected_for_table:
             continue
 
+        ordered_table_params = sorted(
+            table_params,
+            key=lambda item: (
+                item.get("sort")
+                if item.get("sort") is not None
+                else float(item["id"])
+            )
+        )
+
         incremental_selected = {}
 
-        for param_name, value in selected_for_table.items():
+        for param in ordered_table_params:
+            param_name = param["name"]
+
+            if param_name not in selected_for_table:
+                continue
+
+            value = selected_for_table[param_name]
+
             if value is None:
                 continue
 
@@ -190,47 +232,64 @@ async def get_available_values_for_error_param(
         selected_params: dict[str, str | int | list],
 ):
     """
-    Возвращает допустимые значения для ошибочного параметра,
-    убирая сам ошибочный параметр из фильтрации.
+    Возвращает допустимые значения для ошибочного параметра.
     """
 
-    selected_without_error = {
-        key: value
-        for key, value in selected_params.items()
-        if key != error_param_name
+    error_param = next(
+        (
+            item
+            for item in table_params
+            if item["name"] == error_param_name
+        ),
+        None
+    )
+
+    if error_param is None:
+        return []
+
+    error_position = (
+        error_param.get("sort")
+        if error_param.get("sort") is not None
+        else float(error_param["id"])
+    )
+
+    params_before_error = {
+        item["name"]
+        for item in table_params
+        if (
+               item.get("sort")
+               if item.get("sort") is not None
+               else float(item["id"])
+           ) < error_position
     }
 
-    row, column_to_param = await get_table_params_from_sql(
+    selected_before_error = {
+        key: value
+        for key, value in selected_params.items()
+        if key in params_before_error
+    }
+
+    row, _ = await get_table_params_from_sql(
         db=db,
         table_name=table_name,
         table_params=table_params,
-        selected_params=selected_without_error,
+        selected_params=selected_before_error,
     )
 
     if not row:
-        return None
+        return []
 
-    error_col = None
-
-    for item in table_params:
-        if item["name"] == error_param_name:
-            error_col = item["transliterated_name"]
-            break
-
-    if not error_col:
-        return None
+    error_col = error_param["transliterated_name"]
 
     values = row[error_col]
 
     if not values:
-        return None
+        return []
 
-    values = sorted(str(value) for value in values)
-
-    if len(values) == 1:
-        return values[0]
-
-    return values
+    return sorted(
+        (str(value) for value in values),
+        key=natural_sort_key
+    )
 
 
 @router.post(
@@ -397,7 +456,7 @@ async def process_table_data(
     parameters_for_response = {}
 
     for param_name, values in merged_filtered_values.items():
-        sorted_values = sorted(values)
+        sorted_values = sorted(values, key=natural_sort_key)
 
         if len(sorted_values) == 1:
             parameters_for_response[param_name] = sorted_values[0]
@@ -495,7 +554,7 @@ async def process_table_data(
             filtered_value = error_filtered_values.get((table_name, name))
 
             if filtered_value is None:
-                filtered_value = all_values
+                filtered_value = all_values or []
 
         # После первой ошибки незаполненные параметры пока недоступны
         elif is_after_error and not is_selected:
@@ -503,7 +562,7 @@ async def process_table_data(
 
         # Обычный fallback применяется только до ошибки
         elif filtered_value is None:
-            filtered_value = all_values
+            filtered_value = all_values or []
 
         response_value = None
 
