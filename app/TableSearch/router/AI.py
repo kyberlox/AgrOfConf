@@ -84,8 +84,8 @@ async def upload_OL(
         # res = response.model_dump()
         # total_coast = res['usage']['total_cost']
         total_coast = 3.101
-        need = res['choices'][0]['message']['content']
-        parsed_need = json.loads(need)
+        # need = res['choices'][0]['message']['content']
+        # parsed_need = json.loads(need)
         # parsed_need = {
         #     "Устройство принудительного открытия": "не требуется",
         #     "Сильфон": "не требуется",
