@@ -52,9 +52,7 @@
 
 <script lang='ts'>
 import { defineComponent, ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
 import { useNeuroOlData } from '@/stores/neuroOl';
-import Api from '@/utils/Api';
 
 export default defineComponent({
     name: 'UploadDocButton',
@@ -64,11 +62,11 @@ export default defineComponent({
             default: 'outer'
         }
     },
-    setup() {
+    emits: ['readyToUploadFile'],
+    setup(_, { emit }) {
         const fileInput = ref<HTMLInputElement | null>(null);
         const uploadedFileName = ref('');
         const storedFileName = computed(() => useNeuroOlData().getOlName);
-        const router = useRouter();
         const isDragOver = ref(false);
 
         const handleClick = () => {
@@ -99,14 +97,7 @@ export default defineComponent({
         };
 
         const uploadToServer = async (formData: FormData) => {
-            Api.post('http://agrofconf.emk.org.ru/api/AI/upload_OL', formData)
-                .then((data) => {
-                    if (data) {
-                        useNeuroOlData().setData(data);
-                        useNeuroOlData().setOlName(uploadedFileName.value);
-                    }
-                })
-                .finally(() => router.push({ name: 'configurator', params: { id: 1 } }))
+            emit('readyToUploadFile', formData, uploadedFileName.value)
         }
 
         return {
@@ -124,14 +115,14 @@ export default defineComponent({
 
 <style>
 .dropzone-container {
-  cursor: pointer !important;
+    cursor: pointer !important;
 }
 
 .dz-message {
-  margin: 0 !important;
+    margin: 0 !important;
 }
 
 .hidden {
-  display: none !important;
+    display: none !important;
 }
 </style>

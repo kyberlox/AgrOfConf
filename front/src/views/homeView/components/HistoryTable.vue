@@ -1,36 +1,37 @@
 <template>
-<div class="overflow-x-auto">
-    <table class="w-full table-auto">
-        <thead>
-            <tr class="bg-[#F6F7F9] h-[56px]">
-                <th class="text-left text-sm font-medium first:pl-[48px] last:pr-[24px] not-first:not-last:p-[5px]"
-                    v-for="item in tableHead"
-                    :key="item">
-                    <div class="flex items-center">
-                        <span class="truncate">
-                            {{ item }}
-                        </span>
-                        <ArrowDown class="flex-shrink-0 ml-[9px]" />
-                    </div>
-                </th>
-            </tr>
-        </thead>
-        <tbody v-if="numericPlugs">
-            <tr class="bg-white  overflow-x-auto max-w-screen h-[56px]">
-                <th class="px-[48px] text-left text-sm font-medium mr-[15px]"
-                    v-for="(item, index) in numericPlugs"
-                    :key="item">
-                    <div class="flex items-center">
-                        <span class="truncate"
-                              :class="index == 0 ? 'underline cursor-pointer hover:text-[var(--orange)] duration-300 transition' : ''">{{
-                                item
-                            }}
-                        </span>
-                    </div>
-                </th>
-            </tr>
-        </tbody>
-    </table>
+<div class="w-full overflow-x-auto">
+    <div class="min-w-max">
+        <table class="table-auto">
+            <thead>
+                <tr class="bg-[#F6F7F9] h-[56px]">
+                    <th class="text-left text-sm font-medium first:pl-[48px] last:pr-[24px] not-first:not-last:p-[5px] whitespace-nowrap"
+                        v-for="item in tableHead"
+                        :key="item">
+                        <div class="flex items-center">
+                            <span class="truncate inline-block">
+                                {{ item }}
+                            </span>
+                            <ArrowDown class="flex-shrink-0 ml-[9px]" />
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody v-if="numericPlugs">
+                <tr class="bg-white h-[56px]">
+                    <td class="px-[48px] text-left text-sm font-medium whitespace-nowrap"
+                        v-for="(item, index) in numericPlugs"
+                        :key="item">
+                        <div class="flex items-center">
+                            <span class="truncate inline-block"
+                                  :class="index == 0 ? 'underline cursor-pointer hover:text-[var(--orange)] duration-300 transition' : ''">
+                                {{ item }}
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 </template>
 
