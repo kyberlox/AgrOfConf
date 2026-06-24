@@ -17,3 +17,8 @@ gigachat==0.2.1
 pathlib==1.0.1
 redis==5.2.1
 httpx==0.28.1
+Pillow==12.1.1
+PyMuPDF==1.25.2
+pypandoc==1.17
+openai>=0.27.0
+docxtpl==0.20.2
