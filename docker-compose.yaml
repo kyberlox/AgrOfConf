@@ -103,7 +103,7 @@ services:
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200 # Указываем на наш Elasticsearch
       # docker exec -it elasticsearch /usr/share/elasticsearch/bin/elasticsearch-service-tokens create elastic/kibana kibana-token
-      - ELASTICSEARCH_SERVICEACCOUNTTOKEN=AAEAAWVsYXN0aWMva2liYW5hL2tpYmFuYS10b2tlbjp6RVN2UmlOSFJsZTZFR3JTQTVJeEFn
+      - ELASTICSEARCH_SERVICEACCOUNTTOKEN=AAEAAWVsYXN0aWMva2liYW5hL2tpYmFuYS10b2tlbjo2Z3doRVZERlJENmpsTEdjM0JGZXlB
     ports:
       - "5601:5601"                         # Порт для веб-интерфейса Kibana
     depends_on:
