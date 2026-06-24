@@ -109,7 +109,6 @@ import { VueDraggable } from 'vue-draggable-plus';
 import SettingsIcon from '@/assets/icons/Settings.svg?component';
 import ParameterSettings from './ParameterSettings.vue';
 import type { IParameter } from '@/assets/interfaces/IParameter';
-import type { IProduct } from '@/assets/interfaces/IProduct';
 
 export default defineComponent({
     components: {
@@ -155,6 +154,9 @@ export default defineComponent({
             body.append('file', excell);
             try {
                 await Api.post(`tables/upload_xlsx?product_id=${props.id}`, body)
+            }
+            catch (error) {
+                console.error('excellUpload', error)
             }
             finally {
                 getParams()
@@ -265,26 +267,26 @@ export default defineComponent({
 .fade-move,
 .fade-enter-active,
 .fade-leave-active {
-  transition: all 0.5s cubic-bezier(0.55, 0, 0.1, 1);
+    transition: all 0.5s cubic-bezier(0.55, 0, 0.1, 1);
 }
 
 .fade-enter-from,
 .fade-leave-to {
-  opacity: 0;
-  transform: scaleY(0.01) translate(30px, 0);
+    opacity: 0;
+    transform: scaleY(0.01) translate(30px, 0);
 }
 
 .fade-leave-active {
-  position: absolute;
+    position: absolute;
 }
 
 .fade-btn-enter-active,
 .fade-btn-leave-active {
-  transition: opacity 0.3s ease;
+    transition: opacity 0.3s ease;
 }
 
 .fade-btn-enter-from,
 .fade-btn-leave-to {
-  opacity: 0;
+    opacity: 0;
 }
 </style>

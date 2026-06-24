@@ -50,6 +50,11 @@
         <!--  Таблица запросов-->
         <HistoryTable :currentTableNav="currentTableNav" />
 
+        <!-- Статистика пользователя -->
+        <div v-if="false"
+             class="px-[24px]">
+            <PersonalStatistics />
+        </div>
         <!-- Заглушка если нет истории -->
         <div v-if="blankHistory && currentTableNav == 'requests'"
              class="2xl:mt-[40px] xl:mt-[20px] ">
@@ -79,6 +84,7 @@ import Configurator from '../configurator/Configurator.vue';
 import { useProductsData } from '@/stores/products';
 import { useNavStore } from '@/stores/navigation.ts';
 import HistoryTable from './components/HistoryTable.vue';
+import PersonalStatistics from './components/PersonalStatistics.vue';
 
 export default defineComponent({
     components: {
@@ -91,6 +97,7 @@ export default defineComponent({
         EnginePick,
         Configurator,
         HistoryTable,
+        PersonalStatistics
     },
     setup(props) {
         const blankHistory = ref(true);

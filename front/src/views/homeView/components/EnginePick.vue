@@ -4,7 +4,8 @@
         <h1 class="max-w-[160px]">
             Выберите изделие
         </h1>
-        <UploadDocButton :type="'outer'" />
+        <UploadDocButton :type="'outer'"
+                         @readyToUploadFile="(file, fileName) => handleFileUpload(file, fileName)" />
     </div>
     <!-- Карточки приводов -->
     <div class="flex flex-col gap-[12px]">
@@ -29,16 +30,26 @@
             </RouterLink>
         </div>
     </div>
+    <!-- Модалка для промпта -->
+    <SlotModal v-if="promptModalVisible"
+               @closeModal="promptModalVisible = false">
+        <PromptModal :formData="olFormData"
+                     :uploadedFileName="newFileName" />
+    </SlotModal>
 </div>
 </template>
 <script lang='ts'>
-import { defineComponent, type PropType } from 'vue';
+import { defineComponent, type PropType, ref } from 'vue';
 import type { IProduct } from '@/assets/interfaces/IProduct';
-import UploadDocButton from '@/views/homeView/components/uploadDocButton.vue';
+import UploadDocButton from '@/views/homeView/components/UploadDocButton.vue';
+import SlotModal from '@/components/layout/SlotModal.vue';
+import PromptModal from './PromptModal.vue';
 
 export default defineComponent({
     components: {
-        UploadDocButton
+        UploadDocButton,
+        SlotModal,
+        PromptModal
     },
     props: {
         items: {
@@ -46,7 +57,24 @@ export default defineComponent({
         }
     },
     setup() {
-        return {}
+        const promptModalVisible = ref(false);
+        const olFormData = ref();
+        const newFileName = ref();
+
+        const handleFileUpload = (file: FormData, fileName: string) => {
+            promptModalVisible.value = true;
+            console.table(file);
+            console.table(fileName);
+            olFormData.value = file;
+            newFileName.value = fileName;
+        }
+
+        return {
+            promptModalVisible,
+            olFormData,
+            newFileName,
+            handleFileUpload
+        }
     }
 });
 </script>

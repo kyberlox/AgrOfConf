@@ -66,10 +66,11 @@ import Api from '@/utils/Api';
 import type { IFormattedData, IForm } from '@/assets/interfaces/IForm';
 import SlotModal from '@/components/layout/SlotModal.vue';
 import { useNeuroOlData } from '@/stores/neuroOl';
-import UploadDocButton from '@/views/homeView/components/uploadDocButton.vue';
+import UploadDocButton from '@/views/homeView/components/UploadDocButton.vue';
 import RightSidebar from '@/components/layout/RightSidebar.vue';
 import { useConfiguratorStore } from '@/stores/configurator.ts';
 import FavoriteIcon from '@/assets/icons/Favorite.svg?component';
+import PromptModal from '../homeView/components/PromptModal.vue';
 
 export default defineComponent({
     components: {
@@ -78,6 +79,7 @@ export default defineComponent({
         ArrowLeft,
         FavoriteIcon,
         EngineParams,
+        PromptModal,
         SlotModal,
         UploadDocButton,
         RightSidebar
@@ -131,7 +133,6 @@ export default defineComponent({
             userInputs.value[key] = value;
             paramsUpdate(userInputs.value)
         }
-
 
         return {
             form,

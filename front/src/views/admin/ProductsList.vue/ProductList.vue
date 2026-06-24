@@ -7,7 +7,7 @@
             Добавить
         </BaseButton>
     </div>
-    <div class="flex flex-row gap-[16px]">
+    <div class="flex flex-row gap-[16px] mt-[10px]">
         <div class="cursor-pointer bg-white relative "
              v-for="product in products"
              :key="product.id">
