@@ -75,16 +75,33 @@ async def upload_OL(
 
         content.append({"type": "text", "text": promt})
 
-        response = await client.chat.completions.create(
-            model=model_type,
-            max_tokens=8000,
-            messages=[{"role": "user", "content": content}],
-            response_format={"type": "json_object"}
-        )
-        res = response.model_dump()
-        total_coast = res['usage']['total_cost']
+        # response = await client.chat.completions.create(
+        #     model=model_type,
+        #     max_tokens=8000,
+        #     messages=[{"role": "user", "content": content}],
+        #     response_format={"type": "json_object"}
+        # )
+        # res = response.model_dump()
+        # total_coast = res['usage']['total_cost']
+        total_coast = 3.101
         need = res['choices'][0]['message']['content']
         parsed_need = json.loads(need)
+        parsed_need = {
+            "Устройство принудительного открытия": "не требуется",
+            "Сильфон": "не требуется",
+            "Тип конструкции": "Клапан пружинный",
+            "Номинальный диаметр": "100",
+            "Номинальное давление": "100",
+            "Тип присоединения к трубопроводу": "фланцевое",
+            "Фланцевое исполнение": "с КОФ",
+            "Тип уплотнения затвора": "металл-металл",
+            "Материал корпуса": "20ГЛ/20ГМЛ",
+            "По способу сброса рабочей среды ": "закрытого типа",
+            "Упаковка": "на поддон",
+            "Наличие КОФ": "с КОФ",
+            "Наличие ЗИП": "ЗИП на 2 года",
+            "Маркировка": "АМ211.100.16.3310"
+        }
         
         # Сохраняем статистику
         stat_info = await build_statistic_data(db, user_id, product_id)
