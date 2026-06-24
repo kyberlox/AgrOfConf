@@ -10,3 +10,4 @@
 /app/static
 /uploads
 /redis_data
+/elasticsearch
