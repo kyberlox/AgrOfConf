@@ -1,7 +1,7 @@
 <template>
 <div class="flex flex-col gap-[15px] w-[70vh] h-[70vh]  justify-center px-[25px]">
-    <h3 class="text-left">Измените промпт или оставьте стандартный</h3>
-    <BaseTextarea :propsClass="'input-param'"
+    <h3 class="text-left mt-[15px]">Измените промпт или оставьте стандартный</h3>
+    <BaseTextarea :propsClass="'prompt-area'"
                   :propsValue="defaultPromptToOCR"
                   @valueChanged="(newVal) => promptVal = newVal" />
     <BaseButton :propsClass="'button-primary'"
@@ -58,3 +58,20 @@ export default defineComponent({
     }
 });
 </script>
+
+<style>
+.prompt-area__wrapper {
+    width: 100%;
+    height: 100%;
+}
+
+.prompt-area {
+    resize: none;
+    width: 100%;
+    height: 100%;
+    padding: 25px;
+    border: 1px solid #ccc;
+    border-radius: 15px;
+    background: var(--color-gray-100)
+}
+</style>
