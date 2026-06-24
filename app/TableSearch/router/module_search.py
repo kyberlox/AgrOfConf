@@ -10,6 +10,7 @@ from app.TablePakage.model.database import get_db
 from app.TableSearch.utils.dm_search import ensure_dm_exists, get_full_search_from_dm
 from ..utils.formula_search import search_formula
 
+
 router = APIRouter(prefix="/module_search", tags=["Module_search"])
 
 

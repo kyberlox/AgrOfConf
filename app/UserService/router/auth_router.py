@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Response
+from fastapi import APIRouter, HTTPException, Depends, Response, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/auth", tags=["Авторизация"])
 
 redis_storage = RedisStorage()
 
-async def check_session_id(token: str):
+async def user_info_by_session_id(token: str):
     # url = "http://intranet.emk.org.ru/api/auth_router/check"
     url = "http://intranet.emk.org.ru/api/auth_router/check"
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -24,6 +24,7 @@ async def check_session_id(token: str):
         if res.status_code == 200:
             return json.loads(res.text)
     return None
+
 
 @router.get("/redirect")
 async def get_user(
@@ -39,7 +40,7 @@ async def get_user(
     Если нет, создаем пользователя и возвращаем на главную.
     """
     try:
-        is_active = await check_session_id(session_id)
+        is_active = await user_info_by_session_id(session_id)
         if not is_active:
             raise HTTPException(status_code=401, detail="Неверный токен")
         

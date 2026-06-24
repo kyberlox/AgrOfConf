@@ -63,7 +63,7 @@ services:
       #- "8000:8000"
     depends_on:
       - postgres
-      # - elasticsearch
+      - elasticsearch
     networks:
       - app-network
 
@@ -79,7 +79,41 @@ services:
     networks:
       - app-network
 
+  elasticsearch:
+    image: elasticsearch:9.1.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false # Отключаем SSL
+      - ELASTIC_PASSWORD=${pswd}
+      - network.host=0.0.0.0
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"  
+      - "9300:9300" 
+    networks:
+      - app-network
 
+  kibana:
+    image: kibana:9.1.0
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200 # Указываем на наш Elasticsearch
+      # docker exec -it elasticsearch /usr/share/elasticsearch/bin/elasticsearch-service-tokens create elastic/kibana kibana-token
+      - ELASTICSEARCH_SERVICEACCOUNTTOKEN=AAEAAWVsYXN0aWMva2liYW5hL2tpYmFuYS10b2tlbjp6RVN2UmlOSFJsZTZFR3JTQTVJeEFn
+    ports:
+      - "5601:5601"                         # Порт для веб-интерфейса Kibana
+    depends_on:
+      - elasticsearch
+    networks:
+      - app-network
+  
+
+volumes:
+  elasticsearch-data:
 
 networks:
   app-network:

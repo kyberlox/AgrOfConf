@@ -1,8 +1,35 @@
 from ..services.redis_service import RedisStorage
+from fastapi import Request, HTTPException, status
 from typing import Optional
 import httpx
 
 redis_storage = RedisStorage()
+
+async def get_user_id_by_session_id(request: Request):
+    """Dependency для получения id пользователя по request"""
+    try:
+        session_id = request.cookies.get("session_id")
+        
+        if not session_id:
+            auth_header = request.headers.get("session_id")
+            if auth_header:# and auth_header.startswith("Bearer "):
+                session_id = auth_header#[7:]
+        
+        if not session_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated"
+            )
+        
+        user_id = redis_storage.get_session(session_id=session_id)
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated"
+            )
+        return user_id  
+    except HTTPException: # ВРЕМЕННО
+        return 4133
 
 async def validate_users_sessions(user_id: int) -> bool:
     user_sessions_key = f"user_sessions:{user_id}"
