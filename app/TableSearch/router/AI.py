@@ -126,5 +126,5 @@ async def upload_OL(
     except HTTPException:
         raise
     except Exception as e:
-        print(123)
+        print(123, str(e))
         raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")
