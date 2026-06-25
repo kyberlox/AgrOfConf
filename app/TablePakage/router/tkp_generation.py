@@ -129,11 +129,11 @@ async def get_tkp_file(
 
     samples = result.scalars().all()
 
-    if not samples:
-        raise HTTPException(
-            status_code=404,
-            detail="TKP templates not found"
-        )
+    # if not samples:
+    #     raise HTTPException(
+    #         status_code=404,
+    #         detail="TKP templates not found"
+    #     )
 
     return samples
 
