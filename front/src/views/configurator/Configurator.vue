@@ -57,13 +57,13 @@
 </div>
 </template>
 <script lang='ts'>
-import { defineComponent, onMounted, ref, computed } from 'vue';
+import { defineComponent, onMounted, ref, computed, watch } from 'vue';
 import { BaseButton } from 'beans-ui-kit';
 import Ellipse from '@/assets/icons/Ellipse.svg?component';
 import ArrowLeft from '@/assets/icons/ArrowLeft.svg?component';
 import EngineParams from './components/EngineParams.vue';
 import Api from '@/utils/Api';
-import type { IFormattedData, IForm } from '@/assets/interfaces/IForm';
+import type { IFormattedData} from '@/assets/interfaces/IForm';
 import SlotModal from '@/components/layout/SlotModal.vue';
 import { useNeuroOlData } from '@/stores/neuroOl';
 import UploadDocButton from '@/views/homeView/components/UploadDocButton.vue';
@@ -125,6 +125,7 @@ export default defineComponent({
         onMounted(() => {
             paramsUpdate(null);
             if (neuroOlData.value) {
+                userInputs.value = neuroOlData.value
                 paramsUpdate(neuroOlDataStore.getOlInfo)
             }
         })
@@ -133,6 +134,10 @@ export default defineComponent({
             userInputs.value[key] = value;
             paramsUpdate(userInputs.value)
         }
+
+        watch((userInputs), ()=>{
+            console.log(userInputs.value)
+        }, {immediate: true, deep: true})
 
         return {
             form,

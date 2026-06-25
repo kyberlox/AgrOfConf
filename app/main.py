@@ -27,6 +27,10 @@ from .UserService.router.users_router import router as users_router
 from .UserService.router.auth_router import router as auth_router
 from .UserService.router.roots_router import router as roots_router
 
+from .StatisticsService.router.recognition_router import router as recognition_router
+from .StatisticsService.router.selection_router import router as selection_router
+from .StatisticsService.model.el_indexes import create_selection_index, create_recognition_index
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -128,6 +132,9 @@ redis_storage = RedisStorage()
 @app.on_event("startup")
 async def startup_event():
     await create_tables()
+    #создаем elasticsearch индекс
+    create_selection_index()
+    create_recognition_index()
 
 
 # Подключаем статические файлы (для изображений)
@@ -146,7 +153,8 @@ app.include_router(users_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(roots_router, prefix="/api")
 app.include_router(tkp_generation, prefix="/api")
-
+app.include_router(recognition_router, prefix="/api")
+app.include_router(selection_router, prefix="/api")
 # app.include_router(calculated_router, prefix="/api")
 # app.include_router(user_input_router, prefix="/api")
 # app.include_router(condition_router, prefix="/api")
@@ -171,3 +179,4 @@ async def read_root():
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+

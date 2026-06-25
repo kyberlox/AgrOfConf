@@ -60,14 +60,14 @@ async def get_params_and_values_of_product(db, product_id):
 
         if not full_info:
             raise HTTPException(status_code=404, detail="Параметры не найдены")
-
+        
         await ensure_dm_exists(db, product_id)
-
+        
         full_value_parameters, full_matched_rows = await get_full_search_from_dm(
             db=db,
             product_id=product_id,
         )
-
+        
         result = {item['name']: full_value_parameters[item['name']] for item in full_info}
 
         return result
@@ -75,7 +75,7 @@ async def get_params_and_values_of_product(db, product_id):
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Ошибка при получении параметров и их значений: {e}")
     
 
 async def convert_file_to_jpeg_content(file: UploadFile) -> List[Dict]:

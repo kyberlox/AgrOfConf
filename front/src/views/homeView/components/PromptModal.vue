@@ -1,14 +1,12 @@
 <template>
-<div class="flex flex-col gap-[15px] w-[70vh] h-[70vh]  justify-center px-[25px]">
-    <h3 class="text-left mt-[15px]">Измените промпт или оставьте стандартный</h3>
-    <BaseTextarea :propsClass="'prompt-area'"
-                  :propsValue="defaultPromptToOCR"
-                  @valueChanged="(newVal) => promptVal = newVal" />
-    <BaseButton :propsClass="'button-primary'"
-                @clicked="sendToServer">
-        Отправить
-    </BaseButton>
-</div>
+    <div class="flex flex-col gap-[15px] w-[70vh] h-[70vh]  justify-center px-[25px]">
+        <h3 class="text-left mt-[15px]">Измените промпт или оставьте стандартный</h3>
+        <BaseTextarea :propsClass="'prompt-area'" :propsValue="defaultPromptToOCR"
+            @valueChanged="(newVal) => promptVal = newVal" />
+        <BaseButton :propsClass="'button-primary'" :disabled="docIsLoading" @clicked="sendToServer">
+            Отправить
+        </BaseButton>
+    </div>
 </template>
 <script lang='ts'>
 import SlotModal from '@/components/layout/SlotModal.vue';
@@ -18,6 +16,7 @@ import Api from '@/utils/Api';
 import { useRouter } from 'vue-router';
 import { useNeuroOlData } from '@/stores/neuroOl';
 import { defaultPromptToOCR } from '@/assets/static/defaultPromptToNeuroOl';
+import { copyFormData } from '@/utils/copyFormData';
 
 export default defineComponent({
     components: {
@@ -38,22 +37,33 @@ export default defineComponent({
     setup(props) {
         const router = useRouter();
         const promptVal = ref(defaultPromptToOCR);
-        const sendToServer = () => {
-            const newFormData = props.formData;
+        const docIsLoading = ref(false);
+        
+        const sendToServer = async () => {
+            const newFormData = copyFormData(props.formData);
             newFormData.append('user_promt', promptVal.value);
-            Api.post('http://agrofconf.emk.org.ru/api/AI/upload_OL?product_id=1', newFormData)
-                .then((data) => {
-                    if (data) {
-                        useNeuroOlData().setData(data);
-                        useNeuroOlData().setOlName(props.uploadedFileName);
-                    }
-                })
-                .finally(() => router.push({ name: 'configurator', params: { id: 1 } }))
+            docIsLoading.value = true;
+            try {
+                const data = await Api.post('AI/upload_OL?product_id=1', newFormData)
+                if (!data) return
+                useNeuroOlData().setData(data);
+                useNeuroOlData().setOlName(props.uploadedFileName);
+                router.push({ name: 'configurator', params: { id: 1 } });
+            }
+            catch (e) {
+                console.error(e)
+            }
+            finally {
+                docIsLoading.value = false;
+            }
         }
+
+
         return {
             defaultPromptToOCR,
             promptVal,
-            sendToServer
+            sendToServer,
+            docIsLoading
         }
     }
 });
