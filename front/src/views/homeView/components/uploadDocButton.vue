@@ -10,9 +10,10 @@
     <input type="file"
            ref="fileInput"
            class="hidden"
+           id="docUpload"
            accept="image/*,.pdf"
            @change="uploadFile">
-
+           
     <div @click="handleClick">
         <div v-if="!uploadedFileName && type == 'outer'"
              class="dz-message">

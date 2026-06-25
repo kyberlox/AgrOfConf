@@ -50,7 +50,7 @@
 </template>
 
 <script lang='ts'>
-import { defineComponent, ref, computed, render, watchEffect } from 'vue';
+import { defineComponent, computed } from 'vue';
 import ParamsHeaderIcons from './ParamsHeaderIcons.vue';
 import type { IFormattedData } from '@/assets/interfaces/IForm';
 import { createLabelIconsComponent } from '@/composables/createComponent';

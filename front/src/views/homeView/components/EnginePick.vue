@@ -73,7 +73,7 @@ export default defineComponent({
             promptModalVisible,
             olFormData,
             newFileName,
-            handleFileUpload
+            handleFileUpload,
         }
     }
 });
