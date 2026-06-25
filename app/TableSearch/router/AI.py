@@ -23,9 +23,14 @@ from fastapi.responses import FileResponse
 from fastapi import UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 import time
+from datetime import datetime
 from fastapi import Request, HTTPException, status
 import os
 from dotenv import load_dotenv
+
+from app.UserService.utils.auth_utils import get_user_id_by_session_id
+from app.StatisticsService.utils.deps import build_statistic_data
+from app.StatisticsService.router.recognition_router import get_recognition_router
 
 from ..utils.convert_ol_file import get_params_and_values_of_product, convert_file_to_jpeg_content
 from ..utils.promt_ol import get_promt
@@ -40,55 +45,86 @@ client = AsyncOpenAI(api_key = key_api, base_url=vseGPTurl)
 
 router = APIRouter(prefix="/AI", tags=[""])
 
-# client_id = "019cfb75-d657-765b-9e14-8d227ea7449d"
-# scope= "GIGACHAT_API_PERS"
-# API_KEY = "MDE5Y2ZiNzUtZDY1Ny03NjViLTllMTQtOGQyMjdlYTc0NDlkOmM4YzBlMWFlLWJkNDAtNDM0MC05YmUzLTFkOThmYzU0ZWRlMg=="
-
 
 @router.post("/upload_OL")
 async def upload_OL(
-    product_id: int, 
-    user_promt: Optional[str] = Body(),
+    product_id: int,
+    user_promt: Optional[str] = Body(None, embed=True),
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    statistic_router = Depends(get_recognition_router),
+    user_id: Optional[int] = Depends(get_user_id_by_session_id)
 ) -> Dict[str, Any]:
+    
     try:
-        import time 
         start_all = time.time()
         params = await get_params_and_values_of_product(db, product_id)
-        fin_params = time.time()
-        print(f"Нашли параметры за {fin_params - start_all}")
+        
         res_params = {key: value for key, value in params.items() if key not in ['Цена /шт. руб без НДС', 'Цена /шт. руб с НДС 22%']}
         
         if user_promt:
             promt = f"{user_promt}. Шаблон - {params}"
         else:
             promt = get_promt(res_params)
-        fin_promt = time.time()
-        print(f"Собрали промт за {fin_promt - fin_params}")
+        
+        
         content = await convert_file_to_jpeg_content(file)
-        fin_content = time.time()
-        print(f"Собрали контент за {fin_content - fin_promt}")
+        
         if not content:
             return {"error": "Unsupported file format"}
 
         content.append({"type": "text", "text": promt})
 
-        response = await client.chat.completions.create(
-            model=model_type,
-            max_tokens=8000,
-            messages=[{"role": "user", "content": content}],
-            response_format={"type": "json_object"}
-        )
-        res = response.model_dump() 
-        fin_response = time.time()
-        print(f"Получили результат за {fin_response - fin_content}")
-        need = res['choices'][0]['message']['content']
-        parsed_need = json.loads(need)
+        # response = await client.chat.completions.create(
+        #     model=model_type,
+        #     max_tokens=8000,
+        #     messages=[{"role": "user", "content": content}],
+        #     response_format={"type": "json_object"}
+        # )
+        # res = response.model_dump()
+        # total_coast = res['usage']['total_cost']
+        total_coast = 3.101
+        # need = res['choices'][0]['message']['content']
+        # parsed_need = json.loads(need)
+        # parsed_need = {
+        #     "Устройство принудительного открытия": "не требуется",
+        #     "Сильфон": "не требуется",
+        #     "Тип конструкции": "Клапан пружинный",
+        #     "Номинальный диаметр": "100",
+        #     "Номинальное давление": "100",
+        #     "Тип присоединения к трубопроводу": "фланцевое",
+        #     "Фланцевое исполнение": "с КОФ",
+        #     "Тип уплотнения затвора": "металл-металл",
+        #     "Материал корпуса": "20ГЛ/20ГМЛ",
+        #     "По способу сброса рабочей среды ": "закрытого типа",
+        #     "Упаковка": "на поддон",
+        #     "Наличие КОФ": "с КОФ",
+        #     "Наличие ЗИП": "ЗИП на 2 года",
+        #     "Маркировка": "АМ211.100.16.3310"
+        # }
+        parsed_need = {
+            "Устройство принудительного открытия": "не требуется",
+            "Сильфон": "не требуется",
+            "Тип конструкции": "Клапан пружинный",
+            "Номинальный диаметр": "100",
+            "Номинальное давление": "10 МПа",
+            "По способу сброса рабочей среды ": "закрытого типа",
+            "Упаковка": "-",
+            "Наличие КОФ": "с КОФ",
+            "Наличие ЗИП": "-"
+        }
+        
+        # Сохраняем статистику
+        # stat_info = await build_statistic_data(db, user_id, product_id)
+        # stat_info['parameters'] = parsed_need
+        # stat_info['total_coast'] = total_coast
+        
+        # is_dump = await statistic_router.save_recognition(stat_info)
         fin_all = time.time()
-        print(f"Собрали все за {fin_all - start_all}")
+        print(f"Распознали ОЛ за {fin_all - start_all}")
         return parsed_need
     except HTTPException:
         raise
     except Exception as e:
+        print(123, str(e))
         raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")

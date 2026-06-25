@@ -21,6 +21,9 @@ import io
 router = APIRouter(prefix="/tables", tags=["Tables"])
 
 
+def normalize_column_name(value):
+    return str(value).replace("\xa0", " ").strip()
+
 # === Table Schema Endpoints ===
 
 
@@ -79,6 +82,12 @@ async def upload_xlsx(
         )
 
     df = df.where(pd.notnull(df), None)
+
+    # Убираем пробелы/переносы/табы по краям названий колонок и неразрывные пробелы из Excel
+    df.columns = [
+        normalize_column_name(col)
+        for col in df.columns
+    ]
 
     if df.empty:
         # Удаляем старую таблицу

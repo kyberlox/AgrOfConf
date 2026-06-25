@@ -37,13 +37,3 @@ class BaseRepo:
     async def delete(self, delete_model: Base):
         await self.db.delete(delete_model)
         await self.db.commit()
-
-{
-    "name": "Электронный прайс-лист на предохранительный клапан",
-    "description": "",
-    "manufacturer": "АО НПО Регулятор",
-    "image_url": "/api/files/images/0823780a-d2f5-457b-9e9f-a7cebb5123ec.jpg",
-    "id": 1,
-    "image": "./static/images/0823780a-d2f5-457b-9e9f-a7cebb5123ec.jpg",
-    "created_at": "2026-05-20T12:18:03.852014Z"
-  }

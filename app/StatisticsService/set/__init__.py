@@ -1,0 +1,3 @@
+from .settings import SELECTION_INDEX, RECOGNITION_INDEX
+
+__all__ = ["SELECTION_INDEX", "RECOGNITION_INDEX"]
