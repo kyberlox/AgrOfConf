@@ -54,17 +54,13 @@ export default defineComponent({
         const route = useRoute();
 
         watch(() => route.query, () => {
-            console.log(route.query)
             if ('ko' in route.query && !('user' in route.query)) {
                 tableHeadStatistics.value[0] = 'Пользователь'
-                console.log(1);
             } else if ((!('ko' in route.query) && ('user' in route.query))) {
                 tableHeadStatistics.value[0] = 'КО'
-                console.log(2);
             }
             else {
                 tableHeadStatistics.value[0] = '1'
-                console.log(3);
             }
         }, { immediate: true, deep: true })
 

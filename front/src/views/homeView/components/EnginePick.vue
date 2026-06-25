@@ -58,13 +58,11 @@ export default defineComponent({
     },
     setup() {
         const promptModalVisible = ref(false);
-        const olFormData = ref();
+        const olFormData = ref<FormData>(new FormData());
         const newFileName = ref();
 
         const handleFileUpload = (file: FormData, fileName: string) => {
             promptModalVisible.value = true;
-            console.table(file);
-            console.table(fileName);
             olFormData.value = file;
             newFileName.value = fileName;
         }

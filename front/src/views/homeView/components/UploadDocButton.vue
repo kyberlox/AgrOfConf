@@ -97,7 +97,7 @@ export default defineComponent({
             uploadToServer(formData);
         };
 
-        const uploadToServer = async (formData: FormData) => {
+        const uploadToServer =  (formData: FormData) => {
             emit('readyToUploadFile', formData, uploadedFileName.value)
         }
 

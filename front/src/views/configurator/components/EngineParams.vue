@@ -40,7 +40,7 @@
                     :propsPlaceholder="!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param ? '' : 'Выберите значение'"
                     :markedOptions="'filtered_values' in param && Array.isArray(param.filtered_values) ? param.filtered_values : typeof (param as IFormattedData).filtered_values == 'string' ? [(param as IFormattedData).filtered_values] : []"
                     :needReq="true"
-                    :labelIcon="createLabelIconsComponent(param as IFormattedData, () => console.log('abob'))"
+                    :labelIcon="createLabelIconsComponent(param as IFormattedData, () => console.log('testComp'))"
                     :error="'error' in param ? param.error : ''"
                     :errorIcon="AlertCircle"
                     :disabled="((!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')) && type == 'auto'"
@@ -106,11 +106,9 @@ export default defineComponent({
                 return Array.isArray(param.all_values) ? param.all_values : [param.all_values];
             }
             else if ('filtered_values' in param && param.filtered_values?.length && !param.response_value) {
-                console.log(2)
                 return Array.isArray(param.filtered_values) ? param.filtered_values : [param.filtered_values];
             }
             else if (typeof param.filtered_values == 'string') {
-                console.log(3)
                 return [param.filtered_values];
             }
             else {

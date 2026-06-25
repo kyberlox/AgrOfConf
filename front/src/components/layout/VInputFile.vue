@@ -32,9 +32,6 @@ export default defineComponent({
     setup(props, { emit }) {
         const fileInput = ref();
         const fileName = ref('Загрузить фото');
-        // watch((inputVal), () => {
-        //     console.log(inputVal.value)
-        // }, { immediate: true, deep: true })
         const handleClick = () => {
             if (fileInput.value)
                 (fileInput.value).click()

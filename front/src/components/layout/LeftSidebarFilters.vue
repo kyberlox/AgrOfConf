@@ -27,7 +27,6 @@ export default defineComponent({
         const filtersQuery = ref<Record<string, string>>({});
         const router = useRouter();
         const handleFilterChange = (value: string, key: string) => {
-            console.log(value, key)
             filtersQuery.value[key as keyof typeof filtersQuery.value] = value;
             // router.push({ name: props.link, query: { [key]: value } })
             router.push({ name: props.link, query: filtersQuery.value })

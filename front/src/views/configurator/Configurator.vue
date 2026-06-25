@@ -57,7 +57,7 @@
 </div>
 </template>
 <script lang='ts'>
-import { defineComponent, onMounted, ref, computed, watch } from 'vue';
+import { defineComponent, onMounted, ref, computed } from 'vue';
 import { BaseButton } from 'beans-ui-kit';
 import Ellipse from '@/assets/icons/Ellipse.svg?component';
 import ArrowLeft from '@/assets/icons/ArrowLeft.svg?component';
@@ -134,10 +134,6 @@ export default defineComponent({
             userInputs.value[key] = value;
             paramsUpdate(userInputs.value)
         }
-
-        watch((userInputs), ()=>{
-            console.log(userInputs.value)
-        }, {immediate: true, deep: true})
 
         return {
             form,
