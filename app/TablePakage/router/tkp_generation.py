@@ -113,6 +113,31 @@ async def add_tkp_file(
     return tkp_sample
 
 
+@router.get("/", response_model=list[TKPResponse], description="Выведение всех ТКП продукта из БД.")
+async def get_tkp_file(
+        product_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(TKP)
+        .where(TKP.product_id == product_id)
+        .offset(skip)
+        .limit(limit)
+    )
+
+    samples = result.scalars().all()
+
+    if not samples:
+        raise HTTPException(
+            status_code=404,
+            detail="TKP templates not found"
+        )
+
+    return samples
+
+
 @router.delete("/{product_id}", description="Удаление шаблона ТКП.")
 async def delete_tkp_file(
         product_id: int,
