@@ -10,7 +10,7 @@ from ..model.Users import Users
 from .users_router import parse_user_data
 from ..services.redis_service import RedisStorage
 from app.TablePakage.model.database import get_db
-from ..utils.auth_utils import validate_users_sessions, create_session
+from ..utils.auth_utils import validate_users_sessions, create_session, get_user_id_by_session_id
 
 router = APIRouter(prefix="/auth", tags=["Авторизация"])
 
@@ -72,3 +72,9 @@ async def get_user(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка получения пользователя: {str(e)}")
+
+@router.get("/user_id_by_session_id")
+async def get_user_id_by_session_id(
+    user_id: int = Depends(get_user_id_by_session_id)
+) -> int | None:
+    return user_id

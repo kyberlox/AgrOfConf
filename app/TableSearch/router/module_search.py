@@ -148,6 +148,9 @@ async def find_search_errors_multi_table(
 ):
     """
     Проверяет ошибки подбора отдельно по каждой таблице.
+    В отличие от основного цикла подбора, который применяет все параметры таблицы разом,
+    эта функция ищет конкретный параметр, из-за которого комбинация стала невалидной,
+    путём инкрементального добавления параметров в порядке сортировки.
     """
 
     errors = []
@@ -164,63 +167,73 @@ async def find_search_errors_multi_table(
         if not selected_for_table:
             continue
 
-        ordered_table_params = sorted(
-            table_params,
-            key=lambda item: (
-                item.get("sort")
-                if item.get("sort") is not None
-                else float(item["id"])
-            )
+        # Сначала проверяем, что комбинация ВСЕХ выбранных параметров таблицы валидна
+        row_all, _ = await get_table_params_from_sql(
+            db=db,
+            table_name=table_name,
+            table_params=table_params,
+            selected_params=selected_for_table,
         )
 
-        incremental_selected = {}
-
-        for param in ordered_table_params:
-            param_name = param["name"]
-
-            if param_name not in selected_for_table:
-                continue
-
-            value = selected_for_table[param_name]
-
-            if value is None:
-                continue
-
-            if isinstance(value, str):
-                value = value.strip()
-
-                if not value:
-                    continue
-
-            if isinstance(value, list):
-                value = [
-                    str(item).strip()
-                    for item in value
-                    if item is not None and str(item).strip()
-                ]
-
-                if not value:
-                    continue
-
-            incremental_selected[param_name] = value
-
-            row, _ = await get_table_params_from_sql(
-                db=db,
-                table_name=table_name,
-                table_params=table_params,
-                selected_params=incremental_selected,
+        if not row_all or row_all["matched_rows"] == 0:
+            # Комбинация всех параметров невалидна — ищем конкретный проблемный параметр
+            ordered_table_params = sorted(
+                table_params,
+                key=lambda item: (
+                    item.get("sort")
+                    if item.get("sort") is not None
+                    else float(item["id"])
+                )
             )
 
-            if not row or row["matched_rows"] == 0:
-                errors.append({
-                    "param_name": param_name,
-                    "table_name": table_name,
-                    "error": (
-                        f"Параметр {param_name} выбран неверно. "
-                        f"Вы выбрали значение: {value}."
-                    )
-                })
-                break
+            incremental_selected = {}
+
+            for param in ordered_table_params:
+                param_name = param["name"]
+
+                if param_name not in selected_for_table:
+                    continue
+
+                value = selected_for_table[param_name]
+
+                if value is None:
+                    continue
+
+                if isinstance(value, str):
+                    value = value.strip()
+
+                    if not value:
+                        continue
+
+                if isinstance(value, list):
+                    value = [
+                        str(item).strip()
+                        for item in value
+                        if item is not None and str(item).strip()
+                    ]
+
+                    if not value:
+                        continue
+
+                incremental_selected[param_name] = value
+
+                row, _ = await get_table_params_from_sql(
+                    db=db,
+                    table_name=table_name,
+                    table_params=table_params,
+                    selected_params=incremental_selected,
+                )
+
+                if not row or row["matched_rows"] == 0:
+                    errors.append({
+                        "param_name": param_name,
+                        "table_name": table_name,
+                        "error": (
+                            f"Параметр {param_name} выбран неверно. "
+                            f"Вы выбрали значение: {value}."
+                        )
+                    })
+                    break
 
     return errors
 
@@ -475,21 +488,28 @@ async def process_table_data(
         for err in errors
     }
 
-    # Определяем позицию первой ошибки выбора пользователя
+    # Определяем позицию первой ошибки выбора пользователя В РАМКАХ КАЖДОЙ ТАБЛИЦЫ
 
-    error_positions = []
+    first_error_position_by_table = {}
 
-    for item in full_info:
-        key = (item["table_name"], item["name"])
+    for table_name, table_params in tables_map.items():
+        table_error_positions = []
 
-        if key in error_by_key:
-            error_positions.append(
-                item.get("sort")
-                if item.get("sort") is not None
-                else float(item["id"])
-            )
+        for item in full_info:
+            if item["table_name"] != table_name:
+                continue
 
-    first_error_position = min(error_positions) if error_positions else None
+            key = (item["table_name"], item["name"])
+
+            if key in error_by_key:
+                table_error_positions.append(
+                    item.get("sort")
+                    if item.get("sort") is not None
+                    else float(item["id"])
+                )
+
+        if table_error_positions:
+            first_error_position_by_table[table_name] = min(table_error_positions)
 
     error_filtered_values = {}
 
@@ -539,9 +559,11 @@ async def process_table_data(
                 if value is not None and str(value).strip()
             ])
 
+        # Ошибка учитывается только в рамках своей таблицы
+        first_error_in_table = first_error_position_by_table.get(table_name)
         is_after_error = (
-                first_error_position is not None
-                and current_position > first_error_position
+                first_error_in_table is not None
+                and current_position > first_error_in_table
         )
 
         all_values = full_value_parameters.get(name) or []
@@ -557,7 +579,7 @@ async def process_table_data(
             if filtered_value is None:
                 filtered_value = all_values or []
 
-        # После первой ошибки незаполненные параметры пока недоступны
+        # После первой ошибки в ТОЙ ЖЕ ТАБЛИЦЕ незаполненные параметры пока недоступны
         elif is_after_error and not is_selected:
             filtered_value = []
 
