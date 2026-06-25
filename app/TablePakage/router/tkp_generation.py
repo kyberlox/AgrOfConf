@@ -10,13 +10,12 @@ from fastapi.responses import StreamingResponse
 from openpyxl import load_workbook
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from ..model.database import get_db
 from ..model.tkp import TKP
 from ..schema.tkp import TKPResponse
 
-
 router = APIRouter(prefix="/tkp_generation", tags=["TKP"])
-
 
 UPLOAD_DIR = "./static/tkp_files"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -26,8 +25,7 @@ ALLOWED_EXTENSIONS = {".docx", ".xlsx"}
 
 
 def validate_file(file: UploadFile) -> None:
-
-     # Проверка расширения
+    # Проверка расширения
     ext = Path(file.filename).suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Invalid file extension. Allowed: .docx, .xlsx")
@@ -86,7 +84,7 @@ async def tkp_generation(
         )
 
 
-@router.post("/add", response_model=TKPResponse, status_code=201)
+@router.post("/add", response_model=TKPResponse, status_code=201, description="Добавление шаблона ТКП.")
 async def add_tkp_file(
         product_id: int = Form(...),
         filename: str = Form(...),
@@ -113,3 +111,26 @@ async def add_tkp_file(
     await db.refresh(tkp_sample)
 
     return tkp_sample
+
+
+@router.delete("/{product_id}", description="Удаление шаблона ТКП.")
+async def delete_tkp_file(
+        product_id: int,
+        db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(TKP).where(TKP.product_id == product_id))
+    samples = result.scalars().all()
+
+    if not samples:
+        return HTTPException(status_code=404, detail="TKP templates not found")
+
+    for sample in samples:
+        if sample.file is not None and sample.file != "" and os.path.exists(sample.file):
+            os.remove(sample.file)
+
+        await db.delete(sample)
+    await db.commit()
+    return {
+        "detail": "TKP templates deleted successfully",
+        "deleted_count": len(samples)
+    }
