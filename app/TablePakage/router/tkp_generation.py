@@ -109,7 +109,7 @@ async def add_tkp_file(
         with open(file_path, "wb") as f:
             f.write(await file.read())
 
-        file_url = f"/api/files/tkp/{safe_filename}"
+        file_url = f"/api/files/tkp_files/{safe_filename}"
 
         tkp_sample = TKP(
             name=filename,
