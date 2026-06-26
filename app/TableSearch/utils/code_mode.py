@@ -1009,7 +1009,8 @@ class CodeParametr:
         counter += 1
         result = self._set_params(result, counter, "Организация агента", sort=counter, param_type='user_input')
 
-
+        if not select_formula_params:
+            return {"total_change" : res}
         for param in result:
             if param['name'] in contact_info:
                 param['responce_value'] = select_formula_params[param['name']]
