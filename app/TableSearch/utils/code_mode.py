@@ -997,6 +997,7 @@ class CodeParametr:
         - Организация агента (agent_organization)
         """
         param = self._get_param_by_name("Наличие ЗИП", selection_result)
+        print(param, 'почему бул')
         counter = param['sort'] + 1
         res = []
         contact_info = ["Имя агента", "Телефон агента", "Email агента", "Организация агента"]
@@ -1015,7 +1016,6 @@ class CodeParametr:
             if param['name'] in contact_info and param['name'] in select_formula_params:
                 param['responce_value'] = select_formula_params[param['name']]
             res.append(param)
-        print(res)
         return {"total_change" : res}
         pass
         
