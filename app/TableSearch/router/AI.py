@@ -117,7 +117,7 @@ async def upload_OL(
         # Сохраняем статистику
         # stat_info = await build_statistic_data(db, user_id, product_id)
         # stat_info['parameters'] = parsed_need
-        # stat_info['total_coast'] = total_coast
+        # stat_info['total_coast'] = total_coast0
         
         # is_dump = await statistic_router.save_recognition(stat_info)
         fin_all = time.time()

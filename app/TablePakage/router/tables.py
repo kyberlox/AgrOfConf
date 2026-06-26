@@ -24,6 +24,7 @@ router = APIRouter(prefix="/tables", tags=["Tables"])
 def normalize_column_name(value):
     return str(value).replace("\xa0", " ").strip()
 
+
 # === Table Schema Endpoints ===
 
 
@@ -245,55 +246,115 @@ async def download_xlsx(
     if product_name is None:
         raise HTTPException(status_code=404, detail="Продукция не найдена")
 
-    table_name = f"{to_sql_name_lat(product_name)}_table"
-
-    # Проверяем, что таблица существует
-    exists = await db.execute(
+    # Получаем все таблицы, которые относятся к этому продукту
+    tables_result = await db.execute(
         text("""
-            SELECT EXISTS (
-                SELECT 1
-                FROM information_schema.tables
-                WHERE table_name = :table_name
-            )
-        """),
-        {"table_name": table_name}
+                SELECT DISTINCT table_name
+                FROM parameter_schemas
+                WHERE product_id = :product_id
+                  AND type = 'Table'
+                  AND table_name IS NOT NULL
+                ORDER BY table_name
+            """),
+        {"product_id": product_id}
     )
 
-    if not exists.scalar():
-        raise HTTPException(status_code=404, detail="Table not found")
+    table_names = [row[0] for row in tables_result.fetchall()]
 
-    # Получаем данные таблицы
-    result = await db.execute(text(f"SELECT * FROM {table_name}"))
-    rows = result.fetchall()
-    columns = result.keys()
+    if not table_names:
+        raise HTTPException(
+            status_code=404,
+            detail="У этой продукции нет загруженных таблиц"
+        )
 
-    if not rows:
-        raise HTTPException(status_code=400, detail="Table is empty")
+    tmp_dir = tempfile.gettempdir()
+    file_path = os.path.join(
+        tmp_dir,
+        f"{to_sql_name_lat(product_name)}_tables.xlsx"
+    )
 
-    # DataFrame
-    df = pd.DataFrame(rows, columns=columns)
-
-    # Переводим названия колонок и значения с латиницы на кириллицу, кроме названия колонок из SYSTEM_COLUMNS
     SYSTEM_COLUMNS = {"id"}
 
-    df.columns = [
-        to_sql_name_kir(col) if col not in SYSTEM_COLUMNS else col
-        for col in df.columns
-    ]
-    df = df.applymap(
-        lambda x: x if isinstance(x, str) else x
-    )
+    with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
+        has_data = False
 
-    # Создаём временный XLSX
-    tmp_dir = tempfile.gettempdir()
-    file_path = os.path.join(tmp_dir, f"{table_name}_params.xlsx")
+        for table_name in table_names:
+            # Проверяем, что физическая таблица существует
+            exists = await db.execute(
+                text("""
+                        SELECT EXISTS (
+                            SELECT 1
+                            FROM information_schema.tables
+                            WHERE table_name = :table_name
+                        )
+                    """),
+                {"table_name": table_name}
+            )
 
-    df.to_excel(file_path, index=False, sheet_name="Parameters")
+            if not exists.scalar():
+                continue
 
-    # Отдаём файл
+            # Получаем данные таблицы
+            result = await db.execute(
+                text(f'SELECT * FROM "{table_name}" ORDER BY id')
+            )
+
+            rows = result.fetchall()
+            columns = result.keys()
+
+            if not rows:
+                continue
+
+            df = pd.DataFrame(rows, columns=columns)
+
+            # Названия колонок берём из parameter_schemas кириллицей
+            columns_result = await db.execute(
+                text("""
+                        SELECT name, transliterated_name
+                        FROM parameter_schemas
+                        WHERE product_id = :product_id
+                          AND table_name = :table_name
+                          AND type = 'Table'
+                        ORDER BY COALESCE(sort, id), id
+                    """),
+                {
+                    "product_id": product_id,
+                    "table_name": table_name
+                }
+            )
+
+            schema_columns = columns_result.mappings().all()
+
+            column_name_map = {
+                item["transliterated_name"]: item["name"]
+                for item in schema_columns
+            }
+
+            df.columns = [
+                col if col in SYSTEM_COLUMNS else column_name_map.get(col, col)
+                for col in df.columns
+            ]
+
+            # Excel ограничивает длину названия листа 31 символом
+            sheet_name = table_name[:31]
+
+            df.to_excel(
+                writer,
+                index=False,
+                sheet_name=sheet_name
+            )
+
+            has_data = True
+
+        if not has_data:
+            raise HTTPException(
+                status_code=400,
+                detail="Все таблицы продукта пустые или не найдены"
+            )
+
     return FileResponse(
         path=file_path,
-        filename=f"{table_name}_params.xlsx",
+        filename=f"{to_sql_name_lat(product_name)}_tables.xlsx",
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Access-Control-Expose-Headers": "Content-Disposition"}
     )

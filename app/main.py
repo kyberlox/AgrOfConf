@@ -138,7 +138,7 @@ async def startup_event():
 
 
 # Подключаем статические файлы (для изображений)
-# app.mount("/static", StaticFiles(directory="app/products/static"), name="static")
+
 app.mount("/api/files", StaticFiles(directory="./static"), name="files")
 
 # Подключаем роутеры

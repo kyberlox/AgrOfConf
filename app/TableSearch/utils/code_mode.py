@@ -988,6 +988,39 @@ class CodeParametr:
         #         dt["need_bellows"] = False
         pass
 
+    async def agent_contacts(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
+        """
+        Параметры для заполнения контактов агента:
+        - Имя агента (agent_name)
+        - Телефон агента (agent_phone)
+        - Email агента (agent_email)
+        - Организация агента (agent_organization)
+        """
+        param = self._get_param_by_name("Наличие ЗИП", selection_result)
+        print(param, 'почему бул')
+        counter = param['sort'] + 1
+        res = []
+        contact_info = ["Имя агента", "Телефон агента", "Email агента", "Организация агента"]
+        
+        result = self._set_params(selection_result, counter, "Имя агента", sort=counter, param_type='user_input')
+        counter += 1
+        result = self._set_params(result, counter, "Телефон агента",sort=counter, param_type='user_input')
+        counter += 1
+        result = self._set_params(result, counter, "Email агента", sort=counter, param_type='user_input')
+        counter += 1
+        result = self._set_params(result, counter, "Организация агента", sort=counter, param_type='user_input')
+
+        if not select_formula_params:
+            return {"total_change" : res}
+        for param in result:
+            if param['name'] in contact_info and param['name'] in select_formula_params:
+                param['responce_value'] = select_formula_params[param['name']]
+            res.append(param)
+        return {"total_change" : res}
+        pass
+        
+            
+        
 
 
 ALLOWED_FUNCTIONS =  [method for method in dir(CodeParametr) if callable(getattr(CodeParametr, method)) and not method.startswith("__")]
