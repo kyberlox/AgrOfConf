@@ -14,7 +14,7 @@ from .TablePakage.router.tables import router as tables_router
 from .TablePakage.router.parameter_values import router as parameter_values_router
 from .TableSearch.router.module_search import router as module_search_router
 from .TableSearch.router.module_search_pandas import router as module_search_router_pandas
-# from .TableSearch.router.AI import router as AI_router
+from .TableSearch.router.AI import router as AI_router
 from .TablePakage.router.tkp_generation import router as tkp_generation
 
 from .TablePakage.model.database import create_tables
