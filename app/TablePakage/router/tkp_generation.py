@@ -2,6 +2,7 @@
 import os
 
 from io import BytesIO
+from typing import Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, UploadFile, Depends, File, Form
@@ -14,6 +15,7 @@ from sqlalchemy.future import select
 from ..model.database import get_db
 from ..model.tkp import TKP
 from ..schema.tkp import TKPResponse
+from datetime import datetime
 
 router = APIRouter(prefix="/tkp_generation", tags=["TKP"])
 
@@ -35,10 +37,14 @@ def validate_file(file: UploadFile) -> None:
 
 @router.post("/create_tkp")
 async def tkp_generation(
+        user_filename: Optional[str],
         template_path: str,
         user_dict: dict
 ):
     try:
+        today = datetime.today()
+        date_str = today.strftime("%d.%m.%Y")  # ← "26.06.2026"
+        filename = f"TKP_{date_str}"
         if template_path.endswith(".docx"):
             doc = DocxTemplate(template_path)
 
@@ -52,7 +58,7 @@ async def tkp_generation(
                 result_stream,
                 media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 headers={
-                    "Content-Disposition": 'attachment; filename="generated_tkp.docx"'
+                    "Content-Disposition": f'attachment; filename="{filename}.docx'
                 }
             )
 
@@ -75,7 +81,7 @@ async def tkp_generation(
                 result_stream,
                 media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 headers={
-                    "Content-Disposition": 'attachment; filename="generated_tkp.xlsx"'
+                    "Content-Disposition": f'attachment; filename="{filename}.xlsx'
                 }
             )
         else:
