@@ -50,8 +50,8 @@ class CodeParametr:
         if param_type == "list" or param_type == "select-input":
             new_param["all_values"] = all_values
 
-        if response_value:
-            new_param["response_value"] = response_value
+        # if response_value:
+        new_param["response_value"] = response_value
         if error:
             new_param["error"] = error
         if sort is not None:
