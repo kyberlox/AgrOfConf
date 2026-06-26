@@ -33,54 +33,65 @@ def validate_file(file: UploadFile) -> None:
 
 # === TKP Generation Endpoints ===
 
-@router.post("/")
+@router.post("/create_tkp")
 async def tkp_generation(
         template_path: str,
         user_dict: dict
 ):
-    if template_path.endswith(".docx"):
-        doc = DocxTemplate(template_path)
+    try:
+        if template_path.endswith(".docx"):
+            doc = DocxTemplate(template_path)
 
-        doc.render(user_dict)
+            doc.render(user_dict)
 
-        result_stream = BytesIO()
-        doc.save(result_stream)
-        result_stream.seek(0)
+            result_stream = BytesIO()
+            doc.save(result_stream)
+            result_stream.seek(0)
 
-        return StreamingResponse(
-            result_stream,
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={
-                "Content-Disposition": 'attachment; filename="generated_tkp.docx"'
-            }
-        )
+            return StreamingResponse(
+                result_stream,
+                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                headers={
+                    "Content-Disposition": 'attachment; filename="generated_tkp.docx"'
+                }
+            )
 
-    elif template_path.endswith(".xlsx"):
-        workbook = load_workbook(template_path)
+        elif template_path.endswith(".xlsx"):
+            workbook = load_workbook(template_path)
 
-        for sheet in workbook.worksheets:
-            for row in sheet.iter_rows():
-                for cell in row:
-                    if isinstance(cell.value, str):
-                        for key, value in user_dict.items():
-                            placeholder = "{{ " + key + " }}"
-                            cell.value = cell.value.replace(placeholder, str(value))
+            for sheet in workbook.worksheets:
+                for row in sheet.iter_rows():
+                    for cell in row:
+                        if isinstance(cell.value, str):
+                            for key, value in user_dict.items():
+                                placeholder = "{{ " + key + " }}"
+                                cell.value = cell.value.replace(placeholder, str(value))
 
-        result_stream = BytesIO()
-        workbook.save(result_stream)
-        result_stream.seek(0)
+            result_stream = BytesIO()
+            workbook.save(result_stream)
+            result_stream.seek(0)
 
-        return StreamingResponse(
-            result_stream,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={
-                "Content-Disposition": 'attachment; filename="generated_tkp.xlsx"'
-            }
-        )
-    else:
+            return StreamingResponse(
+                result_stream,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={
+                    "Content-Disposition": 'attachment; filename="generated_tkp.xlsx"'
+                }
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Неподдерживаемый формат для файла"
+            )
+    except FileNotFoundError:
         raise HTTPException(
-            status_code=400,
-            detail="Неподдерживаемый формат для файла"
+            status_code=404,
+            detail="Файл не найден"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка при генерации ТКП: {str(e)}" 
         )
 
 
@@ -91,29 +102,33 @@ async def add_tkp_file(
         file: UploadFile = File(...),
         db: AsyncSession = Depends(get_db)
 ):
-    validate_file(file)
-    safe_filename = f"{uuid4().hex}{Path(file.filename).suffix.lower()}"
-    file_path = os.path.join(UPLOAD_DIR, safe_filename)
-    with open(file_path, "wb") as f:
-        f.write(await file.read())
+    try:
+        validate_file(file)
+        safe_filename = f"{uuid4().hex}{Path(file.filename).suffix.lower()}"
+        file_path = os.path.join(UPLOAD_DIR, safe_filename)
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
 
-    file_url = f"/api/files/tkp/{safe_filename}"
+        file_url = f"/api/files/tkp/{safe_filename}"
 
-    tkp_sample = TKP(
-        name=filename,
-        file=file_path,
-        file_url=file_url,
-        product_id=product_id
-    )
+        tkp_sample = TKP(
+            name=filename,
+            file=file_path,
+            file_url=file_url,
+            product_id=product_id
+        )
 
-    db.add(tkp_sample)
-    await db.commit()
-    await db.refresh(tkp_sample)
+        db.add(tkp_sample)
+        await db.commit()
+        await db.refresh(tkp_sample)
 
-    return tkp_sample
+        return tkp_sample
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка при добавлении ТКП: {str(e)}")
 
 
-@router.get("/", response_model=list[TKPResponse], description="Выведение всех ТКП продукта из БД.")
+@router.get("/get_tkp_of_product/{product_id}", response_model=list[TKPResponse], description="Выведение всех ТКП продукта из БД.")
 async def get_tkp_file(
         product_id: int,
         skip: int = 0,
@@ -138,24 +153,50 @@ async def get_tkp_file(
     return samples
 
 
-@router.delete("/{product_id}", description="Удаление шаблона ТКП.")
+@router.delete("/delete_all_tkp_of_product/{product_id}", description="Удаление шаблона ТКП.")
 async def delete_tkp_file(
         product_id: int,
         db: AsyncSession = Depends(get_db)
 ):
-    result = await db.execute(select(TKP).where(TKP.product_id == product_id))
-    samples = result.scalars().all()
+    try:
+        result = await db.execute(select(TKP).where(TKP.product_id == product_id))
+        samples = result.scalars().all()
 
-    if not samples:
-        return HTTPException(status_code=404, detail="TKP templates not found")
+        if not samples:
+            return HTTPException(status_code=404, detail="TKP templates not found")
 
-    for sample in samples:
+        for sample in samples:
+            if sample.file is not None and sample.file != "" and os.path.exists(sample.file):
+                os.remove(sample.file)
+
+            await db.delete(sample)
+        await db.commit()
+        return {
+            "detail": "TKP templates deleted successfully",
+            "deleted_count": len(samples)
+        }
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка удаления шаблонов ТКП продукта с id = {product_id}: {str(e)}")
+
+@router.delete("/delete/{tkp_id}", description="Удаление шаблона ТКП.")
+async def delete_tkp_file(
+        tkp_id: int,
+        db: AsyncSession = Depends(get_db)
+):
+    try:
+        result = await db.execute(select(TKP).where(TKP.id == tkp_id))
+        sample = result.scalar_one_or_none()
+
+        if sample is None:
+            return HTTPException(status_code=404, detail="TKP template not found")
+
         if sample.file is not None and sample.file != "" and os.path.exists(sample.file):
             os.remove(sample.file)
 
         await db.delete(sample)
-    await db.commit()
-    return {
-        "detail": "TKP templates deleted successfully",
-        "deleted_count": len(samples)
-    }
+        await db.commit()
+        return True
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка удаления шаблона ТКП: {str(e)}")
