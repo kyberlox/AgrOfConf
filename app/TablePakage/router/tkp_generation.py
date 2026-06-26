@@ -1,12 +1,34 @@
 # app/products/router/tkp_generation.py
+import os
 
 from io import BytesIO
-from fastapi import APIRouter, HTTPException
+from uuid import uuid4
+
+from fastapi import APIRouter, HTTPException, UploadFile, Depends, File, Form
 from docxtpl import DocxTemplate
 from fastapi.responses import StreamingResponse
 from openpyxl import load_workbook
+from pathlib import Path
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from ..model.database import get_db
+from ..model.tkp import TKP
+from ..schema.tkp import TKPResponse
 
 router = APIRouter(prefix="/tkp_generation", tags=["TKP"])
+
+UPLOAD_DIR = "./static/tkp_files"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Настройки
+ALLOWED_EXTENSIONS = {".docx", ".xlsx"}
+
+
+def validate_file(file: UploadFile) -> None:
+    # Проверка расширения
+    ext = Path(file.filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Invalid file extension. Allowed: .docx, .xlsx")
 
 
 # === TKP Generation Endpoints ===
@@ -60,3 +82,80 @@ async def tkp_generation(
             status_code=400,
             detail="Неподдерживаемый формат для файла"
         )
+
+
+@router.post("/add", response_model=TKPResponse, status_code=201, description="Добавление шаблона ТКП.")
+async def add_tkp_file(
+        product_id: int = Form(...),
+        filename: str = Form(...),
+        file: UploadFile = File(...),
+        db: AsyncSession = Depends(get_db)
+):
+    validate_file(file)
+    safe_filename = f"{uuid4().hex}{Path(file.filename).suffix.lower()}"
+    file_path = os.path.join(UPLOAD_DIR, safe_filename)
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
+
+    file_url = f"/api/files/tkp/{safe_filename}"
+
+    tkp_sample = TKP(
+        name=filename,
+        file=file_path,
+        file_url=file_url,
+        product_id=product_id
+    )
+
+    db.add(tkp_sample)
+    await db.commit()
+    await db.refresh(tkp_sample)
+
+    return tkp_sample
+
+
+@router.get("/", response_model=list[TKPResponse], description="Выведение всех ТКП продукта из БД.")
+async def get_tkp_file(
+        product_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(TKP)
+        .where(TKP.product_id == product_id)
+        .offset(skip)
+        .limit(limit)
+    )
+
+    samples = result.scalars().all()
+
+    # if not samples:
+    #     raise HTTPException(
+    #         status_code=404,
+    #         detail="TKP templates not found"
+    #     )
+
+    return samples
+
+
+@router.delete("/{product_id}", description="Удаление шаблона ТКП.")
+async def delete_tkp_file(
+        product_id: int,
+        db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(TKP).where(TKP.product_id == product_id))
+    samples = result.scalars().all()
+
+    if not samples:
+        return HTTPException(status_code=404, detail="TKP templates not found")
+
+    for sample in samples:
+        if sample.file is not None and sample.file != "" and os.path.exists(sample.file):
+            os.remove(sample.file)
+
+        await db.delete(sample)
+    await db.commit()
+    return {
+        "detail": "TKP templates deleted successfully",
+        "deleted_count": len(samples)
+    }
