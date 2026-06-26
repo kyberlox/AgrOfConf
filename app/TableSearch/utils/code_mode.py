@@ -996,6 +996,7 @@ class CodeParametr:
         - Email агента (agent_email)
         - Организация агента (agent_organization)
         """
+        print(selection_result)
         # param = self._get_param_by_name("Наличие ЗИП", selection_result)
         # counter = param['sort'] + 1
         # res = []
