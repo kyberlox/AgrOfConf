@@ -996,26 +996,27 @@ class CodeParametr:
         - Email агента (agent_email)
         - Организация агента (agent_organization)
         """
-        param = self._get_param_by_name("Наличие ЗИП", selection_result)
-        counter = param['sort'] + 1
-        res = []
-        contact_info = ["Имя агента", "Телефон агента", "Email агента", "Организация агента"]
+        # param = self._get_param_by_name("Наличие ЗИП", selection_result)
+        # counter = param['sort'] + 1
+        # res = []
+        # contact_info = ["Имя агента", "Телефон агента", "Email агента", "Организация агента"]
         
-        result = self._set_params(selection_result, counter, "Имя агента", sort=counter, param_type='user_input')
-        counter += 1
-        result = self._set_params(result, counter, "Телефон агента",sort=counter, param_type='user_input')
-        counter += 1
-        result = self._set_params(result, counter, "Email агента", sort=counter, param_type='user_input')
-        counter += 1
-        result = self._set_params(result, counter, "Организация агента", sort=counter, param_type='user_input')
+        # result = self._set_params(selection_result, counter, "Имя агента", sort=counter, param_type='user_input')
+        # counter += 1
+        # result = self._set_params(result, counter, "Телефон агента",sort=counter, param_type='user_input')
+        # counter += 1
+        # result = self._set_params(result, counter, "Email агента", sort=counter, param_type='user_input')
+        # counter += 1
+        # result = self._set_params(result, counter, "Организация агента", sort=counter, param_type='user_input')
 
-        if not select_formula_params:
-            return {"total_change" : res}
-        for param in result:
-            if param['name'] in contact_info:
-                param['responce_value'] = select_formula_params[param['name']]
-            res.append(param)
-        return {"total_change" : res}
+        # if not select_formula_params:
+        #     return {"total_change" : res}
+        # for param in result:
+        #     if param['name'] in contact_info:
+        #         param['responce_value'] = select_formula_params[param['name']]
+        #     res.append(param)
+        # return {"total_change" : res}
+        pass
         
             
         
