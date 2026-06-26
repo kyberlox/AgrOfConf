@@ -1012,7 +1012,7 @@ class CodeParametr:
         if not select_formula_params:
             return {"total_change" : res}
         for param in result:
-            if param['name'] in contact_info:
+            if param['name'] in contact_info and param['name'] in select_formula_params:
                 param['responce_value'] = select_formula_params[param['name']]
             res.append(param)
         print(res)
