@@ -1015,6 +1015,7 @@ class CodeParametr:
             if param['name'] in contact_info:
                 param['responce_value'] = select_formula_params[param['name']]
             res.append(param)
+        print(res)
         return {"total_change" : res}
         pass
         
