@@ -28,7 +28,7 @@ async def user_info_by_session_id(token: str):
 
 @router.get("/redirect")
 async def get_user(
-    session_id: str
+    session_id: str,
     db: AsyncSession = Depends(get_db)
 ):
     """
