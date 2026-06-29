@@ -37,6 +37,18 @@ def validate_file(file: UploadFile) -> None:
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Invalid file extension. Allowed: .docx, .xlsx")
 
+async def convert_data(user_dict: dict, db_info: dict) -> dict:
+    today_time = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+    user_dict['дата'] = today_time
+    user_dict['номер_запроса'] = None
+    user_dict['адрес_исполнителя'] = db_info['user_work_city']
+    user_dict['телефон_исполнителя'] = db_info['user_work_phone']
+    user_dict['email_исполнителя'] = db_info['user_email']
+    user_dict['фио_исполнителя'] = db_info['user_fio']
+    user_dict['должность_исполнителя'] = db_info['user_work_position']
+    return user_dict
+
+
 
 # === TKP Generation Endpoints ===
 
@@ -65,11 +77,15 @@ async def tkp_generation(
         filename = f"TKP_{to_sql_name_lat(user_dict['Имя агента'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
 
         # Сохраняем статистику
+        stat_info = await build_statistic_data(db, user_id, product_id)
+
         if save_to_statistic:
-            stat_info = await build_statistic_data(db, user_id, product_id)
             stat_info['parameters'] = user_dict
             is_dump = await statistic_router.save_selection(stat_info)
+            print(is_dump, "Получаем ли айдишник")
 
+        user_dict = await convert_data(user_dict, stat_info)
+        
         if template_path.endswith(".docx"):
             doc = DocxTemplate(template_path)
 
