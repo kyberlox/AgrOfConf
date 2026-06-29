@@ -12,7 +12,7 @@ export const useUserStore = defineStore('userStore', {
     },
     getters: {
         getId: (state) => state.user.id,
-        getAvatar: (state) => '',
+        getAvatar: (state) => state.user.photo,
         getUser: (state) => state.user,
         getFio: (state) => state.user.last_name && state.user.name ? `${state.user.last_name} ${state.user.name} ${state.user.second_name ?? ''}` : null
     }

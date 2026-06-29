@@ -4,8 +4,10 @@
          :class="sidebarRolledUp ? 'w-fit' : 'min-w-[283px]'"
          @click="sidebarRolledUp = !sidebarRolledUp">
         <div class="flex flex-row gap-[12px] items-center max-w-fit w-full">
-            <div class="w-[40px] h-[40px] rounded-[8px] bg-cover"
-                 :style="{ backgroundImage: `url(${user.uuid})` }">
+            <!-- <span>{{ userAvatar }}</span> -->
+            <div class="w-[40px] h-[40px] min-h-[40px] rounded-[8px] bg-cover"
+            
+                 :style="{ backgroundImage: `url('${userAvatar}')` }">
             </div>
             <div class="flex flex-col gap-[4px] transition-all duration-300 ease-in-out"
                  v-if="!sidebarRolledUp"
@@ -130,6 +132,7 @@ export default defineComponent({
             sidebarRolledUp,
             user: computed(() => useUserStore().getUser),
             userFio: computed(() => useUserStore().getFio),
+            userAvatar: computed(() => useUserStore().getAvatar)
         }
     }
 });

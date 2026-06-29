@@ -12,4 +12,5 @@ export interface IUser {
     email: string,
     directorate: string,
     work_position: string,
+    photo: string
 }
