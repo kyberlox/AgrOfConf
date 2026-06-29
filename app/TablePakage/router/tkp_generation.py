@@ -18,6 +18,10 @@ from ..schema.tkp import TKPResponse
 from datetime import datetime
 from ..utils.router_utils import to_sql_name_lat
 
+from app.StatisticsService.utils.deps import build_statistic_data
+from app.UserService.utils.auth_utils import get_user_id_by_session_id
+from app.StatisticsService.router.selection_router import get_selection_router
+
 router = APIRouter(prefix="/tkp_generation", tags=["TKP"])
 
 UPLOAD_DIR = "./static/tkp_files"
@@ -39,8 +43,11 @@ def validate_file(file: UploadFile) -> None:
 @router.post("/create_tkp")
 async def tkp_generation(
         file_id: int,
+        product_id: int,
         user_dict: dict,
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        user_id: Optional[int] = Depends(get_user_id_by_session_id),
+        statistic_router = Depends(get_selection_router),
 ):
     try:
         # Получаем файл из БД по id
@@ -55,6 +62,12 @@ async def tkp_generation(
             raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
 
         filename = f"TKP_{to_sql_name_lat(user_dict['Имя агента'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
+
+        # Сохраняем статистику
+        stat_info = await build_statistic_data(db, user_id, product_id)
+        stat_info['parameters'] = user_dict
+        is_dump = await statistic_router.save_recognition(stat_info)
+
         if template_path.endswith(".docx"):
             doc = DocxTemplate(template_path)
 

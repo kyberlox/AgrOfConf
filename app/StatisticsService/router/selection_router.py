@@ -25,9 +25,7 @@ class SelectionRouter:
 
     def __init__(self, repo: DatabaseStatistic):
         self.repo = repo
-
-    # ── CRUD ──────────────────────────────────
-
+        
     async def save_selection(self, data: SelectionData) -> SelectionResponse:
         """Сохранить запись о подборе."""
         try:
