@@ -65,7 +65,7 @@ async def get_user(
         response.set_cookie(
             key="session_id", 
             value=session, 
-            samesite="lax"
+            samesite="none"
         )
         return RedirectResponse(url="/")
     except HTTPException:
