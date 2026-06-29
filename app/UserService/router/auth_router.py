@@ -64,7 +64,7 @@ async def get_user(
         redirect_response = RedirectResponse(url="/")
         redirect_response.set_cookie(
             key="session_id",
-            value=session,
+            value=session_id,
             samesite="lax"
         )
         return redirect_response
