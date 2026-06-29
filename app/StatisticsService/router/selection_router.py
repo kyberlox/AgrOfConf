@@ -25,11 +25,11 @@ class SelectionRouter:
 
     def __init__(self, repo: DatabaseStatistic):
         self.repo = repo
-        
+
     async def save_selection(self, data: SelectionData) -> SelectionResponse:
         """Сохранить запись о подборе."""
         try:
-            result = await self.repo.save(data.model_dump())
+            result = await self.repo.save(data)
             return SelectionResponse(success=True, data=result)
         except Exception as e:
             return SelectionResponse(success=False, error=str(e))

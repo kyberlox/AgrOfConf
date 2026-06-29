@@ -45,6 +45,7 @@ async def tkp_generation(
         file_id: int,
         product_id: int,
         user_dict: dict,
+        save_to_statistic: bool,
         db: AsyncSession = Depends(get_db),
         user_id: Optional[int] = Depends(get_user_id_by_session_id),
         statistic_router = Depends(get_selection_router),
@@ -64,9 +65,10 @@ async def tkp_generation(
         filename = f"TKP_{to_sql_name_lat(user_dict['Имя агента'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
 
         # Сохраняем статистику
-        stat_info = await build_statistic_data(db, user_id, product_id)
-        stat_info['parameters'] = user_dict
-        is_dump = await statistic_router.save_selection(stat_info)
+        if save_to_statistic:
+            stat_info = await build_statistic_data(db, user_id, product_id)
+            stat_info['parameters'] = user_dict
+            is_dump = await statistic_router.save_selection(stat_info)
 
         if template_path.endswith(".docx"):
             doc = DocxTemplate(template_path)

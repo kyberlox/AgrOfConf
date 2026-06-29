@@ -50,8 +50,8 @@ class CodeParametr:
         if param_type == "list" or param_type == "select-input":
             new_param["all_values"] = all_values
 
-        # if response_value:
-        new_param["response_value"] = response_value
+        if response_value:
+            new_param["response_value"] = response_value
         if error:
             new_param["error"] = error
         if sort is not None:
@@ -999,7 +999,7 @@ class CodeParametr:
         param = self._get_param_by_name("Цена /шт. руб с НДС 22%", selection_result)
         counter = param['sort'] + 1
         res = []
-        contact_info = ["Имя агента", "Телефон агента", "Email агента", "Организация агента"]
+        contact_info = ["Имя агента", "Телефон агента", "Email агента", "Организация агента", "Проектная организация", "Комментарий"]
         
         result = self._set_params(selection_result, counter, "Имя агента", sort=counter, param_type='user_input')
         counter += 1
@@ -1008,6 +1008,10 @@ class CodeParametr:
         result = self._set_params(result, counter, "Email агента", sort=counter, param_type='user_input')
         counter += 1
         result = self._set_params(result, counter, "Организация агента", sort=counter, param_type='user_input')
+        counter += 1
+        result = self._set_params(result, counter, "Проектная организация", sort=counter, param_type='user_input')
+        counter += 1
+        result = self._set_params(result, counter, "Комментарий", sort=counter, param_type='user_input')
 
         if not select_formula_params:
             return {"total_change" : result}
