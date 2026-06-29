@@ -104,7 +104,7 @@ async def tkp_generation(
             )
 
         elif template_path.endswith(".xlsx"):
-            workbook = load_workbook(template_path)
+            workbook = load_workbook(template_path, data_only=True)
 
             for sheet in workbook.worksheets:
                 for row in sheet.iter_rows():
