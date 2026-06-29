@@ -31,7 +31,7 @@ export default class Api {
             .catch(e => handleApiErrors(e))
     }
 
-    static async post(url: string, data?: FormData, config?: AxiosRequestConfig & {
+    static async post(url: string, data?: unknown, config?: AxiosRequestConfig & {
         onUploadProgress?: (progressEvent: AxiosProgressEvent) => void
     }
     ) {
