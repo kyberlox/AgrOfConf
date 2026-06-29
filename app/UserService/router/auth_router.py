@@ -64,8 +64,7 @@ async def get_user(
         session = await create_session(session_id, user_id)
         response.set_cookie(
             key="session_id", 
-            value=session, 
-            samesite="none"
+            value=session
         )
         return RedirectResponse(url="/")
     except HTTPException:
