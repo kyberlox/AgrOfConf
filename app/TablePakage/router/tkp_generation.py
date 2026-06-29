@@ -48,8 +48,7 @@ async def tkp_generation(
         file_info = result.scalar_one_or_none()
         if not file_info:
             raise HTTPException(status_code=404, detail="Файл не найден")
-        template_path = template_path.file
-        print(template_path, '123')
+        template_path = file_info.file
         contact_info = ["Имя агента", "Маркировка"]
         if not all(key in user_dict for key in contact_info):
             raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
