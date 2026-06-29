@@ -82,6 +82,7 @@ async def tkp_generation(
         if save_to_statistic:
             stat_info['parameters'] = user_dict
             is_dump = await statistic_router.save_selection(stat_info)
+            print(is_dump, "Получаем ли айдишник")
 
         user_dict = await convert_data(user_dict, stat_info)
         
