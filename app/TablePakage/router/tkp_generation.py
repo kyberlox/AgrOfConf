@@ -73,7 +73,6 @@ async def tkp_generation(
             )
 
         elif template_path.endswith(".xlsx"):
-            print('тут же сие действие?')
             workbook = load_workbook(template_path)
 
             for sheet in workbook.worksheets:
