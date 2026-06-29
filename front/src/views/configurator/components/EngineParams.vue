@@ -24,7 +24,7 @@
         <!-- свободный текстовый инпут -->
         <BaseInput v-else-if="(param as IFormattedData).required_type == 'user_input'"
                    :propsClass="'input-param'"
-                   :props-placeholder="(param as IFormattedData).description ?? ''"
+                   :props-placeholder="'Впишите значение'"
                    :propsName="param.name + (index + 1)"
                    :props-label="param.name"
                    :error="'error' in param ? param.error : ''"

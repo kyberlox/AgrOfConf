@@ -45,10 +45,6 @@ export default defineComponent({
                 value: userStore.getFio
             },
             {
-                label: 'День рождения',
-                value: 'dr'
-            },
-            {
                 label: 'Местоположение',
                 value: userStore.getUser.work_city
             },

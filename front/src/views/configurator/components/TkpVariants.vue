@@ -36,7 +36,7 @@ export default defineComponent({
         const formatToSelect = (variants: ITkpVariant[]) => {
             return variants.map((variant) => {
                 return {
-                    label: variant.name,
+                    name: variant.name,
                     value: variant.id
                 }
             })
@@ -44,7 +44,7 @@ export default defineComponent({
 
         const handleDownload = () => {
             if (chosenVariant.value)
-                emit('downloadTkp', chosenVariant)
+                emit('downloadTkp', chosenVariant.value)
         }
 
         return {
