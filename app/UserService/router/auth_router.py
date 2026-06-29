@@ -28,8 +28,7 @@ async def user_info_by_session_id(token: str):
 
 @router.get("/redirect")
 async def get_user(
-    session_id: str, 
-    response: Response,
+    session_id: str
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -62,11 +61,13 @@ async def get_user(
         is_valid = await validate_users_sessions(user_id=user_id)
         
         session = await create_session(session_id, user_id)
-        response.set_cookie(
-            key="session_id", 
-            value=session
+        redirect_response = RedirectResponse(url="/")
+        redirect_response.set_cookie(
+            key="session_id",
+            value=session,
+            samesite="lax"
         )
-        return RedirectResponse(url="/")
+        return redirect_response
     except HTTPException:
         raise
     except Exception as e:
