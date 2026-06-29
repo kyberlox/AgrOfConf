@@ -37,14 +37,24 @@ def validate_file(file: UploadFile) -> None:
 
 @router.post("/create_tkp")
 async def tkp_generation(
-        user_filename: Optional[str],
-        template_path: str,
-        user_dict: dict
+        file_id: int,
+        user_dict: dict,
+        db: AsyncSession = Depends(get_db)
 ):
     try:
-        today = datetime.today()
-        date_str = today.strftime("%d.%m.%Y")  # ← "26.06.2026"
-        filename = f"TKP_{date_str}"
+        # Получаем файл из БД по id
+        stmt = select(TKP).where(TKP.id == file_id)
+        result = await db.execute(stmt)
+        file_info = result.scalar_one_or_none()
+        if not file_info:
+            raise HTTPException(status_code=404, detail="Файл не найден")
+        template_path = template_path.file
+
+        contact_info = ["Имя агента", "Телефон агента", "Email агента", "Организация агента"]
+        if not all(key in user_dict for key in contact_info):
+            raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
+
+        filename = f"TKP_{user_dict['Имя агента']}_{user_dict['Маркировка']}"
         if template_path.endswith(".docx"):
             doc = DocxTemplate(template_path)
 
@@ -89,11 +99,8 @@ async def tkp_generation(
                 status_code=400,
                 detail="Неподдерживаемый формат для файла"
             )
-    except FileNotFoundError:
-        raise HTTPException(
-            status_code=404,
-            detail="Файл не найден"
-        )
+    except HTTPException:
+        raise 
     except Exception as e:
         raise HTTPException(
             status_code=500,
