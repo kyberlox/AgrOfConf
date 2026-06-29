@@ -996,7 +996,7 @@ class CodeParametr:
         - Email агента (agent_email)
         - Организация агента (agent_organization)
         """
-        param = self._get_param_by_name("Контрагент", selection_result)
+        param = self._get_param_by_name("Цена /шт. руб с НДС 22%", selection_result)
         counter = param['sort'] + 1
         res = []
         contact_info = ["Имя агента", "Телефон агента", "Email агента", "Организация агента", "Проектная организация", "Комментарий"]
