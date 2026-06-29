@@ -67,6 +67,7 @@ async def tkp_generation(
         stat_info = await build_statistic_data(db, user_id, product_id)
         stat_info['parameters'] = user_dict
         is_dump = await statistic_router.save_selection(stat_info)
+        print(is_dump, 123)
 
         if template_path.endswith(".docx"):
             doc = DocxTemplate(template_path)
