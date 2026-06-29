@@ -17,6 +17,7 @@ class Users(Base):
     work_position = Column(String(255), nullable=True)
     work_city = Column(String(255), nullable=True)
     office = Column(Integer, nullable=True)
+    photo = Column(String(255), nullable=True)
 
     rootsusers = relationship("Roots", back_populates="user")
 
