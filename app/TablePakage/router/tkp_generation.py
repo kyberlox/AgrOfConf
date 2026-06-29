@@ -1,6 +1,6 @@
 # app/products/router/tkp_generation.py
 import os
-
+import re
 from io import BytesIO
 from typing import Optional
 from uuid import uuid4
@@ -16,6 +16,7 @@ from ..model.database import get_db
 from ..model.tkp import TKP
 from ..schema.tkp import TKPResponse
 from datetime import datetime
+from ..utils.router_utils import to_sql_name_lat
 
 router = APIRouter(prefix="/tkp_generation", tags=["TKP"])
 
@@ -37,14 +38,23 @@ def validate_file(file: UploadFile) -> None:
 
 @router.post("/create_tkp")
 async def tkp_generation(
-        user_filename: Optional[str],
-        template_path: str,
-        user_dict: dict
+        file_id: int,
+        user_dict: dict,
+        db: AsyncSession = Depends(get_db)
 ):
     try:
-        today = datetime.today()
-        date_str = today.strftime("%d.%m.%Y")  # ← "26.06.2026"
-        filename = f"TKP_{date_str}"
+        # Получаем файл из БД по id
+        stmt = select(TKP).where(TKP.id == file_id)
+        result = await db.execute(stmt)
+        file_info = result.scalar_one_or_none()
+        if not file_info:
+            raise HTTPException(status_code=404, detail="Файл не найден")
+        template_path = file_info.file
+        contact_info = ["Имя агента", "Маркировка"]
+        if not all(key in user_dict for key in contact_info):
+            raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
+
+        filename = f"TKP_{to_sql_name_lat(user_dict['Имя агента'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
         if template_path.endswith(".docx"):
             doc = DocxTemplate(template_path)
 
@@ -70,8 +80,8 @@ async def tkp_generation(
                     for cell in row:
                         if isinstance(cell.value, str):
                             for key, value in user_dict.items():
-                                placeholder = "{{ " + key + " }}"
-                                cell.value = cell.value.replace(placeholder, str(value))
+                                pattern = re.compile(r'\{\{\s*' + re.escape(key) + r'\s*\}\}')
+                                cell.value = pattern.sub(str(value), cell.value)
 
             result_stream = BytesIO()
             workbook.save(result_stream)
@@ -81,7 +91,7 @@ async def tkp_generation(
                 result_stream,
                 media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 headers={
-                    "Content-Disposition": f'attachment; filename="{filename}.xlsx'
+                    "Content-Disposition": f'attachment; filename="{filename}.xlsx"'
                 }
             )
         else:
@@ -89,11 +99,8 @@ async def tkp_generation(
                 status_code=400,
                 detail="Неподдерживаемый формат для файла"
             )
-    except FileNotFoundError:
-        raise HTTPException(
-            status_code=404,
-            detail="Файл не найден"
-        )
+    except HTTPException:
+        raise 
     except Exception as e:
         raise HTTPException(
             status_code=500,
