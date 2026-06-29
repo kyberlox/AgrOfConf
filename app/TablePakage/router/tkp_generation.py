@@ -40,7 +40,7 @@ def validate_file(file: UploadFile) -> None:
 async def convert_data(user_dict: dict, db_info: dict) -> dict:
     today_time = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     user_dict['дата'] = today_time
-    user_dict['номер_запроса'] = None
+    user_dict['номер_запроса'] = user_dict['id']
     user_dict['адрес_исполнителя'] = db_info['user_work_city']
     user_dict['телефон_исполнителя'] = db_info['user_work_phone']
     user_dict['email_исполнителя'] = db_info['user_email']
@@ -82,7 +82,7 @@ async def tkp_generation(
         if save_to_statistic:
             stat_info['parameters'] = user_dict
             is_dump = await statistic_router.save_selection(stat_info)
-            print(is_dump, "Получаем ли айдишник")
+            user_dict['id'] = is_dump['elastic_response'].get("_id")
 
         user_dict = await convert_data(user_dict, stat_info)
         
