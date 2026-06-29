@@ -1,6 +1,6 @@
 # app/products/router/tkp_generation.py
 import os
-
+import re
 from io import BytesIO
 from typing import Optional
 from uuid import uuid4
@@ -74,13 +74,21 @@ async def tkp_generation(
         elif template_path.endswith(".xlsx"):
             workbook = load_workbook(template_path)
 
+            # for sheet in workbook.worksheets:
+            #     for row in sheet.iter_rows():
+            #         for cell in row:
+            #             if isinstance(cell.value, str):
+            #                 for key, value in user_dict.items():
+            #                     placeholder = "{{ " + key + " }}"
+            #                     cell.value = cell.value.replace(placeholder, str(value))
             for sheet in workbook.worksheets:
                 for row in sheet.iter_rows():
                     for cell in row:
                         if isinstance(cell.value, str):
                             for key, value in user_dict.items():
-                                placeholder = "{{ " + key + " }}"
-                                cell.value = cell.value.replace(placeholder, str(value))
+                                # Ищем {{ ... }} с любыми пробелами
+                                pattern = re.compile(r'\{\{\s*' + re.escape(key) + r'\s*\}\}')
+                                cell.value = pattern.sub(str(value), cell.value)
 
             result_stream = BytesIO()
             workbook.save(result_stream)
