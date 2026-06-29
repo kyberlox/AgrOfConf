@@ -78,15 +78,6 @@ export default defineComponent({
             },
         ])
 
-        onMounted(async () => {
-            try {
-                const user: IUser = await Api.get('users/find_by/4133')
-                userStore.setUser(user)
-            } catch (error) {
-                console.error(error)
-            }
-        })
-
         return {
             user,
             userFields

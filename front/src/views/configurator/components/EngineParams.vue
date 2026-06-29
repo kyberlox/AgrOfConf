@@ -28,7 +28,7 @@
                    :propsName="param.name + (index + 1)"
                    :props-label="param.name"
                    :error="'error' in param ? param.error : ''"
-                   @valueChanged="(value: string) => $emit('valueChanged', value, param.name)" />
+                   @valueChanged="(value: string | null) => $emit('valueChanged', value ?? '', param.name)" />
 
         <!-- выпадающий список -->
         <BaseSelect v-else-if="(param.name !== 'sep')"

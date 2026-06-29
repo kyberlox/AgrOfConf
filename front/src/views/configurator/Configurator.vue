@@ -42,17 +42,23 @@
                     </span>
                 </BaseButton>
                 <BaseButton :propsClass="'button-primary'"
-                            :disabled="true">
-                    Создать ОЛ
+                            @clicked="tkpModalIsVisible = true">
+                    Создать
                 </BaseButton>
             </div>
         </div>
-        <RightSidebar />
+        <RightSidebar v-if="featuresFlags.rightSidebar" />
     </div>
     <!-- Модалка для description -->
     <SlotModal v-if="modalVisible"
                @closeModal="modalVisible = false">
         <h1>dsa</h1>
+    </SlotModal>
+    <!-- Модальное окно для TKP вариантов -->
+    <SlotModal v-if="tkpModalIsVisible"
+               @closeModal="tkpModalIsVisible = false">
+        <TkpVariants :tkpVariants="tkpVariants"
+                     @downloadTkp="(id: number) => handleDownloadTkp(id)" />
     </SlotModal>
 </div>
 </template>
@@ -63,7 +69,7 @@ import Ellipse from '@/assets/icons/Ellipse.svg?component';
 import ArrowLeft from '@/assets/icons/ArrowLeft.svg?component';
 import EngineParams from './components/EngineParams.vue';
 import Api from '@/utils/Api';
-import type { IFormattedData} from '@/assets/interfaces/IForm';
+import type { IFormattedData } from '@/assets/interfaces/IForm';
 import SlotModal from '@/components/layout/SlotModal.vue';
 import { useNeuroOlData } from '@/stores/neuroOl';
 import UploadDocButton from '@/views/homeView/components/UploadDocButton.vue';
@@ -71,6 +77,10 @@ import RightSidebar from '@/components/layout/RightSidebar.vue';
 import { useConfiguratorStore } from '@/stores/configurator.ts';
 import FavoriteIcon from '@/assets/icons/Favorite.svg?component';
 import PromptModal from '../homeView/components/PromptModal.vue';
+import { featuresFlags } from '@/assets/static/featuresFlags.ts';
+import TkpVariants from './components/TkpVariants.vue';
+import { type ITkpVariant } from '@/assets/interfaces/ITkpVariant.ts';
+import { downloadFile } from '@/utils/downloadFile.ts';
 
 export default defineComponent({
     components: {
@@ -78,6 +88,7 @@ export default defineComponent({
         Ellipse,
         ArrowLeft,
         FavoriteIcon,
+        TkpVariants,
         EngineParams,
         PromptModal,
         SlotModal,
@@ -99,6 +110,8 @@ export default defineComponent({
         const neuroOlDataStore = useNeuroOlData();
         const neuroOlData = computed(() => neuroOlDataStore.getOlInfo);
         const productName = ref('');
+        const tkpVariants = ref<ITkpVariant[]>([]);
+        const tkpModalIsVisible = ref(false);
 
         const paramsUpdate = async (body: any | null) => {
             try {
@@ -107,6 +120,9 @@ export default defineComponent({
                 data.parameters.forEach((e: IFormattedData) => {
                     if ('error' in e && e.error) {
                         errors.push(e.error)
+                    }
+                    if ('response_value' in e && e.response_value) {
+                        userInputs.value[e.name] = e.response_value
                     }
                 })
                 if (errors.length) {
@@ -122,8 +138,20 @@ export default defineComponent({
             }
         }
 
+        const getTkpVariants = async () => {
+            try {
+                const data: ITkpVariant[] = await Api.get(`/tkp_generation/get_tkp_of_product/${props.id}`)
+                if (data.length) {
+                    tkpVariants.value = data;
+                }
+            } catch (error) {
+                console.error(error)
+            }
+        }
+
         onMounted(() => {
             paramsUpdate(null);
+            getTkpVariants();
             if (neuroOlData.value) {
                 userInputs.value = neuroOlData.value
                 paramsUpdate(neuroOlDataStore.getOlInfo)
@@ -135,6 +163,18 @@ export default defineComponent({
             paramsUpdate(userInputs.value)
         }
 
+        const handleDownloadTkp = async (variantId: number) => {
+            try {
+                const response = await Api.post(`tkp_generation/create_tkp?file_id=${variantId}`, userInputs.value, { responseType: 'blob' })
+                const contentDisposition = response.headers['content-disposition']
+                const filename = contentDisposition?.split('filename=')[1]?.replace(/"/g, '')
+                await downloadFile(response.data, filename)
+            }
+            catch (error) {
+                console.error(error)
+            }
+        }
+
         return {
             form,
             modalVisible,
@@ -142,7 +182,11 @@ export default defineComponent({
             paramsRenderKey,
             neuroOlData,
             productName,
+            featuresFlags,
+            tkpModalIsVisible,
+            tkpVariants,
             handleValueChanged,
+            handleDownloadTkp
         }
     }
 });

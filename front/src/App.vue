@@ -8,9 +8,12 @@
 </div>
 </template>
 <script lang='ts'>
-import { defineComponent } from 'vue';
+import { defineComponent, onMounted } from 'vue';
 import VHeader from './components/layout/VHeader.vue';
 import LeftSidebar from './components/layout/LeftSidebar.vue';
+import { type IUser } from './assets/interfaces/IUser.ts';
+import Api from './utils/Api.ts';
+import { useUserStore } from './stores/user.ts';
 
 export default defineComponent({
   components: {
@@ -19,6 +22,28 @@ export default defineComponent({
   },
   props: {},
   setup() {
+    const userStore = useUserStore();
+
+    const authorize = async () => {
+      try {
+        const user: IUser = await Api.get('auth/user_id_by_session_id')
+        if (user) {
+          try {
+            const userData: IUser = await Api.get(`users/find_by/${user}`)
+            userStore.setUser(userData)
+          } catch (error) {
+            console.error(error)
+          }
+        }
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
+    onMounted(async () => {
+      await authorize()
+    })
+
     return {}
   }
 });

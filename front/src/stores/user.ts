@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { type IUser } from "@/assets/interfaces/IUser";
+
 export const useUserStore = defineStore('userStore', {
     state: () => ({
         user: {} as IUser
