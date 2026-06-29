@@ -1,7 +1,6 @@
 # app/products/router/tkp_generation.py
 import os
 import re
-import tempfile
 from io import BytesIO
 from typing import Optional
 from uuid import uuid4
@@ -17,6 +16,7 @@ from ..model.database import get_db
 from ..model.tkp import TKP
 from ..schema.tkp import TKPResponse
 from datetime import datetime
+from ..utils.router_utils import to_sql_name_lat
 
 router = APIRouter(prefix="/tkp_generation", tags=["TKP"])
 
@@ -54,7 +54,7 @@ async def tkp_generation(
         if not all(key in user_dict for key in contact_info):
             raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
 
-        filename = f"TKP_{user_dict['Имя агента']}_{user_dict['Маркировка']}"
+        filename = f"TKP_{to_sql_name_lat(user_dict['Имя агента'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
         if template_path.endswith(".docx"):
             doc = DocxTemplate(template_path)
 
@@ -80,36 +80,18 @@ async def tkp_generation(
                     for cell in row:
                         if isinstance(cell.value, str):
                             for key, value in user_dict.items():
-                                placeholder = "{{ " + key + " }}"
-                                cell.value = cell.value.replace(placeholder, str(value))
-            # for sheet in workbook.worksheets:
-            #     for row in sheet.iter_rows():
-            #         for cell in row:
-            #             if isinstance(cell.value, str):
-            #                 for key, value in user_dict.items():
-            #                     # Ищем {{ ... }} с любыми пробелами
-            #                     pattern = re.compile(r'\{\{\s*' + re.escape(key) + r'\s*\}\}')
-            #                     cell.value = pattern.sub(str(value), cell.value)
-
-            # result_stream = BytesIO()
-            # workbook.save(result_stream)
-            # result_stream.seek(0)
-            # Сохраняем во временный файл на диске, чтобы избежать проблем с кодировкой latin-1
-            with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
-                tmp_path = tmp.name
-                workbook.save(tmp_path)
+                                pattern = re.compile(r'\{\{\s*' + re.escape(key) + r'\s*\}\}')
+                                cell.value = pattern.sub(str(value), cell.value)
 
             result_stream = BytesIO()
-            with open(tmp_path, "rb") as f:
-                result_stream.write(f.read())
-            os.unlink(tmp_path)  # удаляем временный файл
+            workbook.save(result_stream)
             result_stream.seek(0)
 
             return StreamingResponse(
                 result_stream,
                 media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 headers={
-                    "Content-Disposition": f'attachment; filename="{filename}.xlsx'
+                    "Content-Disposition": f'attachment; filename="{filename}.xlsx"'
                 }
             )
         else:
