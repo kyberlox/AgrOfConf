@@ -12,6 +12,8 @@
 
 @supports (font-smoothing: antialiased) {
   .paramsSelect__option--marked {
+    font-size: 30px;
+    font-weight: 900;
     @apply bg-[#61f679] text-[#61f679];
   }
 }
