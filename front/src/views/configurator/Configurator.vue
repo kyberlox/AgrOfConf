@@ -47,7 +47,7 @@
                 </BaseButton>
             </div>
         </div>
-        <RightSidebar v-if="featuresFlags.rightSidebar" />
+        <RightSidebar />
     </div>
     <!-- Модалка для description -->
     <SlotModal v-if="modalVisible"
@@ -77,7 +77,6 @@ import RightSidebar from '@/components/layout/RightSidebar.vue';
 import { useConfiguratorStore } from '@/stores/configurator.ts';
 import FavoriteIcon from '@/assets/icons/Favorite.svg?component';
 import PromptModal from '../homeView/components/PromptModal.vue';
-import { featuresFlags } from '@/assets/static/featuresFlags.ts';
 import TkpVariants from './components/TkpVariants.vue';
 import { type ITkpVariant } from '@/assets/interfaces/ITkpVariant.ts';
 import { downloadFile } from '@/utils/downloadFile.ts';
@@ -117,14 +116,20 @@ export default defineComponent({
             try {
                 const data = await Api.post(`/module_search/process_table_data?product_id=${props.id}`, body)
                 const errors: string[] = [];
+                let answeredCounter = 0;
+                let questionCounter = 0;
                 data.parameters.forEach((e: IFormattedData) => {
                     if ('error' in e && e.error) {
                         errors.push(e.error)
                     }
                     if ('response_value' in e && e.response_value) {
                         userInputs.value[e.name] = e.response_value
+                        answeredCounter++
                     }
+                    questionCounter++
                 })
+                useConfiguratorStore().setCovered(Number(answeredCounter));
+                useConfiguratorStore().setAllQuestions(Number(questionCounter));
                 if (errors.length) {
                     useConfiguratorStore().setError(errors)
                 }
@@ -159,6 +164,9 @@ export default defineComponent({
         })
 
         const handleValueChanged = (value: string, key: keyof typeof userInputs.value) => {
+            if (key == 'Маркировка') {
+                useConfiguratorStore().setMark(value)
+            }
             userInputs.value[key] = value;
             paramsUpdate(userInputs.value)
         }
@@ -182,7 +190,6 @@ export default defineComponent({
             paramsRenderKey,
             neuroOlData,
             productName,
-            featuresFlags,
             tkpModalIsVisible,
             tkpVariants,
             handleValueChanged,

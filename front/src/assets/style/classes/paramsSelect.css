@@ -1,4 +1,6 @@
 .paramsSelect {
+  -webkit-appearance:none;
+  appearance: none;
   @apply p-[16px] pr-[12px] border border-transparent flex flex-row gap-[8px] font-[400] text-[16px] rounded-[8px] bg-[#F6F7F9] outline-0 w-full min-h-[54px] cursor-pointer duration-300 transition-all;
 }
 .paramsSelect:hover {

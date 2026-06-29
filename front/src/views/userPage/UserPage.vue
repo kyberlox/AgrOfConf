@@ -7,7 +7,7 @@
         <div class="mt-[40px]">
             <div class="w-[80px] h-[80px] rounded-[40px] bg-cover bg-top"
                  :style="{
-                    'background-image': `url('${user}')`
+                    'background-image': `url('${user.photo}')`
                 }"></div>
         </div>
         <div class="mt-[48px] grid grid-cols-1 md:grid-cols-1  xl:grid-cols-3 item-center gap-[40px]">

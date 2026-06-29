@@ -1,7 +1,8 @@
 <template>
 <div class="flex flex-col gap-[16px] lg:max-w-[344px] md:max-w-fit">
     <!-- Блок параметров запроса -->
-    <div class="sidebar-block">
+    <div v-if="featuresFlags.rightSidebar.description"
+         class="sidebar-block">
         <div class="text-[13px]">Параметры запроса</div>
         <div class="divider mt-[10px]!"></div>
         <div class="flex flex-col">
@@ -14,7 +15,8 @@
         </div>
     </div>
     <!-- Блок маркировки -->
-    <div class="sidebar-block">
+    <div v-if="featuresFlags.rightSidebar.mark"
+         class="sidebar-block">
         <div class="text-[16px] text-(--text-secondary)">
             Маркировка
         </div>
@@ -23,7 +25,10 @@
             {{ status.mark }}
         </div>
         <div class="mt-[10px] flex flex-row justify-between text-[11px]">
-            <span>{{ status.result }}%</span>
+            <span>
+                {{
+                    Math.round(status.answeredQuestions / status.allQuestions * 100)
+                }}%</span>
             <span :class="status.status == 'Выполним' ? 'text-[#2E7D32]' : 'text-[#B71C1C`]'">
                 {{ status.status }}
             </span>
@@ -34,7 +39,7 @@
                  :style="{ width: `calc(${status.result}% + 4px)` }"></div>
         </div>
         <div class="font-[400] text-[14px] text-(--color-information-gray-400) mt-[8px]">
-            Заполнено: 12 из 14 параметров
+            Заполнено: {{ status.answeredQuestions }} из {{ status.allQuestions }} параметров
         </div>
     </div>
     <!-- Блок подсказки и ошибка -->
@@ -51,7 +56,8 @@
         </ul>
     </div>
     <!-- Блок с картинокй -->
-    <div class="sidebar-block p-[24px] max-w-[505px]">
+    <div v-if="featuresFlags.rightSidebar.img"
+         class="sidebar-block p-[24px] max-w-[505px]">
         <div class="flex max-w-full w-full flex-nowrap gap-[10px] overflow-x-auto">
             <div v-for="i in 10"
                  :key="i"
@@ -67,7 +73,8 @@
         <div class="mt-[16px] bg-black w-[294px] h-[120px]"></div>
     </div>
     <!-- Блок с документами -->
-    <div class="sidebar-block p-[24px]">
+    <div v-if="featuresFlags.rightSidebar.docs"
+         class="sidebar-block p-[24px]">
         <div class="text-13 text-[#343B4C] font-semibold">
             Прилагаемые документы
         </div>
@@ -96,6 +103,7 @@ import { defineComponent, ref, computed } from 'vue';
 import DownloadIcon from '@/assets/icons/DownloadIcon.svg?component';
 import FileIcon from '@/assets/icons/FileIcon.svg?component';
 import { useConfiguratorStore } from '@/stores/configurator';
+import { featuresFlags } from '@/assets/static/featuresFlags.ts';
 
 export default defineComponent({
     components: {
@@ -115,14 +123,11 @@ export default defineComponent({
                 { name: 'ПО', value: 'Энерджи Системс' },
                 { name: 'Шифр ОЛ', value: 'BAB-15488-TX' },
             ],
-            status: {
-                mark: 'ЭПНВ-F14-1200-63-ВЭ1',
-                status: "Выполним",
-                result: "50"
-            },
             activeImgBlock,
             error: computed(() => configuratorStore.getError),
-            errorStatus: computed(() => configuratorStore.getErrorStatus)
+            errorStatus: computed(() => configuratorStore.getErrorStatus),
+            featuresFlags,
+            status: computed(() => configuratorStore.getStatus)
         }
     }
 });
