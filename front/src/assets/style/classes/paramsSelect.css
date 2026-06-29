@@ -1,14 +1,19 @@
 .paramsSelect {
-  -webkit-appearance:none;
-  appearance: none;
   @apply p-[16px] pr-[12px] border border-transparent flex flex-row gap-[8px] font-[400] text-[16px] rounded-[8px] bg-[#F6F7F9] outline-0 w-full min-h-[54px] cursor-pointer duration-300 transition-all;
 }
+
 .paramsSelect:hover {
   border: 1px solid #f36e3c;
 }
 
 .paramsSelect__option--marked {
   @apply bg-[#61f679] text-[black];
+}
+
+@supports (font-smoothing: antialiased) {
+  .paramsSelect__option--marked {
+    @apply bg-[#61f679] text-[#61f679];
+  }
 }
 
 .paramsSelect__wrapper {
