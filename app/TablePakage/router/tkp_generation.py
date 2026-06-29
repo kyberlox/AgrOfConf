@@ -82,7 +82,7 @@ async def tkp_generation(
         if save_to_statistic:
             stat_info['parameters'] = user_dict
             is_dump = await statistic_router.save_selection(stat_info)
-            user_dict['id'] = is_dump['elastic_response'].get("_id")
+            user_dict['id'] = is_dump.data.get("_id")
 
         user_dict = await convert_data(user_dict, stat_info)
         
