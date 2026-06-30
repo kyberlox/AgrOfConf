@@ -146,7 +146,7 @@ async def create_tkp_from_history(
     from copy import deepcopy
     try:
         # Получаем историю из БД
-        user_history = await statistic_router.get_selection(node_id)
+        user_history = await statistic_router.get_selection_by_id(node_id)
         if not user_history:
             raise HTTPException(status_code=404, detail="История не найдена")
         
