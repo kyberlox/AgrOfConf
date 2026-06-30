@@ -161,8 +161,9 @@ async def create_tkp_from_history(
         user_dict = deepcopy(user_history['parameters'])
 
         filename = f"TKP_{to_sql_name_lat(user_dict['Имя агента'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
-        user_dict = await convert_data(user_dict, user_history)
         user_dict['id'] = node_id
+        user_dict = await convert_data(user_dict, user_history)
+        
         if template_path.endswith(".docx"):
             doc = DocxTemplate(template_path)
 
