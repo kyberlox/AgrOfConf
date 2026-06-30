@@ -2,7 +2,7 @@
 import os
 import re
 from io import BytesIO
-from typing import Optional
+from typing import Optional, Union
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, UploadFile, Depends, File, Form
@@ -38,9 +38,8 @@ def validate_file(file: UploadFile) -> None:
         raise HTTPException(status_code=400, detail="Invalid file extension. Allowed: .docx, .xlsx")
 
 async def convert_data(user_dict: dict, db_info: dict) -> dict:
-    today_time = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-    user_dict['дата'] = today_time
-    user_dict['номер_запроса'] = None
+    user_dict['дата'] = db_info['date_search']
+    user_dict['номер_запроса'] = user_dict['id']
     user_dict['адрес_исполнителя'] = db_info['user_work_city']
     user_dict['телефон_исполнителя'] = db_info['user_work_phone']
     user_dict['email_исполнителя'] = db_info['user_email']
@@ -57,7 +56,6 @@ async def tkp_generation(
         file_id: int,
         product_id: int,
         user_dict: dict,
-        save_to_statistic: bool,
         db: AsyncSession = Depends(get_db),
         user_id: Optional[int] = Depends(get_user_id_by_session_id),
         statistic_router = Depends(get_selection_router),
@@ -79,10 +77,9 @@ async def tkp_generation(
         # Сохраняем статистику
         stat_info = await build_statistic_data(db, user_id, product_id)
 
-        if save_to_statistic:
-            stat_info['parameters'] = user_dict
-            is_dump = await statistic_router.save_selection(stat_info)
-            print(is_dump, "Получаем ли айдишник")
+        stat_info['parameters'] = user_dict
+        is_dump = await statistic_router.save_selection(stat_info)
+        user_dict['id'] = is_dump.data['elastic_response'].get("_id")
 
         user_dict = await convert_data(user_dict, stat_info)
         
@@ -138,6 +135,82 @@ async def tkp_generation(
             detail=f"Ошибка при генерации ТКП: {str(e)}" 
         )
 
+@router.post("/create_history_tkp", status_code=201, description="Создание ТКП из истории")
+async def create_tkp_from_history(
+    file_id: int,
+    node_id: Union[int, str],
+    db: AsyncSession = Depends(get_db),
+    statistic_router = Depends(get_selection_router),
+):
+    from copy import deepcopy
+    try:
+        # Получаем историю из БД
+        user_history = await statistic_router.get_selection_by_id(node_id)
+        if not user_history:
+            raise HTTPException(status_code=404, detail="История не найдена")
+        
+        # Получаем файл из БД по id
+        stmt = select(TKP).where(TKP.id == file_id)
+        result = await db.execute(stmt)
+        file_info = result.scalar_one_or_none()
+        if not file_info:
+            raise HTTPException(status_code=404, detail="Файл не найден")
+        template_path = file_info.file
+
+        user_dict = deepcopy(user_history['parameters'])
+
+        filename = f"TKP_{to_sql_name_lat(user_dict['Имя агента'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
+        user_dict['id'] = node_id
+        user_dict = await convert_data(user_dict, user_history)
+        
+        if template_path.endswith(".docx"):
+            doc = DocxTemplate(template_path)
+
+            doc.render(user_dict)
+
+            result_stream = BytesIO()
+            doc.save(result_stream)
+            result_stream.seek(0)
+
+            return StreamingResponse(
+                result_stream,
+                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{filename}.docx"'
+                }
+            )
+
+        elif template_path.endswith(".xlsx"):
+            workbook = load_workbook(template_path, data_only=True)
+
+            for sheet in workbook.worksheets:
+                for row in sheet.iter_rows():
+                    for cell in row:
+                        if isinstance(cell.value, str):
+                            for key, value in user_dict.items():
+                                pattern = re.compile(r'\{\{\s*' + re.escape(key) + r'\s*\}\}')
+                                cell.value = pattern.sub(str(value), cell.value)
+
+            result_stream = BytesIO()
+            workbook.save(result_stream)
+            result_stream.seek(0)
+
+            return StreamingResponse(
+                result_stream,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{filename}.xlsx"'
+                }
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Неподдерживаемый формат для файла"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при получении истории: {str(e)}")
 
 @router.post("/add", response_model=TKPResponse, status_code=201, description="Добавление шаблона ТКП.")
 async def add_tkp_file(
