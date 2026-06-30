@@ -15,6 +15,8 @@ def convert_to_responce_format(data: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 class ElasticStatisticRepo(DatabaseStatistic):
+    """Репозиторий для работы с базой данных Elasticsearch. Реализует интерфейс DatabaseStatistic."""
+
     def __init__(self, model, db):
         super().__init__(model, db)
 
@@ -118,4 +120,22 @@ class ElasticStatisticRepo(DatabaseStatistic):
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    
+    async def search_by_key_and_value(self, key: str, value: str, skip: int = 0, limit: Optional[int] = None) -> list:
+        """Поиск по ключу и значению."""
+        body: dict = {
+            "query": {"match": {key: value}},
+            "sort": [{"date_search": {"order": "desc"}}]
+        }
+        if limit is not None:
+            body["from"] = skip
+            body["size"] = limit
+        try:
+            response = await asyncio.to_thread(
+                self.db.search, index=self.model, body=body
+            )
+            if response["hits"]["total"]["value"] == 0:
+                return []
+            result = [convert_to_responce_format(hit) for hit in response["hits"]["hits"]]
+            return result
+        except Exception as e:
+            return {"success": False, "error": str(e)}
