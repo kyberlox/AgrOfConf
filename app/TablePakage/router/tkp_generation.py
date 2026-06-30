@@ -38,9 +38,8 @@ def validate_file(file: UploadFile) -> None:
         raise HTTPException(status_code=400, detail="Invalid file extension. Allowed: .docx, .xlsx")
 
 async def convert_data(user_dict: dict, db_info: dict) -> dict:
-    today_time = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-    user_dict['дата'] = today_time
-    user_dict['номер_запроса'] = user_dict['id']
+    user_dict['дата'] = db_info['date_search']
+    user_dict['номер_запроса'] = db_info['id']
     user_dict['адрес_исполнителя'] = db_info['user_work_city']
     user_dict['телефон_исполнителя'] = db_info['user_work_phone']
     user_dict['email_исполнителя'] = db_info['user_email']
