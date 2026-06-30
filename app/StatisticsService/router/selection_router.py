@@ -85,6 +85,10 @@ class SelectionRouter:
     async def get_by_value(self, value: str, skip: int = 0, limit: Optional[int] = None,) -> List[Any]:
         """Получить все записи по значению."""
         return await self.repo.search_all_fields(value, skip=skip, limit=limit)
+    
+    async def get_number_document(self, user_id: int) -> int:
+        """Получить порядковый номер документа для указанного пользователя."""
+        return await self.repo.last_document_number(user_id)
 
 
 # ──────────────────────────────────────────────

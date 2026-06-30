@@ -120,6 +120,28 @@ class ElasticStatisticRepo(DatabaseStatistic):
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    async def last_document_number(self, user_id: int) -> int:
+        """
+        Возвращает порядковый номер документа указанного пользователя.
+        Сортировка по date_search desc, берётся только последняя запись.
+        Если записей нет — возвращает 0.
+        """
+        body: dict = {
+            "query": {"term": {"user_id": user_id}},
+            "sort": [{"date_search": {"order": "desc"}}],
+            "size": 1
+        }
+        try:
+            response = await asyncio.to_thread(
+                self.db.search, index=self.model, body=body
+            )
+            if response["hits"]["total"]["value"] == 0:
+                return 0
+            last_doc = response["hits"]["hits"][0]["_source"]
+            return last_doc.get("document_number", 0)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     async def search_by_key_and_value(self, key: str, value: str, skip: int = 0, limit: Optional[int] = None) -> list:
         """Поиск по ключу и значению."""
         body: dict = {
