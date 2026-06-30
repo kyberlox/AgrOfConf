@@ -80,7 +80,7 @@ class SelectionRouter:
         limit: Optional[int] = None,
     ) -> List[Any]:
         """Получить все записи по ключу и значению с пагинацией."""
-        return await self.repo.get_by_key_and_value(key, value, skip=skip, limit=limit) 
+        return await self.repo.search_by_key_and_value(key, value, skip=skip, limit=limit) 
     
 
 
