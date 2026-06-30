@@ -82,6 +82,9 @@ class SelectionRouter:
         """Получить все записи по ключу и значению с пагинацией."""
         return await self.repo.search_by_key_and_value(key, value, skip=skip, limit=limit) 
     
+    async def get_by_value(self, value: str, skip: int = 0, limit: Optional[int] = None,) -> List[Any]:
+        """Получить все записи по значению."""
+        return await self.repo.search_all_fields(value, skip=skip, limit=limit)
 
 
 # ──────────────────────────────────────────────
@@ -169,4 +172,14 @@ async def search_by_key_and_value(
     router_instance: SelectionRouter = Depends(get_selection_router)
 ):
     """Поиск по ключу и значению."""
-    return await router_instance.get_selection_by_key_and_value(key, value, skip=skip, limit=limit)
+    return await router_instance.search_by_key_and_value(key, value, skip=skip, limit=limit)
+
+@router.get("/search_by_value", status_code=200)
+async def search_by_value(
+    value: str,
+    skip: int = 0,
+    limit: int = 100,
+    router_instance: SelectionRouter = Depends(get_selection_router)
+):
+    """Поиск по значению."""
+    return await router_instance.get_by_value(value, skip=skip, limit=limit)
