@@ -169,4 +169,4 @@ async def search_by_key_and_value(
     router_instance: SelectionRouter = Depends(get_selection_router)
 ):
     """Поиск по ключу и значению."""
-    return await router_instance.search_by_key_and_value(key, value, skip=skip, limit=limit)
+    return await router_instance.get_selection_by_key_and_value(key, value, skip=skip, limit=limit)
