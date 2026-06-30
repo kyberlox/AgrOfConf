@@ -160,7 +160,7 @@ async def get_selection_by_id(
     """Получить запись подбора по ID."""
     return await router_instance.get_selection_by_id(record_id)
 
-@router.get("/search_by_key_and_value", status_code=200, response_model=List[SelectionResponse])
+@router.get("/search_by_key_and_value", status_code=200)
 async def search_by_key_and_value(
     key: str, 
     value: str,
