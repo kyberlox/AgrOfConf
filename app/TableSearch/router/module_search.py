@@ -10,7 +10,6 @@ from app.TablePakage.model.database import get_db
 from app.TableSearch.utils.dm_search import ensure_dm_exists, get_full_search_from_dm
 from ..utils.formula_search import search_formula
 
-
 router = APIRouter(prefix="/module_search", tags=["Module_search"])
 
 
@@ -306,6 +305,44 @@ async def get_available_values_for_error_param(
     )
 
 
+async def get_available_values_for_param(
+        db,
+        table_name,
+        table_params,
+        target_param_name,
+        selected_params
+):
+    selected_without_current = {
+        key: value
+        for key, value in selected_params.items()
+        if key != target_param_name
+    }
+
+    row, table_column_to_param = await get_table_params_from_sql(
+        db=db,
+        table_name=table_name,
+        table_params=table_params,
+        selected_params=selected_without_current,
+    )
+
+    target_column = None
+
+    for col, param_name in table_column_to_param.items():
+        if param_name == target_param_name:
+            target_column = col
+            break
+
+    if target_column is None or not row:
+        return []
+
+    values = row[target_column] or []
+
+    return sorted(
+        {str(value) for value in values},
+        key=natural_sort_key
+    )
+
+
 @router.post(
     "/process_table_data",
     description="Модуль табличного подбора",
@@ -567,7 +604,14 @@ async def process_table_data(
         )
 
         all_values = full_value_parameters.get(name) or []
-        filtered_value = parameters_for_response.get(name)
+
+        filtered_value = await get_available_values_for_param(
+            db=db,
+            table_name=table_name,
+            table_params=tables_map[table_name],
+            target_param_name=name,
+            selected_params=selected_params,
+        )
 
         error_item = error_by_key.get((table_name, name))
 
