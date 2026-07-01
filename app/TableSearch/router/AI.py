@@ -47,23 +47,29 @@ def _extract_json_from_response(text: str) -> dict:
     """Извлекает JSON из ответа нейросети.
     Устойчив к markdown-блокам ```json ... ``` и лишнему тексту после JSON.
     """
+    raw = text.strip()
+    print(f"[DEBUG] Ответ нейросети (первые 500 символов): {raw[:500]}")
+
     # 1. Ищем JSON в markdown-блоке ```json ... ```
-    match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', text, re.DOTALL)
+    match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', raw, re.DOTALL)
     if match:
-        text = match.group(1).strip()
+        raw = match.group(1).strip()
 
     # 2. Ищем крайние фигурные скобки и пробуем спарсить
-    brace_start = text.find('{')
-    brace_end = text.rfind('}')
+    brace_start = raw.find('{')
+    brace_end = raw.rfind('}')
     if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
-        candidate = text[brace_start:brace_end + 1]
+        candidate = raw[brace_start:brace_end + 1]
         try:
             return json.loads(candidate)
         except json.JSONDecodeError:
             pass
 
-    # 3. Прямой парсинг (если JSON чистый)
-    return json.loads(text)
+    # 3. Если не нашли { — возможно ответ в другом формате, пробуем весь текст
+    raise ValueError(
+        f"Не удалось извлечь JSON из ответа нейросети. "
+        f"Ответ (первые 500 символов): {raw[:500]}"
+    )
 
 
 @router.post("/upload_OL")
