@@ -88,10 +88,17 @@ async def upload_OL(
         
         res_params = {key: value for key, value in params.items() if key not in ['Цена /шт. руб без НДС', 'Цена /шт. руб с НДС 22%']}
         
+        agent_info = {
+            "Имя заказчика": '', 
+            "Телефон заказчика": '',
+            "Email заказчика": '',
+            "Организация заказчика": ''
+        }
+        total_params = res_params | agent_info
         if user_promt:
-            promt = f"{user_promt}. Шаблон - {params}"
+            promt = f"{user_promt}. Шаблон - {total_params}"
         else:
-            promt = get_promt(res_params)
+            promt = get_promt(total_params)
         
         
         content = await convert_file_to_jpeg_content(file)
