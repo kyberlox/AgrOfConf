@@ -1,12 +1,12 @@
 <template>
 <div class="rounded-[16px] p-[16px] gap-[8px] flex flex-col border border-[#EAECEF] bg-[#FDFDFD]">
-    <div class="rounded-[8px]  w-full p-[12px] flex flex-row justify-between items-center border border-[#EAECEF] hover:border-orange-500 transition duration-300 cursor-pointer w-fit"
+    <div v-if="isLogin"
+         class="rounded-[8px]  w-full p-[12px] flex flex-row justify-between items-center border border-[#EAECEF] hover:border-orange-500 transition duration-300 cursor-pointer w-fit"
          :class="sidebarRolledUp ? 'w-fit' : 'min-w-[283px]'"
          @click="sidebarRolledUp = !sidebarRolledUp">
         <div class="flex flex-row gap-[12px] items-center max-w-fit w-full">
             <!-- <span>{{ userAvatar }}</span> -->
             <div class="w-[40px] h-[40px] min-h-[40px] rounded-[8px] bg-cover"
-            
                  :style="{ backgroundImage: `url('${userAvatar}')` }">
             </div>
             <div class="flex flex-col gap-[4px] transition-all duration-300 ease-in-out"
@@ -25,7 +25,8 @@
         <ArrowLeft v-if="!sidebarRolledUp"
                    class="min-w-[5px] max-w-[5px] text-(--icon-secondary)" />
     </div>
-    <div v-for="(link, index) in sidebarLinks.filter(e => checkRights(e.name as string, requestsData))"
+    <div v-if="isLogin"
+         v-for="(link, index) in sidebarLinks.filter(e => checkRights(e.name as string, requestsData))"
          :key="'side' + index"
          class="text-(--icon-secondary) hover:text-(--icon-primary) p-[12px] cursor-pointer rounded-[8px] transition-all duration-300 w-fit"
          :class="[{ 'bg-[#FFF2E5] text-(--icon-primary)!': activeTab == link.route }, { 'w-full': !sidebarRolledUp }]"
@@ -53,10 +54,14 @@
                             :tabs="tabsCheck(link)"
                             :link="link.route" />
     </div>
-    <BaseButton :propsClass="'button-secondary'">
-        <div class="flex flex-row items-center justify-center">
+    <!-- Кнопка выйти -->
+    <BaseButton :propsClass="'button-secondary'"
+                @clicked="handleLoginClick">
+        <div class="flex flex-row items-center justify-center min-w-[283px]">
             <LogoutIcon />
-            <span :class="{ 'hidden': sidebarRolledUp }">Выйти</span>
+            <span :class="{ 'hidden': sidebarRolledUp }">
+                {{ isLogin ? 'Выйти' : 'Войти' }}
+            </span>
         </div>
     </BaseButton>
 </div>
@@ -89,6 +94,7 @@ export default defineComponent({
         const route = useRoute();
         const activeTab = ref();
         const sidebarRolledUp = ref(false);
+        const isLogin = computed(() => useUserStore().getIsLogin);
 
         watch((route), () => {
             if (route.name) activeTab.value = route.name
@@ -118,11 +124,16 @@ export default defineComponent({
             activeTab.value = route
         }
 
+        const handleLoginClick = () => {
+            isLogin.value ? useUserStore().setLogin(false) : router.push({ name: 'login' })
+        }
+
         return {
             requestsData,
             sidebarLinks,
             activeTab,
             mouseTab,
+            isLogin,
             tabsCheck: (link: { name: string }) => link.name == 'myRequests' ?
                 [{ title: 'Статус', name: 'status' }] :
                 [{ title: 'КО', name: 'ko' }, { title: 'Пользователь', name: 'user' }, { title: 'Статус', name: 'status' }],
@@ -132,7 +143,8 @@ export default defineComponent({
             sidebarRolledUp,
             user: computed(() => useUserStore().getUser),
             userFio: computed(() => useUserStore().getFio),
-            userAvatar: computed(() => useUserStore().getAvatar)
+            userAvatar: computed(() => useUserStore().getAvatar),
+            handleLoginClick
         }
     }
 });

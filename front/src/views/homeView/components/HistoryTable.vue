@@ -1,6 +1,12 @@
 <template>
 <div class="w-full overflow-x-auto">
-    <div class="min-w-max">
+    <!-- Заглушка если нет истории -->
+    <div v-if="!tableData.length || !isLogin"
+         class="2xl:mt-[100px] xl:mt-[20px] ">
+        <EmptyHistoryPlug @createOl="$emit('createOl')" />
+    </div>
+    <div v-else
+         class="min-w-max">
         <table class="w-full">
             <thead>
                 <tr class="bg-[#F6F7F9] h-[56px]">
@@ -30,6 +36,21 @@
                     </td>
                 </tr>
             </tbody>
+            <tbody v-else>
+                <tr class="bg-white hover:bg-gray-50 h-14 border-b border-gray-200 transition-colors"
+                    v-for="(tr, index) in tableData"
+                    :key="index + 'tableData'">
+                    <td v-for="(td, index) in tr"
+                        class="px-4 py-3 text-left text-sm font-medium text-gray-900 whitespace-nowrap first:pl-[48px]">
+                        <div class="flex items-center">
+                            <span class="truncate inline-block max-w-[200px]"
+                                  :class="Number(index) == 0 ? 'underline cursor-pointer hover:text-orange-500 transition-colors duration-300' : ''">
+                                {{ String(td).includes(':') ? td.split(' ')[0] : td }}
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
         </table>
     </div>
 </div>
@@ -39,17 +60,27 @@
 import { defineComponent, type PropType, computed, watch, ref } from 'vue';
 import ArrowDown from '@/assets/icons/ArrowDown.svg?component';
 import { useRoute } from 'vue-router';
+import EmptyHistoryPlug from '@/components/EmptyHistoryPlug.vue';
+import { useUserStore } from '@/stores/user.ts';
 
 export default defineComponent({
-    components: { ArrowDown },
+    components: { ArrowDown, EmptyHistoryPlug },
+    emits: ['createOl'],
     props: {
         currentTableNav: {
             type: String as PropType<'requests' | 'statistics'>,
             required: true
+        },
+        tableData: {
+            type: Array as PropType<string[][]>,
+            required: true
+        },
+        tableHead: {
+            type: Array as PropType<string[]>,
+            required: true
         }
     },
     setup(props) {
-        const tableHeadRequests = ref(['Шифр ОЛ', 'ОЛ №', 'Статус', 'Документ №', 'Готовность', 'Наименование', 'Шт.', 'Комментарий', 'Созд.', 'Готов']);
         const tableHeadStatistics = ref(['КО', 'ОЛ за мес.', 'ОЛ за год', 'ОЛ за все время', 'Запросов за мес.', 'Запросов за тек. мес.', 'Запросов за год', 'Запросов за все время'])
         const route = useRoute();
 
@@ -64,9 +95,10 @@ export default defineComponent({
             }
         }, { immediate: true, deep: true })
 
+
         return {
-            tableHead: computed(() => props.currentTableNav == 'requests' ? tableHeadRequests.value : tableHeadStatistics.value),
-            numericPlugs: computed(() => props.currentTableNav == 'statistics' ? ['Старый оскол', 60, 21, 450, 50, 5650, 5643150, 564314150] : []),
+            isLogin: computed(() => useUserStore().getIsLogin),
+            numericPlugs: computed(() => props.currentTableNav == 'statistics' ? ['Старый оскол', 60, 21, 450, 50, 5650, 5643150, 564314150] : undefined),
         }
     }
 })

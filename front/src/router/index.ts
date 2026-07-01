@@ -6,6 +6,15 @@ const router = createRouter({
   linkActiveClass: 'router-link-active',
   routes: [
     {
+      path: '/login',
+      name: 'login',
+      beforeEnter: (to, from, next) => {
+        window.open('https://intranet.emk.ru/api/auth_router/argconf');
+        next(false)
+      },
+      redirect: '',
+    },
+    {
       path: '/',
       name: 'homeview',
       redirect: '/my_requests',

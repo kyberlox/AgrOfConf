@@ -36,7 +36,7 @@ export default defineComponent({
         const formatToSelect = (variants: ITkpVariant[]) => {
             return variants.map((variant) => {
                 return {
-                    name: variant.name,
+                    label: variant.name,
                     value: variant.id
                 }
             })

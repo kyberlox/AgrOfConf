@@ -8,7 +8,7 @@
 </div>
 </template>
 <script lang='ts'>
-import { defineComponent, onMounted } from 'vue';
+import { defineComponent, onMounted, computed } from 'vue';
 import VHeader from './components/layout/VHeader.vue';
 import LeftSidebar from './components/layout/LeftSidebar.vue';
 import { type IUser } from './assets/interfaces/IUser.ts';
@@ -44,7 +44,9 @@ export default defineComponent({
       await authorize()
     })
 
-    return {}
+    return {
+      isLogin: computed(() => userStore.getIsLogin),
+    }
   }
 });
 </script>

@@ -1,12 +1,15 @@
 <template>
-    <div class="flex flex-col gap-[15px] w-[70vh] h-[70vh]  justify-center px-[25px]">
-        <h3 class="text-left mt-[15px]">Измените промпт или оставьте стандартный</h3>
-        <BaseTextarea :propsClass="'prompt-area'" :propsValue="defaultPromptToOCR"
-            @valueChanged="(newVal) => promptVal = newVal" />
-        <BaseButton :propsClass="'button-primary'" :disabled="docIsLoading" @clicked="sendToServer">
-            Отправить
-        </BaseButton>
-    </div>
+<div class="flex flex-col gap-[15px] w-[70vh] h-[70vh]  justify-center px-[25px]">
+    <h3 class="text-left mt-[15px]">Измените промпт или оставьте стандартный</h3>
+    <BaseTextarea :propsClass="'prompt-area'"
+                  :propsValue="defaultPromptToOCR"
+                  @valueChanged="(newVal) => promptVal = newVal" />
+    <BaseButton :propsClass="'button-primary'"
+                :disabled="docIsLoading"
+                @clicked="sendToServer">
+        Отправить
+    </BaseButton>
+</div>
 </template>
 <script lang='ts'>
 import SlotModal from '@/components/layout/SlotModal.vue';
@@ -34,11 +37,12 @@ export default defineComponent({
             required: true
         }
     },
-    setup(props) {
+    emits: ['closeModal'],
+    setup(props, { emit }) {
         const router = useRouter();
         const promptVal = ref(defaultPromptToOCR);
         const docIsLoading = ref(false);
-        
+
         const sendToServer = async () => {
             const newFormData = copyFormData(props.formData);
             newFormData.append('user_promt', promptVal.value);
@@ -55,6 +59,7 @@ export default defineComponent({
             }
             finally {
                 docIsLoading.value = false;
+                emit('closeModal');
             }
         }
 

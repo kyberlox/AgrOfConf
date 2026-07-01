@@ -15,8 +15,7 @@
                         <span>Черновик</span>
                     </div>
                 </div>
-                <UploadDocButton v-if="neuroOlData"
-                                 :type="'inConfig'" />
+
                 <div v-if="!neuroOlData"
                      class="flex flex-row gap-[11px] mt-[10px] items-center ml-auto">
                     <div class="font-normal">
@@ -47,7 +46,7 @@
                 </BaseButton>
             </div>
         </div>
-        <RightSidebar />
+        <RightSidebar @readyToUploadFile="handleFileUpload" />
     </div>
     <!-- Модалка для description -->
     <SlotModal v-if="modalVisible"
@@ -60,10 +59,17 @@
         <TkpVariants :tkpVariants="tkpVariants"
                      @downloadTkp="(id: number) => handleDownloadTkp(id)" />
     </SlotModal>
+    <!-- Модалка для промпта для распознавания -->
+    <SlotModal v-if="promptModalVisible"
+               @closeModal="promptModalVisible = false">
+        <PromptModal :formData="olFormData"
+                     :uploadedFileName="newFileName"
+                     @closeModal="promptModalVisible = false" />
+    </SlotModal>
 </div>
 </template>
 <script lang='ts'>
-import { defineComponent, onMounted, ref, computed } from 'vue';
+import { defineComponent, onMounted, ref, computed, watch } from 'vue';
 import { BaseButton } from 'beans-ui-kit';
 import Ellipse from '@/assets/icons/Ellipse.svg?component';
 import ArrowLeft from '@/assets/icons/ArrowLeft.svg?component';
@@ -111,6 +117,9 @@ export default defineComponent({
         const productName = ref('');
         const tkpVariants = ref<ITkpVariant[]>([]);
         const tkpModalIsVisible = ref(false);
+        const promptModalVisible = ref(false);
+        const olFormData = ref<FormData>(new FormData());
+        const newFileName = ref();
 
         const paramsUpdate = async (body: any | null) => {
             try {
@@ -155,8 +164,13 @@ export default defineComponent({
         }
 
         onMounted(() => {
-            paramsUpdate(null);
             getTkpVariants();
+            if (!neuroOlData.value)
+                paramsUpdate(null)
+
+        })
+
+        watch(neuroOlData, () => {
             if (neuroOlData.value) {
                 userInputs.value = neuroOlData.value
                 paramsUpdate(neuroOlDataStore.getOlInfo)
@@ -183,6 +197,12 @@ export default defineComponent({
             }
         }
 
+        const handleFileUpload = (file: FormData, fileName: string) => {
+            promptModalVisible.value = true;
+            olFormData.value = file;
+            newFileName.value = fileName;
+        }
+
         return {
             form,
             modalVisible,
@@ -192,8 +212,12 @@ export default defineComponent({
             productName,
             tkpModalIsVisible,
             tkpVariants,
+            promptModalVisible,
+            olFormData,
+            newFileName,
             handleValueChanged,
-            handleDownloadTkp
+            handleDownloadTkp,
+            handleFileUpload
         }
     }
 });

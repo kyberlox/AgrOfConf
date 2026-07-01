@@ -38,27 +38,25 @@
         </div>
 
         <!-- Создать запрос -->
-        <div class="flex items-center justify-end w-full px-[24px]"
-             v-if="!blankHistory">
+        <div v-if="tableData.length"
+             class="flex items-center justify-end w-full px-[24px]">
             <BaseButton :props-class="'button-primary'"
                         @clicked="showEngineModal = true">
                 <Blank class="w-[24px] h-[24px]" />
-                <span> Создать ОЛ</span>
+                <span>Создать ОЛ</span>
             </BaseButton>
         </div>
 
         <!--  Таблица запросов-->
-        <HistoryTable :currentTableNav="currentTableNav" />
+        <HistoryTable :currentTableNav="currentTableNav"
+                      :tableData="tableData"
+                      :tableHead="Object.keys(headerComparsion)"
+                      @create-ol="showEngineModal = true" />
 
         <!-- Статистика пользователя -->
         <div v-if="false"
              class="px-[24px]">
             <PersonalStatistics />
-        </div>
-        <!-- Заглушка если нет истории -->
-        <div v-if="blankHistory && currentTableNav == 'requests'"
-             class="2xl:mt-[40px] xl:mt-[20px] ">
-            <EmptyHistoryPlug @createOl="showEngineModal = true" />
         </div>
 
         <!-- Модалка для выбора изделия -->
@@ -71,7 +69,7 @@
 </div>
 </template>
 <script lang='ts'>
-import { defineComponent, onMounted, ref, computed } from 'vue';
+import { defineComponent, onMounted, ref, computed, watch } from 'vue';
 import { tableNav } from '@/assets/static/tableNav';
 import { BaseButton, BaseInput } from 'beans-ui-kit';
 import SearchIcon from '@/assets/icons/SearchIcon.svg?component';
@@ -79,12 +77,16 @@ import Blank from '@/assets/icons/Blank.svg?component';
 import EmptyHistoryPlug from '@/components/EmptyHistoryPlug.vue';
 import SlotModal from '@/components/layout/SlotModal.vue';
 import Api from '@/utils/Api';
-import EnginePick from '@/views/homeView/components/EnginePick.vue'
+import EnginePick from '@/views/homeView/components/EnginePickModal.vue'
 import Configurator from '../configurator/Configurator.vue';
 import { useProductsData } from '@/stores/products';
 import { useNavStore } from '@/stores/navigation.ts';
 import HistoryTable from './components/HistoryTable.vue';
 import PersonalStatistics from './components/PersonalStatistics.vue';
+import { useUserStore } from '@/stores/user.ts';
+import { useHistoryStore } from '@/stores/historyTable.ts';
+import { headerComparsion, formatResultToHistory } from '@/utils/historyTable.ts';
+import { type IHistory } from '@/assets/interfaces/IHistory.ts';
 
 export default defineComponent({
     components: {
@@ -100,21 +102,34 @@ export default defineComponent({
         PersonalStatistics
     },
     setup(props) {
-        const blankHistory = ref(true);
         const showEngineModal = ref(false);
         const engines = ref([]);
         const engineId = ref();
         const section = ref('Тест');
         const currentTableNav = computed(() => useNavStore().getCurrentNav);
         const navStore = useNavStore();
+        const tableData = computed(() => useHistoryStore().getHistoryData);
+        const userId = computed(() => useUserStore().getId);
 
-        onMounted(() => {
-            Api.get('products/?skip=0&limit=100')
-                .then((data) => {
-                    useProductsData().setProducts(data);
-                    engines.value = data;
-                })
+        onMounted(async () => {
+            try {
+                const data = await Api.get('products/?skip=0&limit=100')
+                useProductsData().setProducts(data);
+                engines.value = data;
+            } catch (error) {
+                console.error('Error fetching products:', error);
+            }
         })
+
+        watch(() => userId.value, async () => {
+            if (userId.value && !tableData.value.length)
+                try {
+                    const historyData: IHistory[] = await Api.get(`selection_statistic/selection/by-user/${userId.value}`)
+                    useHistoryStore().setHistoryData(formatResultToHistory(historyData))
+                } catch (error) {
+                    console.error('Error history:', error)
+                }
+        }, { immediate: true })
 
         const handlePageTypeChange = (newType: "requests" | "statistics") => {
             navStore.setCurrentNav(newType)
@@ -123,12 +138,14 @@ export default defineComponent({
         return {
             engineId,
             tableNav,
-            blankHistory,
             showEngineModal,
             engines,
             section,
             currentTableNav,
+            tableData,
+            headerComparsion,
             handlePageTypeChange,
+
         }
     }
 });

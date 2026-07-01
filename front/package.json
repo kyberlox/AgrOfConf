@@ -15,7 +15,7 @@
     "@tailwindcss/vite": "^4.2.1",
     "@vueuse/core": "^14.2.1",
     "axios": "^1.13.6",
-    "beans-ui-kit": "^0.0.46",
+    "beans-ui-kit": "^0.0.47",
     "chart.js": "^4.5.1",
     "downloadjs": "^1.4.7",
     "pinia": "^3.0.4",

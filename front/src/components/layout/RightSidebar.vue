@@ -1,5 +1,6 @@
 <template>
 <div class="flex flex-col gap-[16px] lg:max-w-[344px] md:max-w-fit">
+    <UploadDocButton @readyToUploadFile="(file, fileName) => handleFileUpload(file, fileName)" />
     <!-- Блок параметров запроса -->
     <div v-if="featuresFlags.rightSidebar.description"
          class="sidebar-block">
@@ -104,17 +105,23 @@ import DownloadIcon from '@/assets/icons/DownloadIcon.svg?component';
 import FileIcon from '@/assets/icons/FileIcon.svg?component';
 import { useConfiguratorStore } from '@/stores/configurator';
 import { featuresFlags } from '@/assets/static/featuresFlags.ts';
+import UploadDocButton from '@/views/homeView/components/UploadDocButton.vue';
 
 export default defineComponent({
     components: {
         BaseButton,
         DownloadIcon,
-        FileIcon
+        FileIcon,
+        UploadDocButton
     },
     props: {},
-    setup() {
+    setup(_, { emit }) {
         const activeImgBlock = ref();
         const configuratorStore = useConfiguratorStore();
+
+        const handleFileUpload = (file: FormData, fileName: string) => {
+            emit('readyToUploadFile', file, fileName);
+        }
 
         return {
             reqParameters: [
@@ -127,7 +134,8 @@ export default defineComponent({
             error: computed(() => configuratorStore.getError),
             errorStatus: computed(() => configuratorStore.getErrorStatus),
             featuresFlags,
-            status: computed(() => configuratorStore.getStatus)
+            status: computed(() => configuratorStore.getStatus),
+            handleFileUpload
         }
     }
 });

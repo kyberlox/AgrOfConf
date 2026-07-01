@@ -1,7 +1,7 @@
 <template>
 <div class="dropzone-container p-[20px] w-[480px] max-w-full border border-(--color-information-orange-200) hover:bg-(--color-information-orange-200) transition-all duration-300 cursor-pointer border-dotted flex flex-col gap-[4px] rounded-[12px] text-center"
-     :class="[{ 'bg-(--color-information-green-50) hover:bg-(--color-information-green-150)!': type == 'inConfig' },
-    isDragOver && type !== 'inConfig' ? 'bg-(--color-information-orange-200)' : isDragOver && type == 'inConfig' ? 'bg-(--color-information-green-150)!' : '']"
+     :class="[{ 'bg-(--color-information-green-50) hover:bg-(--color-information-green-150)!': uploadedFileName },
+    isDragOver && uploadedFileName ? 'bg-(--color-information-orange-200)' : isDragOver && uploadedFileName ? 'bg-(--color-information-green-150)!' : '']"
      @dragover.prevent
      @dragover="isDragOver = true"
      @dragleave="isDragOver = false"
@@ -13,9 +13,9 @@
            id="docUpload"
            accept="image/*,.pdf"
            @change="uploadFile">
-           
+
     <div @click="handleClick">
-        <div v-if="!uploadedFileName && type == 'outer'"
+        <div v-if="!uploadedFileName"
              class="dz-message">
             <span class="text-[16px] font-semibold text-(--color-information-orange-800)">
                 Распознать ОЛ
@@ -28,7 +28,7 @@
             </span>
         </div>
 
-        <div v-else-if="type == 'inConfig'"
+        <div v-else-if="uploadedFileName"
              class="flex flex-row items-center justify-between">
             <div class="flex flex-col gap-[4px] text-left">
                 <span class="text-[16px] font-semibold text-(--text-text-primary)">
@@ -57,12 +57,6 @@ import { useNeuroOlData } from '@/stores/neuroOl';
 
 export default defineComponent({
     name: 'UploadDocButton',
-    props: {
-        type: {
-            type: String,
-            default: 'outer'
-        }
-    },
     emits: ['readyToUploadFile'],
     setup(_, { emit }) {
         const fileInput = ref<HTMLInputElement | null>(null);
@@ -97,7 +91,7 @@ export default defineComponent({
             uploadToServer(formData);
         };
 
-        const uploadToServer =  (formData: FormData) => {
+        const uploadToServer = (formData: FormData) => {
             emit('readyToUploadFile', formData, uploadedFileName.value)
         }
 
