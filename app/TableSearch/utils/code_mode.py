@@ -999,15 +999,15 @@ class CodeParametr:
         param = self._get_param_by_name("Цена /шт. руб с НДС 22%", selection_result)
         counter = param['sort'] + 1
         res = []
-        contact_info = ["Имя агента", "Телефон агента", "Email агента", "Организация агента", "Проектная организация", "Комментарий"]
+        contact_info = ["Имя заказчика", "Телефон заказчика", "Email заказчика", "Организация заказчика", "Проектная организация", "Комментарий"]
         
-        result = self._set_params(selection_result, counter, "Имя агента", sort=counter, param_type='user_input')
+        result = self._set_params(selection_result, counter, "ФИО заказчика", sort=counter, param_type='user_input')
         counter += 1
-        result = self._set_params(result, counter, "Телефон агента",sort=counter, param_type='user_input')
+        result = self._set_params(result, counter, "Телефон заказчика",sort=counter, param_type='user_input')
         counter += 1
-        result = self._set_params(result, counter, "Email агента", sort=counter, param_type='user_input')
+        result = self._set_params(result, counter, "Email заказчика", sort=counter, param_type='user_input')
         counter += 1
-        result = self._set_params(result, counter, "Организация агента", sort=counter, param_type='user_input')
+        result = self._set_params(result, counter, "Организация заказчика", sort=counter, param_type='user_input')
         counter += 1
         result = self._set_params(result, counter, "Проектная организация", sort=counter, param_type='user_input')
         counter += 1

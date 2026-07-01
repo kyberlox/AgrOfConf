@@ -1,8 +1,5 @@
-# from fastapi import FastAPI, UploadFile, File, HTTPException, APIRouter
-# import json
-# import re
-
-from typing import Dict, Any, Optional 
+import re
+from typing import Dict, Any, Optional
 
 # import os
 # from pathlib import Path
@@ -46,6 +43,35 @@ client = AsyncOpenAI(api_key = key_api, base_url=vseGPTurl)
 router = APIRouter(prefix="/AI", tags=[""])
 
 
+def _extract_json_from_response(text: str) -> dict:
+    """Извлекает JSON из ответа нейросети.
+    Устойчив к markdown-блокам ```json ... ``` и лишнему тексту после JSON.
+    """
+    raw = text.strip()
+    print(f"[DEBUG] Ответ нейросети (первые 500 символов): {raw[:500]}")
+
+    # 1. Ищем JSON в markdown-блоке ```json ... ```
+    match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', raw, re.DOTALL)
+    if match:
+        raw = match.group(1).strip()
+
+    # 2. Ищем крайние фигурные скобки и пробуем спарсить
+    brace_start = raw.find('{')
+    brace_end = raw.rfind('}')
+    if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
+        candidate = raw[brace_start:brace_end + 1]
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            pass
+
+    # 3. Если не нашли { — возможно ответ в другом формате, пробуем весь текст
+    raise ValueError(
+        f"Не удалось извлечь JSON из ответа нейросети. "
+        f"Ответ (первые 500 символов): {raw[:500]}"
+    )
+
+
 @router.post("/upload_OL")
 async def upload_OL(
     product_id: int,
@@ -62,10 +88,17 @@ async def upload_OL(
         
         res_params = {key: value for key, value in params.items() if key not in ['Цена /шт. руб без НДС', 'Цена /шт. руб с НДС 22%']}
         
+        agent_info = {
+            "Имя заказчика": '', 
+            "Телефон заказчика": '',
+            "Email заказчика": '',
+            "Организация заказчика": ''
+        }
+        total_params = res_params | agent_info
         if user_promt:
-            promt = f"{user_promt}. Шаблон - {params}"
+            promt = f"{user_promt}. Шаблон - {total_params}"
         else:
-            promt = get_promt(res_params)
+            promt = get_promt(total_params)
         
         
         content = await convert_file_to_jpeg_content(file)
@@ -75,51 +108,23 @@ async def upload_OL(
 
         content.append({"type": "text", "text": promt})
 
-        # response = await client.chat.completions.create(
-        #     model=model_type,
-        #     max_tokens=8000,
-        #     messages=[{"role": "user", "content": content}],
-        #     response_format={"type": "json_object"}
-        # )
-        # res = response.model_dump()
-        # total_coast = res['usage']['total_cost']
-        total_coast = 3.101
-        # need = res['choices'][0]['message']['content']
-        # parsed_need = json.loads(need)
-        # parsed_need = {
-        #     "Устройство принудительного открытия": "не требуется",
-        #     "Сильфон": "не требуется",
-        #     "Тип конструкции": "Клапан пружинный",
-        #     "Номинальный диаметр": "100",
-        #     "Номинальное давление": "100",
-        #     "Тип присоединения к трубопроводу": "фланцевое",
-        #     "Фланцевое исполнение": "с КОФ",
-        #     "Тип уплотнения затвора": "металл-металл",
-        #     "Материал корпуса": "20ГЛ/20ГМЛ",
-        #     "По способу сброса рабочей среды ": "закрытого типа",
-        #     "Упаковка": "на поддон",
-        #     "Наличие КОФ": "с КОФ",
-        #     "Наличие ЗИП": "ЗИП на 2 года",
-        #     "Маркировка": "АМ211.100.16.3310"
-        # }
-        parsed_need = {
-            "Устройство принудительного открытия": "не требуется",
-            "Сильфон": "не требуется",
-            "Тип конструкции": "Клапан пружинный",
-            "Номинальный диаметр": "100",
-            "Номинальное давление": "10 МПа",
-            "По способу сброса рабочей среды ": "закрытого типа",
-            "Упаковка": "-",
-            "Наличие КОФ": "с КОФ",
-            "Наличие ЗИП": "-"
-        }
+        response = await client.chat.completions.create(
+            model=model_type,
+            max_tokens=8000,
+            messages=[{"role": "user", "content": content}],
+            response_format={"type": "json_object"}
+        )
+        res = response.model_dump()
+        total_coast = res['usage']['total_cost']
+        need = res['choices'][0]['message']['content']
+        parsed_need = _extract_json_from_response(need)
         
         # Сохраняем статистику
-        # stat_info = await build_statistic_data(db, user_id, product_id)
-        # stat_info['parameters'] = parsed_need
-        # stat_info['total_coast'] = total_coast0
+        stat_info = await build_statistic_data(db, user_id, product_id)
+        stat_info['parameters'] = parsed_need
+        stat_info['total_coast'] = total_coast
         
-        # is_dump = await statistic_router.save_recognition(stat_info)
+        is_dump = await statistic_router.save_recognition(stat_info)
         fin_all = time.time()
         print(f"Распознали ОЛ за {fin_all - start_all}")
         return parsed_need

@@ -10,11 +10,11 @@ async def build_statistic_data(db, user_id: int, product_id: int):
     product_info_row = stmt.fetchone()
     product_info = dict(product_info_row._mapping)
     user_info = dict(user_info_row._mapping)
-    
+    date_search = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     result = {
         "product_id": product_info.get("id"),
         "user_id": user_info.get("id"),
-
+        "date_search": date_search,
         # Product fields
         "product_name": product_info.get("name", ""),
         "product_description": product_info.get("description", ""),

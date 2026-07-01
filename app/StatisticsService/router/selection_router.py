@@ -71,6 +71,24 @@ class SelectionRouter:
     ) -> List[Any]:
         """Получить все записи для указанного продукта с пагинацией."""
         return await self.repo.get_by_product_id(product_id, skip=skip, limit=limit)
+    
+    async def get_selection_by_key_and_value(
+        self,
+        key: str,
+        value: str,
+        skip: int = 0,
+        limit: Optional[int] = None,
+    ) -> List[Any]:
+        """Получить все записи по ключу и значению с пагинацией."""
+        return await self.repo.search_by_key_and_value(key, value, skip=skip, limit=limit) 
+    
+    async def get_by_value(self, value: str, skip: int = 0, limit: Optional[int] = None,) -> List[Any]:
+        """Получить все записи по значению."""
+        return await self.repo.search_all_fields(value, skip=skip, limit=limit)
+    
+    async def get_number_document(self, user_id: int) -> int:
+        """Получить порядковый номер документа для указанного пользователя."""
+        return await self.repo.last_document_number(user_id)
 
 
 # ──────────────────────────────────────────────
@@ -148,3 +166,24 @@ async def get_selection_by_id(
 ):
     """Получить запись подбора по ID."""
     return await router_instance.get_selection_by_id(record_id)
+
+@router.get("/search_by_key_and_value", status_code=200)
+async def search_by_key_and_value(
+    key: str, 
+    value: str,
+    skip: int = 0,
+    limit: int = 100,
+    router_instance: SelectionRouter = Depends(get_selection_router)
+):
+    """Поиск по ключу и значению."""
+    return await router_instance.search_by_key_and_value(key, value, skip=skip, limit=limit)
+
+@router.get("/search_by_value", status_code=200)
+async def search_by_value(
+    value: str,
+    skip: int = 0,
+    limit: int = 100,
+    router_instance: SelectionRouter = Depends(get_selection_router)
+):
+    """Поиск по значению."""
+    return await router_instance.get_by_value(value, skip=skip, limit=limit)
