@@ -63,6 +63,7 @@ def create_selection_index():
                 "user_work_city": {"type": "keyword"},  # "Саратов"
                 "user_work_phone": {"type": "keyword"},  # телефон может содержать '5219' или "+7 (999) 123-45-67"
                 "document_number": {"type": "long"},
+                "status": {"type": "keyword"},  # выполнен или нет
                 # --- Доп. поля для полнотекстового поиска ---
                 # "full_text": {
                 #     "type": "text",

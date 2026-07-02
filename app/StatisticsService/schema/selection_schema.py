@@ -1,7 +1,7 @@
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, Union
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 class SelectionData(BaseModel):
     """Модель данных для статистики подбора ОЛ."""
@@ -28,3 +28,30 @@ class SelectionResponse(BaseModel):
     success: bool
     data: Optional[Any] = None
     error: Optional[str] = None
+
+
+class PeriodStat(BaseModel):
+    """Статистика за период: текущее значение, предыдущее, разница."""
+    current: int
+    previous: int
+    diff: int
+
+
+class StatisticsResponse(BaseModel):
+    """Ответ со статистикой по документам."""
+    month: PeriodStat
+    day: PeriodStat
+    year: PeriodStat
+    total: int
+
+
+class UpdateStatusRequest(BaseModel):
+    """Запрос на обновление статуса документа."""
+    status: str
+    id: Union[int, str]
+
+    @field_validator("status")
+    def validate_status(cls, v):
+        if v not in ["Открыт", "Завершен", "Отклонен"]:
+            raise ValueError("Invalid status")
+        return v

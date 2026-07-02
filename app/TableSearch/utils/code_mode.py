@@ -999,7 +999,7 @@ class CodeParametr:
         param = self._get_param_by_name("Цена /шт. руб с НДС 22%", selection_result)
         counter = param['sort'] + 1
         res = []
-        contact_info = ["Имя заказчика", "Телефон заказчика", "Email заказчика", "Организация заказчика", "Проектная организация", "Комментарий"]
+        contact_info = ["ФИО заказчика", "Телефон заказчика", "Email заказчика", "Организация заказчика"]
         
         result = self._set_params(selection_result, counter, "ФИО заказчика", sort=counter, param_type='user_input')
         counter += 1
@@ -1012,6 +1012,10 @@ class CodeParametr:
         result = self._set_params(result, counter, "Проектная организация", sort=counter, param_type='user_input')
         counter += 1
         result = self._set_params(result, counter, "Комментарий", sort=counter, param_type='user_input')
+        counter += 1
+        result = self._set_params(result, counter, "Должность заказчика", sort=counter, param_type='user_input')
+        counter += 1
+        result = self._set_params(result, counter, "Адрес заказчика", sort=counter, param_type='user_input')
 
         if not select_formula_params:
             return {"total_change" : result}
