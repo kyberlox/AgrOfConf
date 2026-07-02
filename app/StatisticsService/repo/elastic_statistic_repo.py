@@ -96,7 +96,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
             filter_keys.append({"term": {"status": status}})
         if ko_users:
             filter_keys.append({"terms": {"user_id": ko_users}})
-
+        print(status, 'че приходит')
         date_range = {}
         if date_from is not None:
             date_range["gte"] = date_from + " 00:00:00"
