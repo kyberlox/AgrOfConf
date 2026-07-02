@@ -96,7 +96,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
             filter_keys.append({"match": {"status": status}})
         if ko_users:
             filter_keys.append({"terms": {"user_id": [str(uid) for uid in ko_users]}})
-            
+
         date_range = {}
         if date_from is not None:
             date_range["gte"] = date_from + " 00:00:00"
@@ -191,7 +191,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
         if product_id:
             filter_keys.append({"term": {"product_id": str(product_id)}})
         if status:
-            filter_keys.append({"term": {"status": status}})
+            filter_keys.append({"match": {"status": status}})
         if ko_users:
             filter_keys.append({"terms": {"user_id": [str(uid) for uid in ko_users]}})
 
@@ -269,7 +269,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
         if product_id is not None:
             filter_conditions.append({"term": {"product_id": str(product_id)}})
         if status is not None:
-            filter_conditions.append({"term": {"status": status}})
+            filter_conditions.append({"match": {"status": status}})
         if ko_users:
             filter_conditions.append({"terms": {"user_id": [str(uid) for uid in ko_users]}})
 
