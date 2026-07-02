@@ -92,18 +92,19 @@ class ElasticStatisticRepo(DatabaseStatistic):
             filter_keys.append({"term": {"user_id": user_id}})
         if product_id:
             filter_keys.append({"term": {"product_id": product_id}})
-        if status:
+        if status is not None:
             filter_keys.append({"term": {"status": status}})
+            print(f"status filter applied: '{status}'")
+        else:
+            print("status is None")
         if ko_users:
             filter_keys.append({"terms": {"user_id": ko_users}})
-       
         date_range = {}
         if date_from is not None:
             date_range["gte"] = date_from + " 00:00:00"
         if date_to is not None:
             date_range["lte"] = date_to + " 23:59:59"
-
-        if date_range:  # <-- Добавляем только если есть хоть одна граница
+        if date_range:
             filter_keys.append({"range": {"date_search": date_range}})
 
         if filter_keys:
@@ -116,6 +117,9 @@ class ElasticStatisticRepo(DatabaseStatistic):
                 "query": {"match_all": {}},
                 "sort": [{"date_search": {"order": "desc"}}]
             }
+        import json
+        print(f"get_all body: {json.dumps(body, ensure_ascii=False, indent=2)}")
+
 
         if limit is not None:
             body["from"] = skip
