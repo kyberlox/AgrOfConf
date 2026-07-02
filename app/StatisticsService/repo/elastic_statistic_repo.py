@@ -2,7 +2,8 @@ import asyncio
 from typing import Optional, Union, Dict, Any, List
 from elasticsearch import NotFoundError
 from fastapi import HTTPException
-from datetime import datetime
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 
 from .abstracktion_repo import DatabaseStatistic
 
@@ -417,5 +418,154 @@ class ElasticStatisticRepo(DatabaseStatistic):
                 result.append(doc)
 
             return result
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def get_statistics(
+        self,
+        user_id: Optional[int] = None,
+        ko_users: Optional[List[int]] = None,
+    ) -> dict:
+        """
+        Возвращает статистику по документам:
+          - за текущий месяц (+ разница с прошлым месяцем)
+          - за текущий день (+ разница с прошлым днём)
+          - за текущий год (+ разница с прошлым годом)
+          - за всё время
+
+        Аргументы:
+            user_id: фильтр по одному пользователю.
+            ko_users: фильтр по списку пользователей.
+
+        Возвращает словарь:
+            {
+                "month": {"current": int, "previous": int, "diff": int},
+                "day":   {"current": int, "previous": int, "diff": int},
+                "year":  {"current": int, "previous": int, "diff": int},
+                "total": int,
+            }
+        """
+        now = datetime.now()
+
+        # --- Общий фильтр по пользователям ---
+        user_filter = []
+        if user_id is not None:
+            user_filter.append({"term": {"user_id": user_id}})
+        if ko_users:
+            user_filter.append({"terms": {"user_id": ko_users}})
+
+        def _build_count_body(
+            gte: Optional[str] = None,
+            lte: Optional[str] = None,
+        ) -> dict:
+            """Собрать body для _count с фильтром по дате и пользователям."""
+            filters = []
+            if gte is not None or lte is not None:
+                range_clause = {}
+                if gte is not None:
+                    range_clause["gte"] = gte
+                if lte is not None:
+                    range_clause["lte"] = lte
+                filters.append({"range": {"date_search": range_clause}})
+            filters.extend(user_filter)
+
+            if filters:
+                return {"query": {"bool": {"filter": filters}}}
+            return {"query": {"match_all": {}}}
+
+        def _format_date(dt: datetime) -> str:
+            return dt.strftime("%d.%m.%Y %H:%M:%S")
+
+        try:
+            # --- Месяц ---
+            month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            prev_month_start = (month_start - relativedelta(months=1)).replace(day=1)
+            prev_month_end = month_start - timedelta(seconds=1)
+
+            month_current = await asyncio.to_thread(
+                self.db.count,
+                index=self.model,
+                body=_build_count_body(
+                    gte=_format_date(month_start),
+                    lte=_format_date(now),
+                ),
+            )
+            month_previous = await asyncio.to_thread(
+                self.db.count,
+                index=self.model,
+                body=_build_count_body(
+                    gte=_format_date(prev_month_start),
+                    lte=_format_date(prev_month_end),
+                ),
+            )
+
+            # --- День ---
+            day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            prev_day_start = day_start - timedelta(days=1)
+            prev_day_end = day_start - timedelta(seconds=1)
+
+            day_current = await asyncio.to_thread(
+                self.db.count,
+                index=self.model,
+                body=_build_count_body(
+                    gte=_format_date(day_start),
+                    lte=_format_date(now),
+                ),
+            )
+            day_previous = await asyncio.to_thread(
+                self.db.count,
+                index=self.model,
+                body=_build_count_body(
+                    gte=_format_date(prev_day_start),
+                    lte=_format_date(prev_day_end),
+                ),
+            )
+
+            # --- Год ---
+            year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            prev_year_start = year_start.replace(year=year_start.year - 1)
+            prev_year_end = year_start - timedelta(seconds=1)
+
+            year_current = await asyncio.to_thread(
+                self.db.count,
+                index=self.model,
+                body=_build_count_body(
+                    gte=_format_date(year_start),
+                    lte=_format_date(now),
+                ),
+            )
+            year_previous = await asyncio.to_thread(
+                self.db.count,
+                index=self.model,
+                body=_build_count_body(
+                    gte=_format_date(prev_year_start),
+                    lte=_format_date(prev_year_end),
+                ),
+            )
+
+            # --- Всё время ---
+            total = await asyncio.to_thread(
+                self.db.count,
+                index=self.model,
+                body=_build_count_body(),
+            )
+
+            def _get_count(response) -> int:
+                return response.get("count", 0)
+
+            mc = _get_count(month_current)
+            mp = _get_count(month_previous)
+            dc = _get_count(day_current)
+            dp = _get_count(day_previous)
+            yc = _get_count(year_current)
+            yp = _get_count(year_previous)
+            tc = _get_count(total)
+
+            return {
+                "month": {"current": mc, "previous": mp, "diff": mc - mp},
+                "day":   {"current": dc, "previous": dp, "diff": dc - dp},
+                "year":  {"current": yc, "previous": yp, "diff": yc - yp},
+                "total": tc,
+            }
         except Exception as e:
             return {"success": False, "error": str(e)}

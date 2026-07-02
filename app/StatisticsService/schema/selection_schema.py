@@ -28,3 +28,18 @@ class SelectionResponse(BaseModel):
     success: bool
     data: Optional[Any] = None
     error: Optional[str] = None
+
+
+class PeriodStat(BaseModel):
+    """Статистика за период: текущее значение, предыдущее, разница."""
+    current: int
+    previous: int
+    diff: int
+
+
+class StatisticsResponse(BaseModel):
+    """Ответ со статистикой по документам."""
+    month: PeriodStat
+    day: PeriodStat
+    year: PeriodStat
+    total: int
