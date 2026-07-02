@@ -99,7 +99,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
 
         date_range = {}
         if date_from is not None:
-            date_range["gte"] = date_from.strftime("%d.%m.%Y %H:%M:%S")
+            date_range["gte"] = date_from
         date_range["lte"] = date_to
         if not date_to:
             date_range["lte"] = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
