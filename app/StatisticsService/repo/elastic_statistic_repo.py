@@ -93,7 +93,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
         if product_id:
             filter_keys.append({"term": {"product_id": str(product_id)}})
         if status is not None and status != "":
-            filter_keys.append({"term": {"status": status}})
+            filter_keys.append({"match": {"status": status}})
             print(f"status filter applied: '{status}'")
         else:
             print("status is None")
