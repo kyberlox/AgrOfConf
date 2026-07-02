@@ -100,12 +100,11 @@ class ElasticStatisticRepo(DatabaseStatistic):
         date_range = {}
         if date_from is not None:
             date_range["gte"] = date_from + " 00:00:00"
-        
-        if not date_to:
-            date_range["lte"] = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-        else:
-            date_range["lte"] = date_to + " 00:00:00"
-        filter_keys.append({"range": {"date_search": date_range}})
+        if date_to is not None:
+            date_range["lte"] = date_to + " 23:59:59"
+
+        if date_range:  # <-- Добавляем только если есть хоть одна граница
+            filter_keys.append({"range": {"date_search": date_range}})
 
         if filter_keys:
             body: dict = {
