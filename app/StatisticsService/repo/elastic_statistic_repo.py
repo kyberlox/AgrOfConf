@@ -93,12 +93,10 @@ class ElasticStatisticRepo(DatabaseStatistic):
         if product_id:
             filter_keys.append({"term": {"product_id": str(product_id)}})
         if status is not None and status != "":
-            filter_keys.append({"term": {"status": status}})
-            print(f"status filter applied: '{status}'")
-        else:
-            print("status is None")
+            filter_keys.append({"match": {"status": status}})
         if ko_users:
             filter_keys.append({"terms": {"user_id": [str(uid) for uid in ko_users]}})
+
         date_range = {}
         if date_from is not None:
             date_range["gte"] = date_from + " 00:00:00"
@@ -109,11 +107,12 @@ class ElasticStatisticRepo(DatabaseStatistic):
 
         if filter_keys:
             body: dict = {
-                "query": {
-                    "constant_score": {
-                        "filter": {"bool": {"filter": filter_keys}}
-                    }
-                },
+                # "query": {
+                #     "constant_score": {
+                #         "filter": {"bool": {"filter": filter_keys}}
+                #     }
+                # },
+                "query": {"bool": {"filter": filter_keys}},
                 "sort": [{"date_search": {"order": "desc"}}]
             }
         else:
@@ -124,8 +123,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
         if limit is not None:
             body["from"] = skip
             body["size"] = limit
-        import json
-        print(f"FINAL get_all body: {json.dumps(body, ensure_ascii=False, indent=2)}")
+        
         try:
             response = await asyncio.to_thread(
                 self.db.search, index=self.model, body=body
@@ -193,7 +191,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
         if product_id:
             filter_keys.append({"term": {"product_id": str(product_id)}})
         if status:
-            filter_keys.append({"term": {"status": status}})
+            filter_keys.append({"match": {"status": status}})
         if ko_users:
             filter_keys.append({"terms": {"user_id": [str(uid) for uid in ko_users]}})
 
@@ -271,7 +269,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
         if product_id is not None:
             filter_conditions.append({"term": {"product_id": str(product_id)}})
         if status is not None:
-            filter_conditions.append({"term": {"status": status}})
+            filter_conditions.append({"match": {"status": status}})
         if ko_users:
             filter_conditions.append({"terms": {"user_id": [str(uid) for uid in ko_users]}})
 
