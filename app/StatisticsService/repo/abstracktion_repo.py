@@ -24,13 +24,5 @@ class DatabaseStatistic(ABC):
     def get_by_id(self, id: Union[str, int]):
         pass
 
-    @abstractmethod
-    def get_by_user_id(self, user_id: int, skip: int = 0, limit: Optional[int] = None):
-        pass
-
-    @abstractmethod
-    def get_by_product_id(self, product_id: int, skip: int = 0, limit: Optional[int] = None):
-        pass
-
 
 

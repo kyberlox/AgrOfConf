@@ -1,7 +1,8 @@
 import asyncio
-from typing import Optional, Union, Dict, Any
+from typing import Optional, Union, Dict, Any, List
 from elasticsearch import NotFoundError
 from fastapi import HTTPException
+from datetime import datetime
 
 from .abstracktion_repo import DatabaseStatistic
 
@@ -49,11 +50,45 @@ class ElasticStatisticRepo(DatabaseStatistic):
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    async def get_all(self, skip: int = 0, limit: Optional[int] = None):
-        body: dict = {
-            "query": {"match_all": {}},
-            "sort": [{"date_search": {"order": "desc"}}]
-        }
+    async def get_all(
+        self,
+        user_id: Optional[int] = None,
+        product_id: Optional[int] = None,
+        status: Optional[str] = None,
+        ko_users: Optional[List[int]] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+        skip: int = 0,
+        limit: Optional[int] = None,
+    ) -> list:
+        filter_keys = []
+        if user_id:
+            filter_keys.append({"term": {"user_id": user_id}})
+        if product_id:
+            filter_keys.append({"term": {"product_id": product_id}})
+        if status:
+            filter_keys.append({"term": {"status": status}})
+        if ko_users:
+            filter_keys.append({"terms": {"user_id": ko_users}})
+
+        date_to = date_to or datetime.now()
+        date_range = {}
+        if date_from is not None:
+            date_range["gte"] = date_from.strftime("%d.%m.%Y %H:%M:%S")
+        date_range["lte"] = date_to.strftime("%d.%m.%Y %H:%M:%S")
+        filter_keys.append({"range": {"date_search": date_range}})
+
+        if filter_keys:
+            body: dict = {
+                "query": {"bool": {"must": {"match_all": {}}, "filter": filter_keys}},
+                "sort": [{"date_search": {"order": "desc"}}]
+            }
+        else:
+            body: dict = {
+                "query": {"match_all": {}},
+                "sort": [{"date_search": {"order": "desc"}}]
+            }
+
         if limit is not None:
             body["from"] = skip
             body["size"] = limit
@@ -82,44 +117,6 @@ class ElasticStatisticRepo(DatabaseStatistic):
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    async def get_by_user_id(self, user_id: int, skip: int = 0, limit: Optional[int] = None):
-        body: dict = {
-            "query": {"term": {"user_id": user_id}},
-            "sort": [{"date_search": {"order": "desc"}}]
-        }
-        if limit is not None:
-            body["from"] = skip
-            body["size"] = limit
-        try:
-            response = await asyncio.to_thread(
-                self.db.search, index=self.model, body=body
-            )
-            if response["hits"]["total"]["value"] == 0:
-                return []
-            result = [convert_to_responce_format(hit) for hit in response["hits"]["hits"]]
-            return result
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
-    async def get_by_product_id(self, product_id: int, skip: int = 0, limit: Optional[int] = None):
-        body: dict = {
-            "query": {"term": {"product_id": product_id}},
-            "sort": [{"date_search": {"order": "desc"}}]
-        }
-        if limit is not None:
-            body["from"] = skip
-            body["size"] = limit
-        try:
-            response = await asyncio.to_thread(
-                self.db.search, index=self.model, body=body
-            )
-            if response["hits"]["total"]["value"] == 0:
-                return []
-            result = [convert_to_responce_format(hit) for hit in response["hits"]["hits"]]
-            return result
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
     async def last_document_number(self, user_id: int) -> int:
         """
         Возвращает порядковый номер документа указанного пользователя.
@@ -142,12 +139,48 @@ class ElasticStatisticRepo(DatabaseStatistic):
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    async def search_by_key_and_value(self, key: str, value: str, skip: int = 0, limit: Optional[int] = None) -> list:
+    async def search_by_key_and_value(
+        self,
+        key: str,
+        value: Union[str, int, float],
+        user_id: Optional[int] = None,
+        product_id: Optional[int] = None,
+        status: Optional[str] = None,
+        ko_users: Optional[List[int]] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+        skip: int = 0,
+        limit: Optional[int] = None,
+    ) -> list:
         """Поиск по ключу и значению."""
-        body: dict = {
-            "query": {"match": {key: value}},
-            "sort": [{"date_search": {"order": "desc"}}]
-        }
+        filter_keys = []
+        if user_id:
+            filter_keys.append({"term": {"user_id": user_id}})
+        if product_id:
+            filter_keys.append({"term": {"product_id": product_id}})
+        if status:
+            filter_keys.append({"term": {"status": status}})
+        if ko_users:
+            filter_keys.append({"terms": {"user_id": ko_users}})
+
+        date_to = date_to or datetime.now()
+        date_range = {}
+        if date_from is not None:
+            date_range["gte"] = date_from.strftime("%d.%m.%Y %H:%M:%S")
+        date_range["lte"] = date_to.strftime("%d.%m.%Y %H:%M:%S")
+        filter_keys.append({"range": {"date_search": date_range}})
+
+        if filter_keys:
+            body: dict = {
+                "query": {"bool": {"must": {"match": {key: value}}, "filter": filter_keys}},
+                "sort": [{"date_search": {"order": "desc"}}]
+            }
+        else:
+            body: dict = {
+                "query": {"match": {key: value}},
+                "sort": [{"date_search": {"order": "desc"}}]
+            }
+
         if limit is not None:
             body["from"] = skip
             body["size"] = limit
@@ -165,6 +198,12 @@ class ElasticStatisticRepo(DatabaseStatistic):
     async def search_all_fields(
         self,
         value: Union[str, int, float],
+        user_id: Optional[int] = None,
+        product_id: Optional[int] = None,
+        status: Optional[str] = None,
+        ko_users: Optional[List[int]] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
         skip: int = 0,
         limit: Optional[int] = None,
         highlight_pre_tag: str = "<em>",
@@ -188,6 +227,24 @@ class ElasticStatisticRepo(DatabaseStatistic):
         """
         is_numeric = isinstance(value, (int, float))
         str_value = str(value)
+
+        # --- Фильтры (опциональные параметры) ---
+        filter_conditions = []
+        if user_id is not None:
+            filter_conditions.append({"term": {"user_id": user_id}})
+        if product_id is not None:
+            filter_conditions.append({"term": {"product_id": product_id}})
+        if status is not None:
+            filter_conditions.append({"term": {"status": status}})
+        if ko_users:
+            filter_conditions.append({"terms": {"user_id": ko_users}})
+
+        date_to = date_to or datetime.now()
+        date_range = {}
+        if date_from is not None:
+            date_range["gte"] = date_from.strftime("%d.%m.%Y %H:%M:%S")
+        date_range["lte"] = date_to.strftime("%d.%m.%Y %H:%M:%S")
+        filter_conditions.append({"range": {"date_search": date_range}})
 
         # --- Базовый запрос: ищем по всем полям ---
         if is_numeric:
@@ -242,53 +299,57 @@ class ElasticStatisticRepo(DatabaseStatistic):
                     ]
                 }
             })
-            query = {"bool": {"must": must_conditions}}
+            bool_query = {"must": must_conditions}
+            if filter_conditions:
+                bool_query["filter"] = filter_conditions
+            query = {"bool": bool_query}
         else:
             # Для строк: multi_match по текстовым полям + query_string по keyword
-            query = {
-                "bool": {
-                    "should": [
-                        # Текстовые поля с русским анализатором
-                        {"multi_match": {
-                            "query": str_value,
-                            "type": "cross_fields",
-                            "fields": [
-                                "product_name^3",
-                                "product_description",
-                                "user_fio^2",
-                                "user_email",
-                                "user_directorate",
-                                "user_work_position",
-                                "user_department",
-                                "user_work_city",
-                                "user_work_phone",
-                                "parameters.*_text",
-                            ],
-                            "operator": "or",
-                        }},
-                        # keyword-поля (точное совпадение или префикс)
-                        {"query_string": {
-                            "query": str_value,
-                            "fields": [
-                                "product_id",
-                                "user_id",
-                                "product_manufacturer",
-                                "user_uuid",
-                                "user_email",
-                                "user_directorate",
-                                "user_work_position",
-                                "user_department",
-                                "user_work_city",
-                                "user_work_phone",
-                                "total_coast",
-                                "parameters.*",
-                            ],
-                            "default_operator": "OR",
-                        }},
-                    ],
-                    "minimum_should_match": 1,
-                }
+            bool_query = {
+                "should": [
+                    # Текстовые поля с русским анализатором
+                    {"multi_match": {
+                        "query": str_value,
+                        "type": "cross_fields",
+                        "fields": [
+                            "product_name^3",
+                            "product_description",
+                            "user_fio^2",
+                            "user_email",
+                            "user_directorate",
+                            "user_work_position",
+                            "user_department",
+                            "user_work_city",
+                            "user_work_phone",
+                            "parameters.*_text",
+                        ],
+                        "operator": "or",
+                    }},
+                    # keyword-поля (точное совпадение или префикс)
+                    {"query_string": {
+                        "query": str_value,
+                        "fields": [
+                            "product_id",
+                            "user_id",
+                            "product_manufacturer",
+                            "user_uuid",
+                            "user_email",
+                            "user_directorate",
+                            "user_work_position",
+                            "user_department",
+                            "user_work_city",
+                            "user_work_phone",
+                            "total_coast",
+                            "parameters.*",
+                        ],
+                        "default_operator": "OR",
+                    }},
+                ],
+                "minimum_should_match": 1,
             }
+            if filter_conditions:
+                bool_query["filter"] = filter_conditions
+            query = {"bool": bool_query}
 
         # --- Highlight: подсветка совпадений ---
         highlight = {
