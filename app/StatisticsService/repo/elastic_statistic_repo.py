@@ -109,11 +109,12 @@ class ElasticStatisticRepo(DatabaseStatistic):
 
         if filter_keys:
             body: dict = {
-                "query": {
-                    "constant_score": {
-                        "filter": {"bool": {"filter": filter_keys}}
-                    }
-                },
+                # "query": {
+                #     "constant_score": {
+                #         "filter": {"bool": {"filter": filter_keys}}
+                #     }
+                # },
+                "query": {"bool": {"filter": filter_keys}},
                 "sort": [{"date_search": {"order": "desc"}}]
             }
         else:
