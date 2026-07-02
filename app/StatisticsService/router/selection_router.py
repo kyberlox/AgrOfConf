@@ -181,15 +181,14 @@ async def delete_selection(
     return await router_instance.delete_selection(record_id)
 
 
-@router.patch("/selection/{record_id}/status", response_model=SelectionResponse)
+@router.put("/update_status", response_model=SelectionResponse)
 async def update_selection_status(
-    record_id: str,
     body: UpdateStatusRequest,
     router_instance: SelectionRouter = Depends(get_selection_router),
 ):
     """Обновить статус документа подбора."""
     return await router_instance.update_selection_status(
-        record_id=record_id,
+        record_id=body.id,
         status=body.status,
     )
 
