@@ -192,7 +192,7 @@ async def get_all_selection(
         skip=skip, limit=limit,
     )
 
-@router.get("/selection/statistics", status_code=200)
+@router.get("/metrics", status_code=200)
 async def get_selection_statistics(
     user_id: Optional[int] = Query(None, description="ID пользователя"),
     ko_users: Optional[List[int]] = Query(None, description="Список ID пользователей"),
