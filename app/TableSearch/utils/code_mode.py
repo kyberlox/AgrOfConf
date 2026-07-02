@@ -1012,6 +1012,10 @@ class CodeParametr:
         result = self._set_params(result, counter, "Проектная организация", sort=counter, param_type='user_input')
         counter += 1
         result = self._set_params(result, counter, "Комментарий", sort=counter, param_type='user_input')
+        counter += 1
+        result = self._set_params(result, counter, "Должность заказчика", sort=counter, param_type='user_input')
+        counter += 1
+        result = self._set_params(result, counter, "Адрес заказчика", sort=counter, param_type='user_input')
 
         if not select_formula_params:
             return {"total_change" : result}
