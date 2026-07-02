@@ -46,7 +46,8 @@
                         <div class="flex items-center">
                             <span class="truncate inline-block max-w-[200px]"
                                   :class="Number(index) == 0 ? 'underline cursor-pointer hover:text-orange-500 transition-colors duration-300' : ''">
-                                {{ String(td).includes(':') ? td.split(' ')[0] : td }}
+                                {{ String(td).includes(':') ? td.split(' ')[0] : String(td) == 'undefined' ?
+                                    'Не определено' : td }}
                             </span>
                         </div>
                     </td>

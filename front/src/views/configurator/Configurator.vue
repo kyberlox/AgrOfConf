@@ -2,7 +2,8 @@
 <div class="p-[32px] w-full bg-[#FDFDFD] max-w-full border border-gray-200 rounded-xl">
     <div class="flex flex-row gap-[24px] flex-wrap md:flex-wrap lg:flex-nowrap">
         <div class="flex flex-col gap-[24px] w-full">
-            <div class="flex flex-row items-start justify-between lg:flex-wrap xl:flex-nowrap w-full gap-y-[20px] ">
+            <div
+                 class="flex flex-row items-start justify-between lg:flex-wrap xl:flex-wrap xxl:flex-nowrap w-full gap-y-[20px] ">
                 <div class="flex flex-row gap-[16px] items-center w-full max-w-[650px]">
                     <RouterLink :to="{ name: 'homeview' }"
                                 class="w-[24px] h-[24px] rounded-[16px] bg-[#F6F7F9] cursor-pointer flex self-start mt-[7px]">

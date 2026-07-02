@@ -57,7 +57,8 @@
     <!-- Кнопка выйти -->
     <BaseButton :propsClass="'button-secondary'"
                 @clicked="handleLoginClick">
-        <div class="flex flex-row items-center justify-center min-w-[283px]">
+        <div class="flex flex-row items-center justify-center "
+             :class="{ 'min-w-[283px]': !sidebarRolledUp }">
             <LogoutIcon />
             <span :class="{ 'hidden': sidebarRolledUp }">
                 {{ isLogin ? 'Выйти' : 'Войти' }}
