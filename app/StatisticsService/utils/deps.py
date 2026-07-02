@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 from sqlalchemy import text
 
 
-async def build_statistic_data(db, user_id: int, product_id: int):
+async def build_statistic_data(db, user_id: int, product_id: int, status='Завершен'): #Статусы Отклонен, Открыт, Завершен
     stmt = await db.execute(text("SELECT * FROM users WHERE id = :id"), {"id": user_id})
     user_info_row = stmt.fetchone()
     stmt = await db.execute(text("SELECT * FROM products WHERE id = :id"), {"id": product_id})
@@ -32,6 +32,7 @@ async def build_statistic_data(db, user_id: int, product_id: int):
         "user_department": user_info.get("department") or "",
         "user_work_city": user_info.get("work_city") or "",
         "user_work_phone": user_info.get("work_phone") or "",
+        "status": status,
     }
 
     return result

@@ -44,47 +44,82 @@ class SelectionRouter:
 
     async def get_all_selection(
         self,
+        user_id: Optional[int] = None,
+        product_id: Optional[int] = None,
+        status: Optional[str] = None,
+        ko_users: Optional[List[int]] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
         skip: int = 0,
         limit: Optional[int] = None,
     ) -> List[Any]:
         """Получить все записи подбора с пагинацией."""
-        return await self.repo.get_all(skip=skip, limit=limit)
+        return await self.repo.get_all(
+            user_id=user_id,
+            product_id=product_id,
+            status=status,
+            ko_users=ko_users,
+            date_to=date_to,
+            date_from=date_from,
+            skip=skip,
+            limit=limit,
+        )
 
     async def get_selection_by_id(self, record_id: Union[str, int]) -> Any:
         """Получить запись по идентификатору."""
         return await self.repo.get_by_id(record_id)
-
-    async def get_selection_by_user_id(
-        self,
-        user_id: int,
-        skip: int = 0,
-        limit: Optional[int] = None,
-    ) -> List[Any]:
-        """Получить все записи для указанного пользователя с пагинацией."""
-        return await self.repo.get_by_user_id(user_id, skip=skip, limit=limit)
-
-    async def get_selection_by_product_id(
-        self,
-        product_id: int,
-        skip: int = 0,
-        limit: Optional[int] = None,
-    ) -> List[Any]:
-        """Получить все записи для указанного продукта с пагинацией."""
-        return await self.repo.get_by_product_id(product_id, skip=skip, limit=limit)
     
     async def get_selection_by_key_and_value(
         self,
         key: str,
         value: str,
+        user_id: Optional[int] = None,
+        product_id: Optional[int] = None,
+        status: Optional[str] = None,
+        ko_users: Optional[List[int]] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
         skip: int = 0,
         limit: Optional[int] = None,
     ) -> List[Any]:
         """Получить все записи по ключу и значению с пагинацией."""
-        return await self.repo.search_by_key_and_value(key, value, skip=skip, limit=limit) 
+        return await self.repo.search_by_key_and_value(
+            key=key,
+            value=value,
+            user_id=user_id,
+            product_id=product_id,
+            status=status,
+            ko_users=ko_users,
+            date_to=date_to,
+            date_from=date_from,
+            skip=skip,
+            limit=limit,
+        ) 
     
-    async def get_by_value(self, value: str, skip: int = 0, limit: Optional[int] = None,) -> List[Any]:
-        """Получить все записи по значению."""
-        return await self.repo.search_all_fields(value, skip=skip, limit=limit)
+    async def get_by_value(
+        self,
+        value: str,
+        user_id: Optional[int] = None,
+        product_id: Optional[int] = None,
+        status: Optional[str] = None,
+        ko_users: Optional[List[int]] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+        skip: int = 0,
+        limit: Optional[int] = None,
+    ) -> List[Any]:
+        """Получить все записи по значению с опциональными фильтрами."""
+        return await self.repo.search_all_fields(
+            value,
+            user_id=user_id,
+            product_id=product_id,
+            status=status,
+            ko_users=ko_users,
+            date_to=date_to,
+            date_from=date_from,
+            skip=skip,
+            limit=limit,
+        )
     
     async def get_number_document(self, user_id: int) -> int:
         """Получить порядковый номер документа для указанного пользователя."""
@@ -125,39 +160,26 @@ async def delete_selection(
 
 @router.get("/selection")
 async def get_all_selection(
+    user_id: Optional[int],
+    product_id: Optional[int],
+    status: Optional[str],
+    ko_users: Optional[List[int]] = Query(None, description="Список ID пользователей"),
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
     skip: int = Query(0, ge=0, description="Сколько записей пропустить"),
     limit: Optional[int] = Query(None, ge=1, description="Максимальное количество записей"),
     router_instance: SelectionRouter = Depends(get_selection_router),
 ):
     """Получить все записи подбора с пагинацией."""
-    return await router_instance.get_all_selection(skip=skip, limit=limit)
-
-
-@router.get("/selection/by-user/{user_id}")
-async def get_selection_by_user(
-    user_id: Optional[int],
-    skip: int = Query(0, ge=0, description="Сколько записей пропустить"),
-    limit: Optional[int] = Query(None, ge=1, description="Максимальное количество записей"),
-    router_instance: SelectionRouter = Depends(get_selection_router),
-):
-    """Получить все записи подбора для пользователя с пагинацией."""
-    return await router_instance.get_selection_by_user_id(
-        user_id, skip=skip, limit=limit,
+    return await router_instance.get_all_selection(
+        user_id=user_id, 
+        product_id=product_id, 
+        status=status, 
+        ko_users=ko_users, 
+        date_from=date_from, 
+        date_to=date_to, 
+        skip=skip, limit=limit,
     )
-
-
-@router.get("/selection/by-product/{product_id}")
-async def get_selection_by_product(
-    product_id: int,
-    skip: int = Query(0, ge=0, description="Сколько записей пропустить"),
-    limit: Optional[int] = Query(None, ge=1, description="Максимальное количество записей"),
-    router_instance: SelectionRouter = Depends(get_selection_router),
-):
-    """Получить все записи подбора для продукта с пагинацией."""
-    return await router_instance.get_selection_by_product_id(
-        product_id, skip=skip, limit=limit,
-    )
-
 
 @router.get("/selection/{record_id}")
 async def get_selection_by_id(
@@ -171,19 +193,50 @@ async def get_selection_by_id(
 async def search_by_key_and_value(
     key: str, 
     value: str,
+    user_id: Optional[int],
+    product_id: Optional[int],
+    status: Optional[str],
+    ko_users: Optional[List[int]] = Query(None, description="Список ID пользователей"),
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
     skip: int = 0,
     limit: int = 100,
     router_instance: SelectionRouter = Depends(get_selection_router)
 ):
     """Поиск по ключу и значению."""
-    return await router_instance.search_by_key_and_value(key, value, skip=skip, limit=limit)
+    return await router_instance.search_by_key_and_value(
+        key, value, 
+        user_id=user_id,    
+        product_id=product_id, 
+        status=status, 
+        ko_users=ko_users, 
+        date_from=date_from, 
+        date_to=date_to,
+        skip=skip, limit=limit,
+    )
 
 @router.get("/search_by_value", status_code=200)
 async def search_by_value(
     value: str,
-    skip: int = 0,
-    limit: int = 100,
+    user_id: Optional[int] = Query(None, description="ID пользователя"),
+    product_id: Optional[int] = Query(None, description="ID продукта"),
+    status: Optional[str] = Query(None, description="Статус"),
+    ko_users: Optional[List[int]] = Query(None, description="Список ID пользователей"),
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
+    skip: int = Query(0, ge=0, description="Сколько записей пропустить"),
+    limit: int = Query(100, ge=1, description="Максимальное количество записей"),
     router_instance: SelectionRouter = Depends(get_selection_router)
 ):
-    """Поиск по значению."""
-    return await router_instance.get_by_value(value, skip=skip, limit=limit)
+    """Поиск по значению с опциональными фильтрами."""
+    return await router_instance.get_by_value(
+        value,
+        user_id=user_id,
+        product_id=product_id,
+        status=status,
+        ko_users=ko_users,
+        date_from=date_from,
+        date_to=date_to,
+        skip=skip,
+        limit=limit,
+    )
