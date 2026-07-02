@@ -160,9 +160,9 @@ async def delete_selection(
 
 @router.get("/selection")
 async def get_all_selection(
-    user_id: Optional[int],
-    product_id: Optional[int],
-    status: Optional[str],
+    user_id: Optional[int] = None,
+    product_id: Optional[int] = None,
+    status: Optional[str] = None,
     ko_users: Optional[List[int]] = Query(None, description="Список ID пользователей"),
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
@@ -193,9 +193,9 @@ async def get_selection_by_id(
 async def search_by_key_and_value(
     key: str, 
     value: str,
-    user_id: Optional[int],
-    product_id: Optional[int],
-    status: Optional[str],
+    user_id: Optional[int] = None,
+    product_id: Optional[int] = None,
+    status: Optional[str] = None,
     ko_users: Optional[List[int]] = Query(None, description="Список ID пользователей"),
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
