@@ -1,8 +1,12 @@
 <template>
 <div class="mt-[24px] px-[24px] flex-wrap">
     <section class="flex flex-row gap-[32px] ">
-        <StatisticsOL :statBlocks="statBlocks" />
+        <StatisticsBlocks :statBlocks="statBlocks"
+                          :type="'ol'" />
         <StatisticsPie />
+        <StatisticsBlocks :statBlocks="statBlocks"
+                          :type="'requests'" />
+
     </section>
 
     <section class="mt-[24px] py-[24px] rounded-[16px] border border-[#D3D7DF]">
@@ -21,13 +25,13 @@ import PulseIcon from '@/assets/icons/Pulse.svg?component';
 import type { IStatisticBlock, IStatisticResponse } from '@/assets/interfaces/IStatistic.ts';
 import { useUserStore } from '@/stores/user.ts';
 import Api from '@/utils/Api.ts';
-import StatisticsOL from './StatisticsOL.vue';
+import StatisticsBlocks from './StatisticsBlocks.vue';
 import StatisticsPie from './StatisticsPie.vue';
 
 export default defineComponent({
     components: {
         StatisticsChart,
-        StatisticsOL,
+        StatisticsBlocks,
         StatisticsPie,
         ThunderIcon,
         TimeIcon,
@@ -39,10 +43,10 @@ export default defineComponent({
     setup() {
         const userId = computed(() => useUserStore().getId);
         const statBlocks = ref<IStatisticBlock[]>([
-            { name: 'month', title: 'ОЛ за тек. месяц', value: null, icon: markRaw(ThunderIcon), undertext: 'к предыдущему месяцу', comparsion: null },
-            { name: 'day', title: 'ОЛ за день', value: null, icon: markRaw(TimeIcon), undertext: 'к предыдущему дню', comparsion: null },
-            { name: 'year', title: 'ОЛ за год', value: null, icon: markRaw(PulseIcon), undertext: 'к предыдущему году', comparsion: null },
-            { name: 'total', title: 'ОЛ за все время', value: null, icon: markRaw(CalendarIcon), undertext: 'с начала работы', comparsion: null }
+            { name: 'month', title: 'за тек. месяц', value: null, icon: markRaw(ThunderIcon), undertext: 'к предыдущему месяцу', comparsion: null },
+            { name: 'day', title: 'за день', value: null, icon: markRaw(TimeIcon), undertext: 'к предыдущему дню', comparsion: null },
+            { name: 'year', title: 'за год', value: null, icon: markRaw(PulseIcon), undertext: 'к предыдущему году', comparsion: null },
+            { name: 'total', title: 'за все время', value: null, icon: markRaw(CalendarIcon), undertext: 'с начала работы', comparsion: null }
         ]);
 
         watch(() => userId.value, async () => {

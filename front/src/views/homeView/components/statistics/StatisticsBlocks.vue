@@ -1,7 +1,9 @@
 <template>
 <div class="pr-[32px] border-r border-[#EAECEF]">
     <div class="flex flex-row gap-[16px] items-center max-w-[560px]">
-        <div class="min-w-fit text-[16px] font-[700] leading-[120%] text-(--text-text-primary)">Опросные листы(ОЛ)</div>
+        <div class="min-w-fit text-[16px] font-[700] leading-[120%] text-(--text-text-primary)">
+            {{ pageTitle }}
+        </div>
         <div class="divider"></div>
     </div>
     <div class="mt-[16px] grid grid-cols-2 gap-[16px] max-w-[560px]">
@@ -12,7 +14,7 @@
             <div class="flex flex-row items-center justify-between">
                 <div class="font-bold text-[14px] text-(--color-information-gray-400)"
                      :class="{ 'text-(--color-information-orange-800)': index == 0 }">
-                    {{ block.title }}
+                    {{ `${type == 'ol' ? 'ОЛ' : 'Запросы'}` }} {{ block.title }}
                 </div>
                 <div class="w-[30px] h-[30px] rounded-[8px] bg-(--color-information-gray-50) flex items-center justify-center"
                      :class="{ 'bg-(--color-information-orange-100)': index == 0 }">
@@ -46,7 +48,7 @@
 </div>
 </template>
 <script lang='ts'>
-import { defineComponent } from 'vue';
+import { defineComponent, computed } from 'vue';
 import GraphToTop from '@/assets/icons/GraphToTop.svg?component';
 import GraphToDown from '@/assets/icons/GraphToDown.svg?component';
 import type { IStatisticBlock } from '@/assets/interfaces/IStatistic.ts';
@@ -60,12 +62,17 @@ export default defineComponent({
         statBlocks: {
             type: Array<IStatisticBlock>,
             required: true
+        },
+        type: {
+            type: String,
+            default: 'ol'
         }
     },
-    setup() {
+    setup(props) {
         return {
             GraphToTop,
-            GraphToDown
+            GraphToDown,
+            pageTitle: computed(() => props.type == 'ol' ? 'Опросные листы(ОЛ)' : 'Запросы')
         }
     }
 });

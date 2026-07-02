@@ -33,15 +33,28 @@ export default defineComponent({
 
         const chartData = {
             labels: monthes,
+            Tooltip: true,
             datasets: [
                 {
-                    label: 'Ряд 1',
+                    label: 'За текущий год',
                     data: [10, 0, 14, 20, 2, 2, 6, 7, 9, 23, 11, 9],
                     borderColor: '#F36E3C',
                     tension: 0.4,
                     pointRadius: 5,
                     pointHoverRadius: 6,
                     backgroundColor: '#F36E3C',
+                    pointHitRadius: 100,
+                    pointBorderColor: '#FFFFFF',
+                    pointBorderWidth: 2,
+                },
+                {
+                    label: 'За прошлый год',
+                    data: [1, 3, 4, 7, 2, 2, 6, 7, 0, 0, 1, 0],
+                    borderColor: '#8E99A8',
+                    tension: 0.4,
+                    pointRadius: 5,
+                    pointHoverRadius: 6,
+                    backgroundColor: '#8E99A8',
                     pointHitRadius: 100,
                     pointBorderColor: '#FFFFFF',
                     pointBorderWidth: 2,
