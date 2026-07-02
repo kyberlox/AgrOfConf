@@ -121,6 +121,17 @@ class SelectionRouter:
             limit=limit,
         )
     
+    async def get_statistics(
+        self,
+        user_id: Optional[int] = None,
+        ko_users: Optional[List[int]] = None,
+    ) -> dict:
+        """Получить статистику по документам."""
+        return await self.repo.get_statistics(
+            user_id=user_id,
+            ko_users=ko_users,
+        )
+
     async def get_number_document(self, user_id: int) -> int:
         """Получить порядковый номер документа для указанного пользователя."""
         return await self.repo.last_document_number(user_id)
@@ -239,4 +250,17 @@ async def search_by_value(
         date_to=date_to,
         skip=skip,
         limit=limit,
+    )
+
+
+@router.get("/selection/statistics", status_code=200)
+async def get_selection_statistics(
+    user_id: Optional[int] = Query(None, description="ID пользователя"),
+    ko_users: Optional[List[int]] = Query(None, description="Список ID пользователей"),
+    router_instance: SelectionRouter = Depends(get_selection_router),
+):
+    """Получить статистику по документам подбора."""
+    return await router_instance.get_statistics(
+        user_id=user_id,
+        ko_users=ko_users,
     )
