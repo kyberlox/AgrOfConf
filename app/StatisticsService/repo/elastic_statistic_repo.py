@@ -82,8 +82,8 @@ class ElasticStatisticRepo(DatabaseStatistic):
         product_id: Optional[int] = None,
         status: Optional[str] = None,
         ko_users: Optional[List[int]] = None,
-        date_from: Optional[datetime] = None,
-        date_to: Optional[datetime] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
         skip: int = 0,
         limit: Optional[int] = None,
     ) -> list:
@@ -97,11 +97,12 @@ class ElasticStatisticRepo(DatabaseStatistic):
         if ko_users:
             filter_keys.append({"terms": {"user_id": ko_users}})
 
-        date_to = date_to or datetime.now()
         date_range = {}
         if date_from is not None:
             date_range["gte"] = date_from.strftime("%d.%m.%Y %H:%M:%S")
-        date_range["lte"] = date_to.strftime("%d.%m.%Y %H:%M:%S")
+        date_range["lte"] = date_to
+        if not date_to:
+            date_range["lte"] = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         filter_keys.append({"range": {"date_search": date_range}})
 
         if filter_keys:
