@@ -9,7 +9,7 @@ from ..repo.elastic_statistic_repo import ElasticStatisticRepo
 from ..set.settings import SELECTION_INDEX
 from ..model.database import get_statistic_db
 
-from ..schema.selection_schema import SelectionData, SelectionResponse
+from ..schema.selection_schema import SelectionData, SelectionResponse, UpdateStatusRequest, StatisticsResponse
 
 from app.UserService.utils.auth_utils import get_user_id_by_session_id
 
@@ -38,6 +38,18 @@ class SelectionRouter:
         """Удалить запись по идентификатору."""
         try:
             result = await self.repo.delete(record_id)
+            return SelectionResponse(success=True, data=result)
+        except Exception as e:
+            return SelectionResponse(success=False, error=str(e))
+
+    async def update_selection_status(
+        self,
+        record_id: Union[str, int],
+        status: str,
+    ) -> SelectionResponse:
+        """Обновить статус документа."""
+        try:
+            result = await self.repo.update_status(record_id, status)
             return SelectionResponse(success=True, data=result)
         except Exception as e:
             return SelectionResponse(success=False, error=str(e))
@@ -169,6 +181,19 @@ async def delete_selection(
     return await router_instance.delete_selection(record_id)
 
 
+@router.patch("/selection/{record_id}/status", response_model=SelectionResponse)
+async def update_selection_status(
+    record_id: str,
+    body: UpdateStatusRequest,
+    router_instance: SelectionRouter = Depends(get_selection_router),
+):
+    """Обновить статус документа подбора."""
+    return await router_instance.update_selection_status(
+        record_id=record_id,
+        status=body.status,
+    )
+
+
 @router.get("/selection")
 async def get_all_selection(
     user_id: Optional[int] = None,
@@ -192,7 +217,7 @@ async def get_all_selection(
         skip=skip, limit=limit,
     )
 
-@router.get("/metrics", status_code=200)
+@router.get("/metrics", status_code=200, response_model=StatisticsResponse)
 async def get_selection_statistics(
     user_id: Optional[int] = Query(None, description="ID пользователя"),
     ko_users: Optional[List[int]] = Query(None, description="Список ID пользователей"),

@@ -51,6 +51,31 @@ class ElasticStatisticRepo(DatabaseStatistic):
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    async def update_status(self, id: Union[str, int], status: str) -> dict:
+        """
+        Обновляет поле status у документа по его _id.
+        Использует Elasticsearch _update API (partial update).
+        """
+        try:
+            response = await asyncio.to_thread(
+                self.db.update,
+                index=self.model,
+                id=str(id),
+                body={"doc": {"status": status}},
+            )
+            data = {
+                "index": response.get("_index"),
+                "id": response.get("_id"),
+                "result": response.get("result"),
+                "version": response.get("_version"),
+            }
+            print(response, 'Че приходит')
+            return {"success": True, "elastic_response": data}
+        except NotFoundError:
+            raise HTTPException(status_code=404, detail="Document not found")
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     async def get_all(
         self,
         user_id: Optional[int] = None,
