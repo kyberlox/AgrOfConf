@@ -94,11 +94,9 @@ class ElasticStatisticRepo(DatabaseStatistic):
             filter_keys.append({"term": {"product_id": str(product_id)}})
         if status is not None and status != "":
             filter_keys.append({"match": {"status": status}})
-            print(f"status filter applied: '{status}'")
-        else:
-            print("status is None")
         if ko_users:
             filter_keys.append({"terms": {"user_id": [str(uid) for uid in ko_users]}})
+            
         date_range = {}
         if date_from is not None:
             date_range["gte"] = date_from + " 00:00:00"
@@ -125,8 +123,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
         if limit is not None:
             body["from"] = skip
             body["size"] = limit
-        import json
-        print(f"FINAL get_all body: {json.dumps(body, ensure_ascii=False, indent=2)}")
+        
         try:
             response = await asyncio.to_thread(
                 self.db.search, index=self.model, body=body
