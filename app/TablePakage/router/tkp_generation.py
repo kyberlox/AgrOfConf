@@ -72,7 +72,7 @@ async def tkp_generation(
         if not all(key in user_dict for key in contact_info):
             raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
 
-        filename = f"TKP_{to_sql_name_lat(user_dict['Имя агента'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
+        filename = f"TKP_{to_sql_name_lat(user_dict['ФИО заказчика'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
 
         # Сохраняем статистику
         stat_info = await build_statistic_data(db, user_id, product_id)
