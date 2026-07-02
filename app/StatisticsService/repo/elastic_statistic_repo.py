@@ -120,6 +120,8 @@ class ElasticStatisticRepo(DatabaseStatistic):
         if limit is not None:
             body["from"] = skip
             body["size"] = limit
+        import json
+        print(f"FINAL get_all body: {json.dumps(body, ensure_ascii=False, indent=2)}")
         try:
             response = await asyncio.to_thread(
                 self.db.search, index=self.model, body=body
