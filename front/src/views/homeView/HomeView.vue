@@ -38,7 +38,7 @@
         </div>
 
         <!-- Создать запрос -->
-        <div v-if="tableData.length"
+        <div v-if="tableData.length && !(currentTableNav == 'statistics')"
              class="flex items-center justify-end w-full px-[24px]">
             <BaseButton :props-class="'button-primary'"
                         @clicked="showEngineModal = true">
@@ -47,17 +47,16 @@
             </BaseButton>
         </div>
 
+        <!-- Статистика пользователя -->
+        <Statistics v-if="currentTableNav == 'statistics'" />
+
         <!--  Таблица запросов-->
         <HistoryTable :currentTableNav="currentTableNav"
                       :tableData="tableData"
                       :tableHead="Object.keys(headerComparsion)"
                       @create-ol="showEngineModal = true" />
 
-        <!-- Статистика пользователя -->
-        <div v-if="false"
-             class="px-[24px]">
-            <PersonalStatistics />
-        </div>
+
 
         <!-- Модалка для выбора изделия -->
         <SlotModal v-if="showEngineModal"
@@ -82,7 +81,7 @@ import Configurator from '../configurator/Configurator.vue';
 import { useProductsData } from '@/stores/products';
 import { useNavStore } from '@/stores/navigation.ts';
 import HistoryTable from './components/HistoryTable.vue';
-import PersonalStatistics from './components/PersonalStatistics.vue';
+import Statistics from './components/statistics/Statistics.vue';
 import { useUserStore } from '@/stores/user.ts';
 import { useHistoryStore } from '@/stores/historyTable.ts';
 import { headerComparsion, formatResultToHistory } from '@/utils/historyTable.ts';
@@ -99,7 +98,7 @@ export default defineComponent({
         EnginePick,
         Configurator,
         HistoryTable,
-        PersonalStatistics
+        Statistics
     },
     setup(props) {
         const showEngineModal = ref(false);
@@ -124,7 +123,7 @@ export default defineComponent({
         watch(() => userId.value, async () => {
             if (userId.value && !tableData.value.length)
                 try {
-                    const historyData: IHistory[] = await Api.get(`selection_statistic/selection/by-user/${userId.value}`)
+                    const historyData: IHistory[] = await Api.get(`selection_statistic/selection?user_id=${userId.value}`)
                     useHistoryStore().setHistoryData(formatResultToHistory(historyData))
                 } catch (error) {
                     console.error('Error history:', error)

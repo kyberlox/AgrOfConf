@@ -1,7 +1,8 @@
 <template>
-<div class="w-full overflow-x-auto">
+<div class="w-full overflow-x-auto"
+     v-if="currentTableNav !== 'statistics'">
     <!-- Заглушка если нет истории -->
-    <div v-if="!tableData.length || !isLogin"
+    <div v-if="(!tableData.length || !isLogin)"
          class="2xl:mt-[100px] xl:mt-[20px] ">
         <EmptyHistoryPlug @createOl="$emit('createOl')" />
     </div>

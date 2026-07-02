@@ -9,10 +9,18 @@
   --orange: #f36e3c;
   --color-information-orange-800: #963314;
   --color-information-orange-500: #F36E3C;
+  --color-information-orange-400: #FF8A5B;
   --color-information-orange-200: #ffcba5;
+  --color-information-orange-100: #FFE3CC;
+  --color-information-orange-50: #FFF2E5;
   --color-information-green-50: #ebf5ec;
   --color-information-green-150: #c8efcb;
+  --color-information-green-400: #66BB6A;
+  --color-information-gray-50: #F6F7F9;
   --color-information-gray-100: #EAECEF;
+  --color-information-gray-200: #D3D7DF;
   --color-information-gray-400: #8E99A8;
   --color-information-gray-800: #343B4C;
+  --color-information-red-50: #FFF1F3;
+  --color-information-red-400: #E53935;
 }

@@ -1,11 +1,10 @@
 <template>
-<div class="p-[24px] rounded-[16px] border border-[#D3D7DF]">
-    <div class="max-w-full h-[258px] w-full">
-        <Line :data="chartData"
-              :options="chartOptions" />
-    </div>
+<div class="max-w-full h-[258px] w-full px-[24px]">
+    <Line :data="chartData"
+          :options="chartOptions" />
 </div>
 </template>
+
 <script lang='ts'>
 import { defineComponent, ref } from 'vue';
 import { Line } from 'vue-chartjs';
