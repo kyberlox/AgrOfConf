@@ -192,6 +192,19 @@ async def get_all_selection(
         skip=skip, limit=limit,
     )
 
+@router.get("/selection/statistics", status_code=200)
+async def get_selection_statistics(
+    user_id: Optional[int] = Query(None, description="ID пользователя"),
+    ko_users: Optional[List[int]] = Query(None, description="Список ID пользователей"),
+    router_instance: SelectionRouter = Depends(get_selection_router),
+):
+    """Получить статистику по документам подбора."""
+    return await router_instance.get_statistics(
+        user_id=user_id,
+        ko_users=ko_users,
+    )
+
+
 @router.get("/selection/{record_id}")
 async def get_selection_by_id(
     record_id: str,
@@ -252,15 +265,3 @@ async def search_by_value(
         limit=limit,
     )
 
-
-@router.get("/selection/statistics", status_code=200)
-async def get_selection_statistics(
-    user_id: Optional[int] = Query(None, description="ID пользователя"),
-    ko_users: Optional[List[int]] = Query(None, description="Список ID пользователей"),
-    router_instance: SelectionRouter = Depends(get_selection_router),
-):
-    """Получить статистику по документам подбора."""
-    return await router_instance.get_statistics(
-        user_id=user_id,
-        ko_users=ko_users,
-    )
