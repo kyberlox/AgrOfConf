@@ -96,7 +96,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
             filter_keys.append({"match": {"status": status}})
         if ko_users:
             filter_keys.append({"terms": {"user_id": [str(uid) for uid in ko_users]}})
-
+            
         date_range = {}
         if date_from is not None:
             date_range["gte"] = date_from + " 00:00:00"
@@ -107,11 +107,6 @@ class ElasticStatisticRepo(DatabaseStatistic):
 
         if filter_keys:
             body: dict = {
-                # "query": {
-                #     "constant_score": {
-                #         "filter": {"bool": {"filter": filter_keys}}
-                #     }
-                # },
                 "query": {"bool": {"filter": filter_keys}},
                 "sort": [{"date_search": {"order": "desc"}}]
             }
@@ -449,6 +444,107 @@ class ElasticStatisticRepo(DatabaseStatistic):
                 result.append(doc)
 
             return result
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def get_monthly_comparison(
+        self,
+        user_id: Optional[int] = None,
+        ko_users: Optional[List[int]] = None,
+    ) -> dict:
+        """
+        Возвращает количество документов по месяцам за текущий и прошлый год.
+        Использует date_histogram агрегацию Elasticsearch.
+
+        Возвращает словарь:
+            {
+                "current_year": {"Январь": 10, "Февраль": 15, ...},
+                "previous_year": {"Январь": 7, "Февраль": 12, ...},
+            }
+        """
+        now = datetime.now()
+        current_year = now.year
+        previous_year = current_year - 1
+
+        # Маппинг номера месяца в русское название
+        month_names = {
+            1: "Январь", 2: "Февраль", 3: "Март", 4: "Апрель",
+            5: "Май", 6: "Июнь", 7: "Июль", 8: "Август",
+            9: "Сентябрь", 10: "Октябрь", 11: "Ноябрь", 12: "Декабрь",
+        }
+
+        # Общий фильтр по пользователям
+        user_filter = []
+        if user_id is not None:
+            user_filter.append({"term": {"user_id": str(user_id)}})
+        if ko_users:
+            user_filter.append({"terms": {"user_id": [str(uid) for uid in ko_users]}})
+
+        def _build_histogram_body(year: int) -> dict:
+            """Собрать body для date_histogram агрегации за указанный год."""
+            filters = [
+                {"range": {
+                    "date_search": {
+                        "gte": f"01.01.{year} 00:00:00",
+                        "lte": f"31.12.{year} 23:59:59",
+                    }
+                }}
+            ]
+            filters.extend(user_filter)
+
+            return {
+                "query": {"bool": {"filter": filters}},
+                "size": 0,
+                "aggs": {
+                    "documents_per_month": {
+                        "date_histogram": {
+                            "field": "date_search",
+                            "calendar_interval": "month",
+                            "format": "MM.yyyy",
+                            "min_doc_count": 0,
+                        }
+                    }
+                },
+            }
+
+        try:
+            # Запрос за текущий год
+            body_current = _build_histogram_body(current_year)
+            response_current = await asyncio.to_thread(
+                self.db.search, index=self.model, body=body_current
+            )
+
+            # Запрос за прошлый год
+            body_previous = _build_histogram_body(previous_year)
+            response_previous = await asyncio.to_thread(
+                self.db.search, index=self.model, body=body_previous
+            )
+
+            def _parse_histogram(response) -> Dict[str, int]:
+                """Извлечь из ответа агрегации словарь {название_месяца: количество}."""
+                buckets = (
+                    response.get("aggregations", {})
+                    .get("documents_per_month", {})
+                    .get("buckets", [])
+                )
+                result = {}
+                for bucket in buckets:
+                    # key_as_text имеет формат "MM.yyyy", например "01.2025"
+                    key_text = bucket.get("key_as_text", "")
+                    if key_text:
+                        month_num = int(key_text.split(".")[0])
+                        month_name = month_names.get(month_num, str(month_num))
+                        result[month_name] = bucket.get("doc_count", 0)
+                return result
+
+            current_data = _parse_histogram(response_current)
+            previous_data = _parse_histogram(response_previous)
+
+            return {
+                "current_year": current_data,
+                "previous_year": previous_data,
+            }
+
         except Exception as e:
             return {"success": False, "error": str(e)}
 
