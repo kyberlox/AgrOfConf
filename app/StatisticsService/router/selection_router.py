@@ -9,7 +9,7 @@ from ..repo.elastic_statistic_repo import ElasticStatisticRepo
 from ..set.settings import SELECTION_INDEX
 from ..model.database import get_statistic_db
 
-from ..schema.selection_schema import SelectionData, SelectionResponse, UpdateStatusRequest, StatisticsResponse
+from ..schema.selection_schema import SelectionData, SelectionResponse, UpdateStatusRequest, StatisticsResponse, MonthlyComparisonResponse
 
 from app.UserService.utils.auth_utils import get_user_id_by_session_id
 
@@ -133,6 +133,17 @@ class SelectionRouter:
             limit=limit,
         )
     
+    async def get_monthly_comparison(
+        self,
+        user_id: Optional[int] = None,
+        ko_users: Optional[List[int]] = None,
+    ) -> dict:
+        """Получить количество документов по месяцам за текущий и прошлый год."""
+        return await self.repo.get_monthly_comparison(
+            user_id=user_id,
+            ko_users=ko_users,
+        )
+
     async def get_statistics(
         self,
         user_id: Optional[int] = None,
@@ -262,6 +273,19 @@ async def search_by_key_and_value(
         date_to=date_to,
         skip=skip, limit=limit,
     )
+
+@router.get("/monthly_comparison", status_code=200, response_model=MonthlyComparisonResponse)
+async def get_monthly_comparison(
+    user_id: Optional[int] = Query(None, description="ID пользователя"),
+    ko_users: Optional[List[int]] = Query(None, description="Список ID пользователей"),
+    router_instance: SelectionRouter = Depends(get_selection_router),
+):
+    """Получить количество документов по месяцам за текущий и прошлый год для сравнительного графика."""
+    return await router_instance.get_monthly_comparison(
+        user_id=user_id,
+        ko_users=ko_users,
+    )
+
 
 @router.get("/search_by_value", status_code=200)
 async def search_by_value(
