@@ -472,7 +472,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
             "5": "Май", "6": "Июнь", "7": "Июль", "8": "Август",
             "9": "Сентябрь", "10": "Октябрь", "11": "Ноябрь", "12": "Декабрь",
         }
-
+       
         # Общий фильтр по пользователям
         user_filter = []
         if user_id is not None:
@@ -522,12 +522,27 @@ class ElasticStatisticRepo(DatabaseStatistic):
 
             def _parse_histogram(response) -> Dict[str, int]:
                 """Извлечь из ответа агрегации словарь {название_месяца: количество}."""
+                 result_months = {
+                    "Январь": 0,
+                    "Февраль": 0,
+                    "Март": 0,
+                    "Апрель": 0,
+                    "Май": 0,
+                    "Июнь": 0,
+                    "Июль": 0,
+                    "Август": 0,
+                    "Сентябрь": 0,
+                    "Октябрь": 0,
+                    "Ноябрь": 0,
+                    "Декабрь": 0,
+                }
+
                 buckets = (
                     response.get("aggregations", {})
                     .get("documents_per_month", {})
                     .get("buckets", [])
                 )
-                result = {}
+                
                 for bucket in buckets:
                     # key_as_string имеет формат "MM.yyyy", например "01.2025"
                     key_as_string = bucket.get("key_as_string", "")
@@ -535,9 +550,9 @@ class ElasticStatisticRepo(DatabaseStatistic):
                     if key_as_string:
                         month_num = int(key_as_string.split(".")[0])
                         month_name = month_names.get(str(month_num))
-                        result[month_name] = bucket.get("doc_count", 0)
-                        print(result, month_name, month_num)
-                return result
+                        result_months[month_name] = bucket.get("doc_count", 0)
+                    
+                return result_months
 
             current_data = _parse_histogram(response_current)
             previous_data = _parse_histogram(response_previous)
