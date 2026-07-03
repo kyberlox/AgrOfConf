@@ -531,7 +531,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
                 for bucket in buckets:
                     # key_as_text имеет формат "MM.yyyy", например "01.2025"
                     key_text = bucket.get("key_as_text", "")
-                    print(key_text, 'Че приходит на дату')
+                    print(bucket, 'Че приходит на дату')
                     if key_text:
                         month_num = int(key_text.split(".")[0])
                         month_name = month_names.get(month_num, str(month_num))
