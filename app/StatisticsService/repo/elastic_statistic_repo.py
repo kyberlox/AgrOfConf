@@ -522,7 +522,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
 
             def _parse_histogram(response) -> Dict[str, int]:
                 """Извлечь из ответа агрегации словарь {название_месяца: количество}."""
-                 result_months = {
+                result_months = {
                     "Январь": 0,
                     "Февраль": 0,
                     "Март": 0,
