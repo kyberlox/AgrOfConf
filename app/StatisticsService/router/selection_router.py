@@ -274,7 +274,7 @@ async def search_by_key_and_value(
         skip=skip, limit=limit,
     )
 
-@router.get("/monthly_comparison", status_code=200, response_model=MonthlyComparisonResponse)
+@router.get("/monthly_comparison", status_code=200) #, response_model=MonthlyComparisonResponse
 async def get_monthly_comparison(
     user_id: Optional[int] = Query(None, description="ID пользователя"),
     ko_users: Optional[List[int]] = Query(None, description="Список ID пользователей"),
