@@ -87,7 +87,7 @@ async def upload_OL(
         params = await get_params_and_values_of_product(db, product_id)
         
         res_params = {key: value for key, value in params.items() if key not in ['Цена /шт. руб без НДС', 'Цена /шт. руб с НДС 22%']}
-        
+        print(res_params)
         agent_info = {
             "Имя заказчика": '', 
             "Телефон заказчика": '',
