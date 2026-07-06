@@ -45,6 +45,21 @@ class StatisticsResponse(BaseModel):
     total: int
 
 
+class MonthlyComparisonResponse(BaseModel):
+    """Ответ со сравнением количества документов по месяцам за текущий и прошлый год.
+    
+    Ключи словарей — названия месяцев (Январь, Февраль, ...).
+    
+    Пример:
+    {
+        "current_year": {"Январь": 10, "Февраль": 15, ...},
+        "previous_year": {"Январь": 7, "Февраль": 12, ...}
+    }
+    """
+    current_year: Dict[str, int]
+    previous_year: Dict[str, int]
+
+
 class UpdateStatusRequest(BaseModel):
     """Запрос на обновление статуса документа."""
     status: str
