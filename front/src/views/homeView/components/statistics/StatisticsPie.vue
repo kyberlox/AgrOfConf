@@ -1,5 +1,5 @@
 <template>
-<div class="flex flex-col gap-[16px] w-full max-w-[246px] ">
+<div class="flex flex-col gap-[16px] w-full max-w-[246px] pr-[32px] border-r border-[#EAECEF] growd">
     <div class="flex flex-row gap-[16px]">
         <div class="min-w-fit text-[16px] font-[700] leading-[120%] text-(--text-text-primary)">Статус ОЛ за тек. мес.
         </div>
@@ -7,13 +7,13 @@
     </div>
 
     <div
-         class="w-full h-full rounded-[16px] border border-(--color-information-orange-200) bg-[linear-gradient(140deg,#fff_0%,#fff2e5_100%)] flex flex-col gap-[16px] items-start justify-start overflow-hidden p-[24px]">
+         class="w-full h-[335px] rounded-[16px] border border-(--color-information-orange-200) bg-[linear-gradient(140deg,#fff_0%,#fff2e5_100%)] flex flex-col gap-[16px] items-start justify-start overflow-hidden p-[24px]">
         <div class="px-[8px]">
             <span class="text-[14px] text-(--text-text-primary) font-[700] leading-[120%] block">
                 Новых ОЛ:
                 <span class="text-[16px] font-[900]">14</span>
             </span>
-            <span class="text-[11px] text-(--text-text-secondary) font-[500] leading-[120%]">
+            <span class="text-[11px] text-(--text-text-secondary) font-[500] leading-[120%] tracking-[-0.04em]">
                 основано на новых запросах
             </span>
         </div>

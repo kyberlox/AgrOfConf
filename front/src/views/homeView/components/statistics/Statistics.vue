@@ -1,6 +1,6 @@
 <template>
 <div class="mt-[24px] px-[24px] flex-wrap">
-    <section class="flex flex-row gap-[32px] ">
+    <section class="flex flex-row gap-[32px] justify-between">
         <StatisticsBlocks :statBlocks="statBlocks"
                           :type="'ol'" />
         <StatisticsPie />
@@ -9,15 +9,17 @@
 
     </section>
 
-    <section class="mt-[24px] py-[24px] rounded-[16px] border border-[#D3D7DF]">
-        <StatisticsChart />
+    <section class="mt-[24px] py-[24px] rounded-[16px] border border-[#D3D7DF]"
+             v-if="monthes.length">
+        <StatisticsChart :monthes="monthes"
+                         :yearsDataset="yearsDataset" />
     </section>
 </div>
 </template>
 
 <script lang='ts'>
 import StatisticsChart from './StatisticsChart.vue';
-import { defineComponent, ref, computed, watch, markRaw } from 'vue';
+import { defineComponent, ref, computed, watch, markRaw, onMounted } from 'vue';
 import ThunderIcon from '@/assets/icons/Thunder.svg?component';
 import TimeIcon from '@/assets/icons/Time.svg?component';
 import CalendarIcon from '@/assets/icons/Calendar.svg?component';
@@ -42,6 +44,9 @@ export default defineComponent({
     props: {},
     setup() {
         const userId = computed(() => useUserStore().getId);
+        const monthes = ref<string[]>([]);
+        const yearsDataset = ref({ current: [], previous: [] });
+
         const statBlocks = ref<IStatisticBlock[]>([
             { name: 'month', title: 'за тек. месяц', value: null, icon: markRaw(ThunderIcon), undertext: 'к предыдущему месяцу', comparsion: null },
             { name: 'day', title: 'за день', value: null, icon: markRaw(TimeIcon), undertext: 'к предыдущему дню', comparsion: null },
@@ -65,8 +70,22 @@ export default defineComponent({
             }
         }, { immediate: true })
 
+        onMounted(async () => {
+            try {
+                const data = await Api.get(`selection_statistic/monthly_comparison?user_id=${userId.value}`)
+                monthes.value = Object.keys(data.current_year)
+                yearsDataset.value.current = Object.values(data.current_year);
+                yearsDataset.value.previous = Object.values(data.previous_year);
+            }
+            catch (error) {
+                console.error(error);
+            }
+        })
+
         return {
             statBlocks,
+            monthes,
+            yearsDataset
         }
     }
 });

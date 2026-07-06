@@ -25,10 +25,10 @@
                 <div class="text-[11px] text-(--text-secondary)">
                     {{ product.description }}
                 </div>
-                <div class="mt-2 p-4 grow">
-                    <div class="flex flex-row gap-2 items-center justify-end group mt-auto h-full">
+                <div class="mt-auto p-4">
+                    <div class="flex flex-row gap-2 items-center justify-end mt-auto h-full group">
                         <MoreIcon />
-                        <MoreOptions class="hidden group-hover:block"
+                        <MoreOptions class="hidden group-hover:block!"
                                      :list="['Изменить', 'Удалить']"
                                      @valueClicked="handleValueClick" />
                     </div>

@@ -1,5 +1,6 @@
 <template>
-<div class="pr-[32px] border-r border-[#EAECEF]">
+<div class="grow"
+     :class="{ 'border-r border-[#EAECEF] pr-[32px]': type == 'ol' }">
     <div class="flex flex-row gap-[16px] items-center max-w-[560px]">
         <div class="min-w-fit text-[16px] font-[700] leading-[120%] text-(--text-text-primary)">
             {{ pageTitle }}
@@ -9,7 +10,7 @@
     <div class="mt-[16px] grid grid-cols-2 gap-[16px] max-w-[560px]">
         <div v-for="(block, index) in statBlocks"
              :key="'olBlock' + index"
-             class="w-[272px] h-[160px] rounded-[16px] p-[24px] border border-(--color-information-gray-200)"
+             class=" h-[160px] rounded-[16px] p-[24px] border border-(--color-information-gray-200)"
              :class="{ 'border-(--color-information-orange-200) bg-[linear-gradient(140deg,#fff_0%,#fff2e5_100%)]': index == 0 }">
             <div class="flex flex-row items-center justify-between">
                 <div class="font-bold text-[14px] text-(--color-information-gray-400)"
@@ -38,7 +39,7 @@
                 <span>
                     {{
                         'comparsion' in block && block.comparsion || block.comparsion == 0 ?
-                            `${Number(block.comparsion) > 0 ? '+' : ''}${block.comparsion} ${block.undertext}` :
+                            `${Number(block.comparsion) > 0 ? '+' : ''}${block.comparsion} ${xlWidth ? '' : block.undertext}` :
                             'с начала работы'
                     }}
                 </span>
@@ -52,6 +53,8 @@ import { defineComponent, computed } from 'vue';
 import GraphToTop from '@/assets/icons/GraphToTop.svg?component';
 import GraphToDown from '@/assets/icons/GraphToDown.svg?component';
 import type { IStatisticBlock } from '@/assets/interfaces/IStatistic.ts';
+import { screenMixins } from '@/assets/static/screenMixins';
+import { useWindowSize } from '@vueuse/core';
 
 export default defineComponent({
     components: {
@@ -69,10 +72,13 @@ export default defineComponent({
         }
     },
     setup(props) {
+        const { width } = useWindowSize()
+
         return {
             GraphToTop,
             GraphToDown,
-            pageTitle: computed(() => props.type == 'ol' ? 'Опросные листы(ОЛ)' : 'Запросы')
+            pageTitle: computed(() => props.type == 'ol' ? 'Опросные листы(ОЛ)' : 'Запросы'),
+            xlWidth: computed(() => width.value < screenMixins.xxl),
         }
     }
 });

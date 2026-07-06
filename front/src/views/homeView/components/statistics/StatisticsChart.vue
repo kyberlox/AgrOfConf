@@ -1,12 +1,27 @@
 <template>
-<div class="max-w-full h-[258px] w-full px-[24px]">
+<div class="max-w-full h-[258px] w-full px-[24px]"
+     v-if="Object.keys(chartData).length">
     <Line :data="chartData"
           :options="chartOptions" />
+    <div v-if="customTooltip.visible"
+         class="absolute pointer-events-none z-50"
+         :style="{ left: customTooltip.x + 'px', top: customTooltip.y + 'px', opacity: customTooltip.opacity }">
+        <div
+             class="bg-white  py-[16px] px-[24px] text-[12px] rounded-[16px] font-[700] shadow-[0_0_8px_0_rgba(180,188,200,0.5)]">
+            <div>{{ customTooltip.title }}</div>
+            <div v-for="(item) in customTooltip.items"
+                 class="flex flex-row justify-between items-center text-[12px]">
+                <span class="w-[6px] h-[6px] rounded-full"
+                      :style="{ backgroundColor: item.color }"></span>
+                {{ item.value }}
+            </div>
+        </div>
+    </div>
 </div>
 </template>
 
 <script lang='ts'>
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, onMounted, computed, type PropType } from 'vue';
 import { Line } from 'vue-chartjs';
 import {
     Chart as ChartJS,
@@ -24,20 +39,28 @@ export default defineComponent({
     components: {
         Line
     },
-    props: {},
-    setup() {
-        const monthes = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+    props: {
+        monthes: {
+            type: Array<string>,
+            required: true
+        },
+        yearsDataset: {
+            type: Object as PropType<{ current: Array<number>, previous: Array<number> }>,
+            required: true
+        }
+    },
+    setup(props) {
         ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip);
 
         const customTooltip = ref({ visible: false, x: 0, y: 0, title: '', items: [] as { label: string; value: number; color: string }[], opacity: 0 });
 
         const chartData = {
-            labels: monthes,
+            labels: props.monthes,
             Tooltip: true,
             datasets: [
                 {
                     label: 'За текущий год',
-                    data: [10, 0, 14, 20, 2, 2, 6, 7, 9, 23, 11, 9],
+                    data: props.yearsDataset?.current,
                     borderColor: '#F36E3C',
                     tension: 0.4,
                     pointRadius: 5,
@@ -49,7 +72,7 @@ export default defineComponent({
                 },
                 {
                     label: 'За прошлый год',
-                    data: [1, 3, 4, 7, 2, 2, 6, 7, 0, 0, 1, 0],
+                    data: props.yearsDataset?.previous,
                     borderColor: '#8E99A8',
                     tension: 0.4,
                     pointRadius: 5,
@@ -61,9 +84,14 @@ export default defineComponent({
                 },
             ],
         }
+
         const chartOptions = {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index' as const,
+                intersect: false,
+            },
             plugins: {
                 tooltip: {
                     enabled: false,
