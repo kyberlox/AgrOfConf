@@ -50,7 +50,7 @@ app = FastAPI(
 DOMAIN = os.getenv('DOMAIN')
 
 # # Настройка CORS
-origins = ["http://localhost:5173", "http://agrofconf.emk.org.ru", "*"]
+origins = ["http://localhost:5173", DOMAIN, "*"]
 
 app.add_middleware(
     CORSMiddleware,
