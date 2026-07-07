@@ -349,7 +349,7 @@ async def get_available_values_for_param(
 )
 async def process_table_data(
         product_id: int,
-        selected_params: dict[str, str | int | list] | None = Body(None),
+        selected_params: dict[str, str | int | float | list] | None = Body(None),
         db: AsyncSession = Depends(get_db),
 ):
     start_time = time.perf_counter()
@@ -682,7 +682,7 @@ async def process_table_data(
         formula_params,
         key=lambda param: param.get("sort") or param["id"]
     )
-
+    # total_res = [param for param in response_params if ]
     return {
         "product_id": product_id,
         "product_name": product_name,

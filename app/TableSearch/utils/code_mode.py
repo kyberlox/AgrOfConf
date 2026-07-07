@@ -267,7 +267,9 @@ class CodeParametr:
                 # print(env_params_sql)
                 sql_result = await db.execute( text(env_params_sql) )
                 env_result = sql_result.mappings().first()
-                print(env_result, "ЧЕ получили перед ошибкой")
+                if not env_result:
+                    continue
+                # print(env_result, "ЧЕ получили перед ошибкой")
                 ###################### обработать его в json ###########################
                 env_json = {
                     "name" : env_result.nazvanie_rabochej_sredy,
@@ -305,7 +307,7 @@ class CodeParametr:
             }
             r_max = 0
             if len(env_type) == 1:
-                env_type_name = f"Однородная смесь - {list(env_type)[0]}"
+                env_type_name = f"{list(env_type)[0]}" #Однородная смесь - 
                 result["agregatnoe_sostojanie"] = env_type_name
 
                 if list(env_type)[0] == "Жидкость":
@@ -314,7 +316,7 @@ class CodeParametr:
                     pre_viscosity = 0
                     for env in envs_json:
                         r = env["r"]
-                        result["nazvanie_rabochej_sredy"] += f"{env['name']}:{r}% "
+                        result["nazvanie_rabochej_sredy"] += f"{env['name']}:{r}% " 
                         result["molekuljarnaja_massa"] += float(env["molecular_weight"]) * r
                         ch_den += float(env["density"]) * r
                         zn_den += r
@@ -404,6 +406,8 @@ class CodeParametr:
 
 
             for param_name, value in result.items():
+                if param_name == 'nazvanie_rabochej_sredy': #либо удалить параметр состав смеси
+                    continue
                 kir_param_name = column_to_param[param_name]
                 param_info = [param for param in selection_result if param["name"] == kir_param_name]
                 if not param_info:
@@ -416,6 +420,8 @@ class CodeParametr:
             for param_db in selection_result:
                 param_info = [param_res for param_res in res if 'debug' not in param_res and param_res["name"] == param_db["name"]]
                 if param_info:
+                    continue
+                if param_db["table_name"] in ['table2', 'table3', 'table10']:
                     continue
                 res.append(param_db)
 
@@ -495,7 +501,7 @@ class CodeParametr:
             SELECT * FROM table3 
             WHERE dns3::float >= :DNS_val 
             AND pn3::float >= :Pn_val
-            AND tip_predohranitel_nogo_klapana = :valve_type
+            AND tip_klapana = :valve_type
         """
         params = {"DNS_val": DNS, "Pn_val": PN, "valve_type": valve_type}
         stmt = await db.execute(text(query), params) 
@@ -585,46 +591,61 @@ class CodeParametr:
                 # res = self._set_params(res, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
                 last_sort = param_info['sort']
             elif param_name == "Давление настройки" and force_open:
-                Pn = value
-                last_sort += 1
-                if value > 16 or value < 0:
-                    res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 16], response_value=value, sort=last_sort, error="Давление настройки не может быть меньше 0 и больше 16")
+                if not value:
                     continue
-                res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 16], response_value=value, sort=last_sort)
+                Pn = float(value)
+                last_sort += 1
+                
+                if Pn > 16 or Pn < 0:
+                    res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Давление настройки не может быть меньше 0 и больше 16")
+                    continue
+                res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=Pn, sort=last_sort)
             elif param_name == "Максимальный аварийный расход жидкости и газа" and force_open:
-                Gab = value
-                last_sort += 1
-                if value < 0:
-                    res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=value, sort=last_sort, error="Значение не может быть меньше 0")
+                if not value:
                     continue
-                res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=value, sort=last_sort)
-            elif param_name == "Количество параллельно установленных и одновременно работающих клапанов (шт)" and force_open:
-                N = value
+                Gab = float(value)
                 last_sort += 1
-                if value < 0:
-                    res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=value, sort=last_sort)
-                continue
-                res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=value, sort=last_sort, error="Значение не может быть меньше 0")
+                
+                if Gab < 0:
+                    res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Значение не может быть меньше 0")
+                    continue
+                res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=Gab, sort=last_sort)
+            elif param_name == "Количество параллельно установленных и одновременно работающих клапанов (шт)" and force_open:
+                if not value:
+                    continue
+                N = float(value)
+                last_sort += 1
+                
+                if N < 0:
+                    res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Значение не может быть меньше 0")
+                    continue
+                res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=N, sort=last_sort)
             elif param_name == "Мембранно-предохранительное устройство" and force_open:
                 pre_Kc = value
                 last_sort += 1
                 res = self._set_params(res, last_sort, param_name, param_description="", all_values=["Да", "Нет"], response_value=value, sort=last_sort)
             elif param_name == "Противодавление статическое" and Pn:
+                if not value:
+                    continue
                 last_sort += 1
-                Pp = value
-                if value > Pn * 0.7 or value < 0:
-                    res = self._set_params(res, last_sort, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], response_value=value, sort=last_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
+                Pp = float(value)
+                
+                if Pp > Pn * 0.7 or Pp < 0:
+                    res = self._set_params(res, last_sort, "Противодавление статическое", param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
                 else:
                     
                     last_sort += 1
-                    res = self._set_params(res, last_sort, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], response_value=value, sort=last_sort)
+                    res = self._set_params(res, last_sort, "Противодавление статическое", param_type='user_input', param_description="", response_value=Pp, sort=last_sort)
             elif param_name == "Противодавление динамическое" and Pn:
+                if not value:
+                    continue
                 last_sort += 1
-                Pp_din = value
-                if value > Pn * 0.7 or value < 0:
-                    res = self._set_params(res, last_sort, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], response_value=value, sort=last_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
+                Pp_din = float(value)
+                
+                if Pp_din > Pn * 0.7 or Pp_din < 0:
+                    res = self._set_params(res, last_sort, "Противодавление динамическое", param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
                 else:
-                    res = self._set_params(res, last_sort, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], response_value=value, sort=last_sort)
+                    res = self._set_params(res, last_sort, "Противодавление динамическое", param_type='user_input', param_description="", response_value=Pp_din, sort=last_sort)
 
         #Формируем Устройство принудительного открытия
         if not force_open:
@@ -632,15 +653,15 @@ class CodeParametr:
         #Формируем Давление настройки
         if not Pn and force_open:
             last_sort += 1
-            res = self._set_params(res, last_sort, "Давление настройки", param_description="", all_values=[0, 16], sort=last_sort)
+            res = self._set_params(res, last_sort, "Давление настройки", param_description="", all_values=[0, 16], sort=last_sort, param_type="user_input")
         #Формируем Максимальный аварийный расход жидкости и газа
         if not Gab and force_open:
             last_sort += 1
-            res = self._set_params(res, last_sort, "Максимальный аварийный расход жидкости и газа", param_description="", all_values=[0, 10 ** 100], sort=last_sort)
+            res = self._set_params(res, last_sort, "Максимальный аварийный расход жидкости и газа", param_description="", all_values=[0, 10 ** 100], sort=last_sort, param_type="user_input")
         #Формируем Количество параллельно установленных и одновременно работающих клапанов (шт)
         if not N and force_open:
             last_sort += 1
-            res = self._set_params(res, last_sort, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_description="", all_values=[0, 10 ** 100], sort=last_sort)
+            res = self._set_params(res, last_sort, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_description="", all_values=[0, 10 ** 100], sort=last_sort, param_type="user_input")
         #Формируем Мембранно-предохранительное устройство
         if not pre_Kc and force_open:
             last_sort += 1
@@ -648,11 +669,11 @@ class CodeParametr:
         #Формируем Противодавление статическое
         if not Pp and Pn:
             last_sort += 1
-            res = self._set_params(res, last_sort, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], sort=last_sort)
+            res = self._set_params(res, last_sort, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], sort=last_sort, param_type="user_input")
         #Формируем Противодавление динамическое
         if not Pp_din and Pn:
             last_sort += 1
-            res = self._set_params(res, last_sort, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], sort=last_sort)
+            res = self._set_params(res, last_sort, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], sort=last_sort, param_type="user_input")
         
         #Если не все заполнено, возвращаем массив параметров для заполнения
         is_exist = [force_open, Pn, Gab, N, pre_Kc, Pp, Pp_din]
