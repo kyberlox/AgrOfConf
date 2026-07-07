@@ -148,7 +148,7 @@ class CodeParametr:
                 #если всё правильно
                 else:
                     description = "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)"
-                    res = self._set_params(res, param_info.id, "Состав смеси", param_description=description, all_values=all_values, sort=2, param_type="select-input", response_value=envs)
+                    # res = self._set_params(res, param_info.id, "Состав смеси", param_description=description, all_values=all_values, sort=2, param_type="select-input", response_value=envs)
                     got_envs = True
 
         #климатика
@@ -267,7 +267,7 @@ class CodeParametr:
                 # print(env_params_sql)
                 sql_result = await db.execute( text(env_params_sql) )
                 env_result = sql_result.mappings().first()
-                # print(env_result)
+                print(env_result, "ЧЕ получили перед ошибкой")
                 ###################### обработать его в json ###########################
                 env_json = {
                     "name" : env_result.nazvanie_rabochej_sredy,
