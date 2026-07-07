@@ -30,7 +30,7 @@ from app.StatisticsService.utils.deps import build_statistic_data
 from app.StatisticsService.router.recognition_router import get_recognition_router
 
 from ..utils.convert_ol_file import get_params_and_values_of_product, convert_file_to_jpeg_content
-from ..utils.promt_ol import get_promt
+from ..utils.promt_ol import get_promt, VALIDATION_PROMPT, UNIFIED_PROMPT
 
 load_dotenv()
 #делаю изменения
@@ -84,6 +84,65 @@ async def upload_OL(
     
     try:
         start_all = time.time()
+        # params = await get_params_and_values_of_product(db, product_id)
+        
+        # res_params = {key: value for key, value in params.items() if key not in ['Цена /шт. руб без НДС', 'Цена /шт. руб с НДС 22%']}
+        
+        # agent_info = {
+        #     "Имя заказчика": '', 
+        #     "Телефон заказчика": '',
+        #     "Email заказчика": '',
+        #     "Организация заказчика": ''
+        # }
+        # total_params = res_params | agent_info
+        if not user_promt:
+            user_promt = UNIFIED_PROMPT
+        
+        content = await convert_file_to_jpeg_content(file)
+        
+        if not content:
+            return {"error": "Unsupported file format"}
+
+        content.append({"type": "text", "text": user_promt})
+
+        response = await client.chat.completions.create(
+            model=model_type,
+            max_tokens=8000,
+            messages=[{"role": "user", "content": content}],
+            # response_format={"type": "json_object"}
+        )
+        # res = response.model_dump()
+        # total_coast = res['usage']['total_cost']
+        need = response.choices[0].message.content
+        total_coast = response.usage.total_cost
+        # need = res['choices'][0]['message']['content']
+        # parsed_need = _extract_json_from_response(need)
+        
+        # Сохраняем статистику
+        # stat_info = await build_statistic_data(db, user_id, product_id)
+        # stat_info['parameters'] = parsed_need
+        # stat_info['total_coast'] = total_coast
+        
+        # is_dump = await statistic_router.save_recognition(stat_info)
+        fin_all = time.time()
+        print(f"Распознали ОЛ за {fin_all - start_all}, Цена: {total_coast}")
+        return need
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(123, str(e))
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")
+
+
+@app.post("/convert-ai-result")
+async def convert_ai_result(
+    # raw_json: dict = Body(...)
+    product_id: int,
+    raw_md: str = Body(...),
+    db: AsyncSession = Depends(get_db) 
+):
+    try:
+        # {json.dumps(raw_json, ensure_ascii=False, indent=2)}
         params = await get_params_and_values_of_product(db, product_id)
         
         res_params = {key: value for key, value in params.items() if key not in ['Цена /шт. руб без НДС', 'Цена /шт. руб с НДС 22%']}
@@ -95,41 +154,42 @@ async def upload_OL(
             "Организация заказчика": ''
         }
         total_params = res_params | agent_info
-        if user_promt:
-            promt = f"{user_promt}. Шаблон - {total_params}"
-        else:
-            promt = get_promt(total_params)
-        
-        
-        content = await convert_file_to_jpeg_content(file)
-        
-        if not content:
-            return {"error": "Unsupported file format"}
+        start_all = time.time()
+        messages = [
+        {
+            "role": "user",
+            "content": f"""
+            {VALIDATION_PROMPT} (см. выше)
 
-        content.append({"type": "text", "text": promt})
+            RAW_JSON:
 
+            {raw_md}
+
+            TEMPLATE_JSON:
+            {json.dumps(total_params, ensure_ascii=False, indent=2)}
+
+            RULES:
+            - Сопоставь ключи RAW_JSON с ключами TEMPLATE_JSON по смыслу
+            - Выбери только допустимые значения из TEMPLATE_JSON
+            - Если точного совпадения нет — выбери ближайшее
+            - Пропусти параметры, которых нет в TEMPLATE_JSON
+            - Верни JSON в формате: {{"параметр": "значение"}}
+            - Размерность НЕ включай в результат
+            """
+            }
+        ]
         response = await client.chat.completions.create(
-            model=model_type,
-            max_tokens=8000,
-            messages=[{"role": "user", "content": content}],
+            model="deepseek/deepseek-v4-flash", 
+            max_tokens=4000,
+            messages=messages,
             response_format={"type": "json_object"}
         )
-        res = response.model_dump()
-        total_coast = res['usage']['total_cost']
-        need = res['choices'][0]['message']['content']
-        parsed_need = _extract_json_from_response(need)
+        total_coast = response.model_dump()['usage']['total_cost']
+        print(f"Total cost конвертации: {total_coast}")
+        result = response.choices[0].message.content
         
-        # Сохраняем статистику
-        stat_info = await build_statistic_data(db, user_id, product_id)
-        stat_info['parameters'] = parsed_need
-        stat_info['total_coast'] = total_coast
-        
-        is_dump = await statistic_router.save_recognition(stat_info)
         fin_all = time.time()
-        print(f"Распознали ОЛ за {fin_all - start_all}")
-        return parsed_need
-    except HTTPException:
-        raise
+        print(f"Конвертировали за {fin_all - start_all}")
+        return json.loads(result)
     except Exception as e:
-        print(123, str(e))
-        raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки данных с vision модели: {str(e)}")
