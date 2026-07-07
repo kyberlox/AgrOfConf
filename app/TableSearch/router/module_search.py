@@ -349,7 +349,7 @@ async def get_available_values_for_param(
 )
 async def process_table_data(
         product_id: int,
-        selected_params: dict[str, str | int | list] | None = Body(None),
+        selected_params: dict[str, str | int | float | list] | None = Body(None),
         db: AsyncSession = Depends(get_db),
 ):
     start_time = time.perf_counter()
