@@ -307,7 +307,7 @@ class CodeParametr:
             }
             r_max = 0
             if len(env_type) == 1:
-                env_type_name = f"Однородная смесь - {list(env_type)[0]}"
+                env_type_name = f"{list(env_type)[0]}" #Однородная смесь - 
                 result["agregatnoe_sostojanie"] = env_type_name
 
                 if list(env_type)[0] == "Жидкость":
