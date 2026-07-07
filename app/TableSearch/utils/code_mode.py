@@ -267,7 +267,9 @@ class CodeParametr:
                 # print(env_params_sql)
                 sql_result = await db.execute( text(env_params_sql) )
                 env_result = sql_result.mappings().first()
-                print(env_result, "ЧЕ получили перед ошибкой")
+                if not env_result:
+                    continue
+                # print(env_result, "ЧЕ получили перед ошибкой")
                 ###################### обработать его в json ###########################
                 env_json = {
                     "name" : env_result.nazvanie_rabochej_sredy,
@@ -314,7 +316,7 @@ class CodeParametr:
                     pre_viscosity = 0
                     for env in envs_json:
                         r = env["r"]
-                        result["nazvanie_rabochej_sredy"] += f"{env['name']}:{r}% "
+                        result["nazvanie_rabochej_sredy"] += f"{env['name']}:{r}% " 
                         result["molekuljarnaja_massa"] += float(env["molecular_weight"]) * r
                         ch_den += float(env["density"]) * r
                         zn_den += r
@@ -404,6 +406,8 @@ class CodeParametr:
 
 
             for param_name, value in result.items():
+                if param_name == 'nazvanie_rabochej_sredy': #либо удалить параметр состав смеси
+                    continue
                 kir_param_name = column_to_param[param_name]
                 param_info = [param for param in selection_result if param["name"] == kir_param_name]
                 if not param_info:
@@ -416,6 +420,8 @@ class CodeParametr:
             for param_db in selection_result:
                 param_info = [param_res for param_res in res if 'debug' not in param_res and param_res["name"] == param_db["name"]]
                 if param_info:
+                    continue
+                if param_db["table_name"] in ['table2', 'table3', 'table10']:
                     continue
                 res.append(param_db)
 
@@ -495,7 +501,7 @@ class CodeParametr:
             SELECT * FROM table3 
             WHERE dns3::float >= :DNS_val 
             AND pn3::float >= :Pn_val
-            AND tip_predohranitel_nogo_klapana = :valve_type
+            AND tip_klapana = :valve_type
         """
         params = {"DNS_val": DNS, "Pn_val": PN, "valve_type": valve_type}
         stmt = await db.execute(text(query), params) 

@@ -682,7 +682,7 @@ async def process_table_data(
         formula_params,
         key=lambda param: param.get("sort") or param["id"]
     )
-
+    # total_res = [param for param in response_params if ]
     return {
         "product_id": product_id,
         "product_name": product_name,
