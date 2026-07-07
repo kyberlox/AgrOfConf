@@ -591,24 +591,24 @@ class CodeParametr:
                 # res = self._set_params(res, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
                 last_sort = param_info['sort']
             elif param_name == "Давление настройки" and force_open:
-                Pn = value
+                Pn = int(value)
                 last_sort += 1
-                if value > 16 or value < 0:
-                    res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 16], response_value=value, sort=last_sort, error="Давление настройки не может быть меньше 0 и больше 16")
+                if Pn > 16 or Pn < 0:
+                    res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 16], response_value=Pn, sort=last_sort, error="Давление настройки не может быть меньше 0 и больше 16")
                     continue
                 res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 16], response_value=value, sort=last_sort)
             elif param_name == "Максимальный аварийный расход жидкости и газа" and force_open:
-                Gab = value
+                Gab = int(value)
                 last_sort += 1
-                if value < 0:
-                    res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=value, sort=last_sort, error="Значение не может быть меньше 0")
+                if Gab < 0:
+                    res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=Gab, sort=last_sort, error="Значение не может быть меньше 0")
                     continue
                 res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=value, sort=last_sort)
             elif param_name == "Количество параллельно установленных и одновременно работающих клапанов (шт)" and force_open:
-                N = value
+                N = int(value)
                 last_sort += 1
-                if value < 0:
-                    res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=value, sort=last_sort)
+                if N < 0:
+                    res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=N, sort=last_sort)
                 continue
                 res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=value, sort=last_sort, error="Значение не может быть меньше 0")
             elif param_name == "Мембранно-предохранительное устройство" and force_open:
@@ -617,20 +617,20 @@ class CodeParametr:
                 res = self._set_params(res, last_sort, param_name, param_description="", all_values=["Да", "Нет"], response_value=value, sort=last_sort)
             elif param_name == "Противодавление статическое" and Pn:
                 last_sort += 1
-                Pp = value
-                if value > Pn * 0.7 or value < 0:
-                    res = self._set_params(res, last_sort, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], response_value=value, sort=last_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
+                Pp = int(value)
+                if Pp > Pn * 0.7 or Pp < 0:
+                    res = self._set_params(res, last_sort, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], response_value=Pp, sort=last_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
                 else:
                     
                     last_sort += 1
                     res = self._set_params(res, last_sort, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], response_value=value, sort=last_sort)
             elif param_name == "Противодавление динамическое" and Pn:
                 last_sort += 1
-                Pp_din = value
+                Pp_din = int(value)
                 if value > Pn * 0.7 or value < 0:
-                    res = self._set_params(res, last_sort, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], response_value=value, sort=last_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
+                    res = self._set_params(res, last_sort, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], response_value=Pp_din, sort=last_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
                 else:
-                    res = self._set_params(res, last_sort, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], response_value=value, sort=last_sort)
+                    res = self._set_params(res, last_sort, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], response_value=Pp_din, sort=last_sort)
 
         #Формируем Устройство принудительного открытия
         if not force_open:
