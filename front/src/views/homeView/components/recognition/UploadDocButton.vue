@@ -1,7 +1,7 @@
 <template>
 <div class="dropzone-container p-[20px] w-[480px] max-w-full border border-(--color-information-orange-200) hover:bg-(--color-information-orange-200) transition-all duration-300 cursor-pointer border-dotted flex flex-col gap-[4px] rounded-[12px] text-center"
-     :class="[{ 'bg-(--color-information-green-50) hover:bg-(--color-information-green-150)!': uploadedFileName },
-    isDragOver && uploadedFileName ? 'bg-(--color-information-orange-200)' : isDragOver && uploadedFileName ? 'bg-(--color-information-green-150)!' : '']"
+     :class="[{ 'bg-(--color-information-green-50) hover:bg-(--color-information-green-150)!': !empty },
+    isDragOver && !empty ? 'bg-(--color-information-orange-200)' : isDragOver && !empty ? 'bg-(--color-information-green-150)!' : '']"
      @dragover.prevent
      @dragover="isDragOver = true"
      @dragleave="isDragOver = false"
@@ -15,7 +15,7 @@
            @change="uploadFile">
 
     <div @click="handleClick">
-        <div v-if="!uploadedFileName"
+        <div v-if="empty"
              class="dz-message">
             <span class="text-[16px] font-semibold text-(--color-information-orange-800)">
                 Распознать ОЛ
@@ -28,7 +28,7 @@
             </span>
         </div>
 
-        <div v-else-if="uploadedFileName"
+        <div v-else
              class="flex flex-row items-center justify-between">
             <div class="flex flex-col gap-[4px] text-left">
                 <span class="text-[16px] font-semibold text-(--text-text-primary)">
@@ -41,11 +41,6 @@
             <span class="text-[16px] text-(--color-information-orange-800) block">
                 Загрузить другой
             </span>
-        </div>
-
-        <div v-else
-             class="text-[16px] text-(--text-text-tertiary) block">
-            {{ uploadedFileName }}
         </div>
     </div>
 </div>
@@ -63,6 +58,7 @@ export default defineComponent({
         const uploadedFileName = ref('');
         const storedFileName = computed(() => useNeuroOlData().getOlName);
         const isDragOver = ref(false);
+        const storedData = computed(() => useNeuroOlData().getOlInfo);
 
         const handleClick = () => {
             if (fileInput.value) {
@@ -100,9 +96,11 @@ export default defineComponent({
             uploadedFileName,
             isDragOver,
             storedFileName,
+            storedData,
             handleClick,
             uploadFile,
-            dragFile
+            dragFile,
+            empty: computed(() => !Object.keys(storedData.value).length)
         };
     }
 });

@@ -33,10 +33,11 @@ export default class Api {
 
     static async post(url: string, data?: unknown, config?: AxiosRequestConfig & {
         onUploadProgress?: (progressEvent: AxiosProgressEvent) => void
-    }
+    }, signal?: AbortSignal
     ) {
-        return await api.post(url, data, config)
-            .then(resp => config ? resp : resp.data)
+        const mergedConfig: AxiosRequestConfig = { ...config, signal: signal ?? config?.signal }
+        return await api.post(url, data, mergedConfig)
+            .then(resp => resp.data)
             .catch(e => handleApiErrors(e))
     }
 

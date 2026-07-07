@@ -1,6 +1,6 @@
 <template>
 <div class="p-[32px] w-full bg-[#FDFDFD] max-w-full border border-gray-200 rounded-xl">
-    <div class="flex flex-row gap-[24px] flex-wrap md:flex-wrap lg:flex-nowrap">
+    <div class="flex flex-row gap-[24px] h-full flex-wrap md:flex-wrap lg:flex-nowrap">
         <div class="flex flex-col gap-[24px] w-full">
             <div
                  class="flex flex-row items-start justify-between lg:flex-wrap xl:flex-wrap xxl:flex-nowrap w-full gap-y-[20px] ">
@@ -30,11 +30,16 @@
                     </div>
                 </div>
             </div>
-            <EngineParams :form="form"
+            <EngineParams v-if="form.length"
+                          :form="form"
                           :type="neuroOlData ? 'free' : 'auto'"
                           :key="paramsRenderKey"
                           @valueChanged="(value: string, key: string) => handleValueChanged(value, key)" />
-            <div class="flex flex-row justify-end gap-[8px] flex-wrap">
+            <div v-else
+                 class="w-[60px] h-[60px] m-auto">
+                <Loader />
+            </div>
+            <div class="flex flex-row justify-end gap-[8px] flex-wrap mt-0">
                 <BaseButton :propsClass="'button-secondary'">
                     <span class="block px-[40px] flex flex-row items-center gap-[4px]">
                         <FavoriteIcon />
@@ -64,7 +69,7 @@
     <SlotModal v-if="promptModalVisible"
                @closeModal="promptModalVisible = false">
         <PromptModal :formData="olFormData"
-                     :uploadedFileName="newFileName"
+                     :uploadedFileName="newFileName || ''"
                      @closeModal="promptModalVisible = false" />
     </SlotModal>
 </div>
@@ -79,14 +84,15 @@ import Api from '@/utils/Api';
 import type { IFormattedData } from '@/assets/interfaces/IForm';
 import SlotModal from '@/components/layout/SlotModal.vue';
 import { useNeuroOlData } from '@/stores/neuroOl';
-import UploadDocButton from '@/views/homeView/components/UploadDocButton.vue';
+import UploadDocButton from '@/views/homeView/components/recognition/UploadDocButton.vue';
 import RightSidebar from '@/components/layout/RightSidebar.vue';
 import { useConfiguratorStore } from '@/stores/configurator.ts';
 import FavoriteIcon from '@/assets/icons/Favorite.svg?component';
-import PromptModal from '../homeView/components/PromptModal.vue';
+import PromptModal from '../homeView/components/recognition/PromptModal.vue';
 import TkpVariants from './components/TkpVariants.vue';
 import { type ITkpVariant } from '@/assets/interfaces/ITkpVariant.ts';
 import { downloadFile } from '@/utils/downloadFile.ts';
+import Loader from '@/components/layout/Loader.vue';
 
 export default defineComponent({
     components: {
@@ -99,7 +105,8 @@ export default defineComponent({
         PromptModal,
         SlotModal,
         UploadDocButton,
-        RightSidebar
+        RightSidebar,
+        Loader
     },
     props: {
         id: {
@@ -120,14 +127,23 @@ export default defineComponent({
         const tkpModalIsVisible = ref(false);
         const promptModalVisible = ref(false);
         const olFormData = ref<FormData>(new FormData());
-        const newFileName = ref();
+        const newFileName = ref<string>();
+        let abortController: AbortController | null = null;
 
         const paramsUpdate = async (body: any | null) => {
+            // Отменяем предыдущий запрос, если он ещё выполняется
+            if (abortController) {
+                abortController.abort();
+            }
+            // Создаём новый AbortController для текущего запроса
+            abortController = new AbortController();
+            const signal = abortController.signal;
             try {
-                const data = await Api.post(`/module_search/process_table_data?product_id=${props.id}`, body)
+                const data = await Api.post(`/module_search/process_table_data?product_id=${props.id}`, body, {}, signal)
                 const errors: string[] = [];
                 let answeredCounter = 0;
                 let questionCounter = 0;
+                if (!data || !('parameters' in data) || !data.parameters.length) return
                 data.parameters.forEach((e: IFormattedData) => {
                     if ('error' in e && e.error) {
                         errors.push(e.error)
@@ -166,7 +182,7 @@ export default defineComponent({
 
         onMounted(() => {
             getTkpVariants();
-            if (!neuroOlData.value)
+            if (!Object.keys(neuroOlData.value).length)
                 paramsUpdate(null)
 
         })

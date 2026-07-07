@@ -8,7 +8,7 @@
     </div>
     <div v-else
          class="min-w-max">
-        <table class="w-full">
+        <table class="w-full table-auto">
             <thead>
                 <tr class="bg-[#F6F7F9] h-[56px]">
                     <th class="text-left text-sm font-medium first:pl-[48px] last:pr-[24px] not-first:not-last:p-[5px] whitespace-nowrap"

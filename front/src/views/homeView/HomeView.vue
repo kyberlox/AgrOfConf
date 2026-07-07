@@ -56,8 +56,6 @@
                       :tableHead="Object.keys(headerComparsion)"
                       @create-ol="showEngineModal = true" />
 
-
-
         <!-- Модалка для выбора изделия -->
         <SlotModal v-if="showEngineModal"
                    @closeModal="showEngineModal = false">
@@ -103,7 +101,7 @@ export default defineComponent({
     setup(props) {
         const showEngineModal = ref(false);
         const engines = ref([]);
-        const engineId = ref();
+        const engineId = ref<number>();
         const section = ref('Тест');
         const currentTableNav = computed(() => useNavStore().getCurrentNav);
         const navStore = useNavStore();

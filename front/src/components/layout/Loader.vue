@@ -31,7 +31,7 @@ export default defineComponent({
     width: 100%;
     height: 100%;
     border: 4px solid #f3f3f3;
-    border-top: 4px solid gray;
+    border-top: 4px solid #F36E3C;
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
