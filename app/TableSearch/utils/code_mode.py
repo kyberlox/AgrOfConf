@@ -593,21 +593,27 @@ class CodeParametr:
             elif param_name == "Давление настройки" and force_open:
                 Pn = value
                 last_sort += 1
-                if value and int(value) > 16 or int(value) < 0:
+                if not value:
+                    continue
+                if int(value) > 16 or int(value) < 0:
                     res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 16], response_value=value, sort=last_sort, error="Давление настройки не может быть меньше 0 и больше 16")
                     continue
                 res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 16], response_value=int(value), sort=last_sort)
             elif param_name == "Максимальный аварийный расход жидкости и газа" and force_open:
                 Gab = value
                 last_sort += 1
-                if value and int(value) < 0:
+                if not value:
+                    continue
+                if int(value) < 0:
                     res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=value, sort=last_sort, error="Значение не может быть меньше 0")
                     continue
                 res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=int(value), sort=last_sort)
             elif param_name == "Количество параллельно установленных и одновременно работающих клапанов (шт)" and force_open:
                 N = value
                 last_sort += 1
-                if value and int(value) < 0:
+                if not value:
+                    continue
+                if int(value) < 0:
                     res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=value, sort=last_sort)
                 continue
                 res = self._set_params(res, last_sort, param_name, param_description="", all_values=[0, 10 ** 100], response_value=int(value), sort=last_sort, error="Значение не может быть меньше 0")
