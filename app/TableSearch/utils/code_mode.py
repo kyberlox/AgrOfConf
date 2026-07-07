@@ -415,10 +415,10 @@ class CodeParametr:
                 param_info = param_info[0]
                 res = self._set_params(res, param_info['id'], kir_param_name, param_description=param["description"], all_values=param_info['all_values'], response_value=value, sort=param_info['sort'])
             
-            #Поскольку расчет смеси завершился, докидываем
+            # Поскольку расчет смеси завершился, докидываем
             # параметры из БД для следующего расчета
             for param_db in selection_result:
-                param_info = [param_res for param_res in res if 'debug' not in param_res and param_res["name"] == param_db["name"]]
+                param_info = [param_res for param_res in res if 'debug' in param_res or param_res["name"] == param_db["name"]]
                 if param_info:
                     continue
                 if param_db["table_name"] in ['table2', 'table3', 'table10']:
