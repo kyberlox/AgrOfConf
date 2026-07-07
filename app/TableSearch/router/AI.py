@@ -142,7 +142,7 @@ async def convert_ai_result(
     db: AsyncSession = Depends(get_db) 
 ):
     try:
-        # {json.dumps(raw_json, ensure_ascii=False, indent=2)}
+        #RAW_JSON: {json.dumps(raw_json, ensure_ascii=False, indent=2)} 
         params = await get_params_and_values_of_product(db, product_id)
         
         res_params = {key: value for key, value in params.items() if key not in ['Цена /шт. руб без НДС', 'Цена /шт. руб с НДС 22%']}
@@ -161,7 +161,7 @@ async def convert_ai_result(
             "content": f"""
             {VALIDATION_PROMPT} (см. выше)
 
-            RAW_JSON:
+            RAW_MD:
 
             {raw_md}
 
@@ -169,7 +169,7 @@ async def convert_ai_result(
             {json.dumps(total_params, ensure_ascii=False, indent=2)}
 
             RULES:
-            - Сопоставь ключи RAW_JSON с ключами TEMPLATE_JSON по смыслу
+            - Сопоставь ключи из Markdown с TEMPLATE_JSON по смыслу
             - Выбери только допустимые значения из TEMPLATE_JSON
             - Если точного совпадения нет — выбери ближайшее
             - Пропусти параметры, которых нет в TEMPLATE_JSON
