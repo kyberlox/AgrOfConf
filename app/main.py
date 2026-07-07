@@ -47,7 +47,7 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
 
-
+DOMAIN = os.getenv('DOMAIN')
 
 # # Настройка CORS
 origins = ["http://localhost:5173", "http://agrofconf.emk.org.ru", "*"]
