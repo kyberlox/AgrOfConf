@@ -78,7 +78,7 @@ import EnginePick from '@/views/homeView/components/EnginePickModal.vue'
 import Configurator from '../configurator/Configurator.vue';
 import { useProductsData } from '@/stores/products';
 import { useNavStore } from '@/stores/navigation.ts';
-import HistoryTable from './components/HistoryTable.vue';
+import HistoryTable from './components/dataTable/HistoryTable.vue';
 import Statistics from './components/statistics/Statistics.vue';
 import { useUserStore } from '@/stores/user.ts';
 import { useHistoryStore } from '@/stores/historyTable.ts';
@@ -142,7 +142,6 @@ export default defineComponent({
             tableData,
             headerComparsion,
             handlePageTypeChange,
-
         }
     }
 });

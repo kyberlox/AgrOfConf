@@ -204,9 +204,11 @@ export default defineComponent({
 
         const handleDownloadTkp = async (variantId: number) => {
             try {
-                const response = await Api.post(`tkp_generation/create_tkp?file_id=${variantId}&product_id=${props.id}&save_to_statistic=true`, userInputs.value, { responseType: 'blob' })
+                const response = await Api.post(`tkp_generation/create_tkp?file_id=${variantId}&product_id=${props.id}&save_to_statistic=true`, userInputs.value, { responseType: 'blob' }, undefined, true)
+                console.log(response.headers['Content-Disposition'])
                 const contentDisposition = response.headers['content-disposition']
-                const filename = contentDisposition?.split('filename=')[1]?.replace(/"/g, '')
+                console.log(contentDisposition)
+                const filename = contentDisposition?.split('filename=')[1]
                 await downloadFile(response.data, filename)
             }
             catch (error) {

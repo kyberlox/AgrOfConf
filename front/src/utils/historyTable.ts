@@ -4,7 +4,7 @@ export const headerComparsion = {
     'Шифр ОЛ': 'id',
     'ОЛ №': 'document_number',
     'Статус': 'status',
-    'Документ №': 'document_number',
+    'Док. №': 'document_number',
     'Готовность': 'ready',
     'Наименование': 'product_name',
     'Шт.': 'quantity',

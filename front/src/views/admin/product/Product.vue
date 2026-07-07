@@ -141,7 +141,7 @@ export default defineComponent({
 
         const downloadExcell = async () => {
             try {
-                const data = await Api.post(`tables/download_xlsx?product_id=${props.id}`, undefined, { responseType: 'blob' });
+                const data = await Api.post(`tables/download_xlsx?product_id=${props.id}`, undefined, { responseType: 'blob' }, undefined, true);
                 download(data.data, String(data.headers['content-disposition'].split('=')[1]).replaceAll('"', ''), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             }
             catch (error) { console.error(error) }
