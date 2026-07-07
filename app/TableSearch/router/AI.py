@@ -134,7 +134,7 @@ async def upload_OL(
         raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")
 
 
-@app.post("/convert-ai-result")
+@router.post("/convert-ai-result")
 async def convert_ai_result(
     # raw_json: dict = Body(...)
     product_id: int,
