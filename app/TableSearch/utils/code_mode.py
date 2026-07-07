@@ -638,15 +638,15 @@ class CodeParametr:
         #Формируем Давление настройки
         if not Pn and force_open:
             last_sort += 1
-            res = self._set_params(res, last_sort, "Давление настройки", param_description="", all_values=[0, 16], sort=last_sort)
+            res = self._set_params(res, last_sort, "Давление настройки", param_description="", all_values=[0, 16], sort=last_sort, param_type="user_input")
         #Формируем Максимальный аварийный расход жидкости и газа
         if not Gab and force_open:
             last_sort += 1
-            res = self._set_params(res, last_sort, "Максимальный аварийный расход жидкости и газа", param_description="", all_values=[0, 10 ** 100], sort=last_sort)
+            res = self._set_params(res, last_sort, "Максимальный аварийный расход жидкости и газа", param_description="", all_values=[0, 10 ** 100], sort=last_sort, param_type="user_input")
         #Формируем Количество параллельно установленных и одновременно работающих клапанов (шт)
         if not N and force_open:
             last_sort += 1
-            res = self._set_params(res, last_sort, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_description="", all_values=[0, 10 ** 100], sort=last_sort)
+            res = self._set_params(res, last_sort, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_description="", all_values=[0, 10 ** 100], sort=last_sort, param_type="user_input")
         #Формируем Мембранно-предохранительное устройство
         if not pre_Kc and force_open:
             last_sort += 1
@@ -654,11 +654,11 @@ class CodeParametr:
         #Формируем Противодавление статическое
         if not Pp and Pn:
             last_sort += 1
-            res = self._set_params(res, last_sort, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], sort=last_sort)
+            res = self._set_params(res, last_sort, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], sort=last_sort, param_type="user_input")
         #Формируем Противодавление динамическое
         if not Pp_din and Pn:
             last_sort += 1
-            res = self._set_params(res, last_sort, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], sort=last_sort)
+            res = self._set_params(res, last_sort, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], sort=last_sort, param_type="user_input")
         
         #Если не все заполнено, возвращаем массив параметров для заполнения
         is_exist = [force_open, Pn, Gab, N, pre_Kc, Pp, Pp_din]
