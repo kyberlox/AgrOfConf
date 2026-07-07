@@ -222,7 +222,6 @@ class ElasticStatisticRepo(DatabaseStatistic):
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    
 
     async def search_all_fields(
         self,
