@@ -36,6 +36,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dotenv import load_dotenv
 
+import os
+
 load_dotenv()
 
 
@@ -50,7 +52,7 @@ app = FastAPI(
 DOMAIN = os.getenv('DOMAIN')
 
 # # Настройка CORS
-origins = ["http://localhost:5173", "*"]
+origins = ["http://localhost:5173", DOMAIN, "*"]
 
 app.add_middleware(
     CORSMiddleware,
