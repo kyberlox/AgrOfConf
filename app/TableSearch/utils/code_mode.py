@@ -148,7 +148,7 @@ class CodeParametr:
                 #если всё правильно
                 else:
                     description = "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)"
-                    # res = self._set_params(res, param_info.id, "Состав смеси", param_description=description, all_values=all_values, sort=2, param_type="select-input", response_value=envs)
+                    res = self._set_params(res, param_info.id, "Состав смеси", param_description=description, all_values=all_values, sort=2, param_type="select-input", response_value=envs)
                     got_envs = True
 
         #климатика
