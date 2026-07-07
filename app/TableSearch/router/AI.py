@@ -81,7 +81,7 @@ async def upload_OL(
     statistic_router = Depends(get_recognition_router),
     user_id: Optional[int] = Depends(get_user_id_by_session_id)
 ): # -> Dict[str, Any]
-    
+    from copy import deepcopy
     try:
         start_all = time.time()
         # params = await get_params_and_values_of_product(db, product_id)
@@ -99,7 +99,7 @@ async def upload_OL(
             user_promt = UNIFIED_PROMPT
         
         content = await convert_file_to_jpeg_content(file)
-        
+        files = deepcopy(content)
         if not content:
             return {"error": "Unsupported file format"}
 
@@ -126,7 +126,7 @@ async def upload_OL(
         # is_dump = await statistic_router.save_recognition(stat_info)
         fin_all = time.time()
         print(f"Распознали ОЛ за {fin_all - start_all}, Цена: {total_coast}")
-        return {"markdown": need, "file": content}
+        return {"markdown": need, "file": files}
     except HTTPException:
         raise
     except Exception as e:
