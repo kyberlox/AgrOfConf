@@ -74,7 +74,7 @@ def _extract_json_from_response(text: str) -> dict:
 
 @router.post("/upload_OL")
 async def upload_OL(
-    product_id: int,
+    # product_id: int,
     user_promt: Optional[str] = Body(None, embed=True),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
