@@ -126,7 +126,7 @@ async def upload_OL(
         # is_dump = await statistic_router.save_recognition(stat_info)
         fin_all = time.time()
         print(f"Распознали ОЛ за {fin_all - start_all}, Цена: {total_coast}")
-        return need
+        return {"markdown": need, "file": content}
     except HTTPException:
         raise
     except Exception as e:
