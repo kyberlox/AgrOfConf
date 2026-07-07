@@ -80,7 +80,7 @@ async def upload_OL(
     db: AsyncSession = Depends(get_db),
     statistic_router = Depends(get_recognition_router),
     user_id: Optional[int] = Depends(get_user_id_by_session_id)
-) -> Dict[str, Any]:
+): # -> Dict[str, Any]
     
     try:
         start_all = time.time()
