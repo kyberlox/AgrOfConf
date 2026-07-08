@@ -1,6 +1,6 @@
 <template>
-<div class="w-full ag-theme-custom"
-     v-if="currentTableNav !== 'statistics'">
+<div v-if="currentTableNav !== 'statistics'"
+     class="w-full ag-theme-custom">
     <!-- Заглушка если нет истории -->
     <div v-if="(!rowData.length || !isLogin)"
          class="2xl:mt-[100px] xl:mt-[20px]">
@@ -58,6 +58,7 @@ export default defineComponent({
         }
     },
     setup(props) {
+        const tableReady = ref(false)
         const gridApi = ref<any>(null);
         const modules = [AllCommunityModule];
         const rowData = computed(() => {
@@ -94,8 +95,8 @@ export default defineComponent({
                 cellRendererParams: {
                     colDefs: props.tableHead
                 },
-                minWidth: 10,
-                maxWidth: 148,
+                minWidth: 95,
+                maxWidth: 240,
                 width: undefined,
                 flex: undefined,
                 sortable: true,
@@ -121,6 +122,7 @@ export default defineComponent({
             columnDefs,
             defaultColDef,
             modules,
+            tableReady,
             onFirstDataRendered,
             isLogin: computed(() => useUserStore().getIsLogin),
         }
@@ -190,6 +192,12 @@ export default defineComponent({
     line-height: 1.25rem;
     border: none;
     outline: none;
+}
+
+/* Отступ перед первой колонкой */
+.ag-theme-custom .ag-cell:first-child,
+.ag-theme-custom .ag-header-cell:first-child {
+    padding-left: 24px;
 }
 
 .ag-theme-custom .ag-cell:focus {

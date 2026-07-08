@@ -1,7 +1,7 @@
 <template>
-<div class="flex items-center ">
+<div class="flex items-center">
     <span :class="[
-        'truncate max-w-[120px] inline-block',
+        'truncate max-w-[200px] inline-block',
         isFirst ? 'underline cursor-pointer hover:text-orange-500 transition-colors duration-300' : ''
     ]">
         {{ displayValue }}
@@ -21,6 +21,7 @@ export default defineComponent({
         }
     },
     setup(props) {
+        // console.log(props)
         const isFirst = computed(() => {
             const colDefs = props.params.colDefs || [];
             const fieldName = props.params.colDef?.field || '';
@@ -28,17 +29,23 @@ export default defineComponent({
         });
 
         const displayValue = computed(() => {
-            // debugger
-            const rawValue = props.params.value;
-            if (rawValue === undefined || rawValue === null || rawValue === 'undefined' || rawValue === 'Не определено') {
-                return 'Не определено1';
-            } else if (String(rawValue).includes(':')) {
-                return String(rawValue).split(' ')[0] || '';
-            } else {
-                return String(rawValue);
-            }
+            const field = props.params.colDef?.field;
+            const rawValue = props.params.value ?? (field ? props.params.data[field] : undefined);
+            if (field == 'Шт.') {
+                return '1'
+            } else
+                if (rawValue === undefined || rawValue === null || rawValue === 'undefined' || rawValue === 'Не определено') {
+                    return 'Не определено';
+                } else if (String(rawValue).includes(':')) {
+                    return String(rawValue).split(' ')[0] || '';
+                } else {
+                    return String(rawValue);
+                }
         });
 
+        if (props.params.colDef.field === 'Созд.') {
+            console.log(props.params)
+        }
         return {
             isFirst,
             displayValue
