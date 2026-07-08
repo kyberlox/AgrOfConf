@@ -208,7 +208,7 @@ export default defineComponent({
                 console.log(response.headers['Content-Disposition'])
                 const contentDisposition = response.headers['content-disposition']
                 console.log(contentDisposition)
-                const filename = contentDisposition?.split('filename=')[1]
+                const filename = contentDisposition?.split('filename=')[1].replaceAll('""', '');
                 await downloadFile(response.data, filename)
             }
             catch (error) {
