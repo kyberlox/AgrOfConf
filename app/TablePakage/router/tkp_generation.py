@@ -105,13 +105,27 @@ async def tkp_generation(
         elif template_path.endswith(".xlsx"):
             workbook = load_workbook(template_path, data_only=True)
 
+            # for sheet in workbook.worksheets:
+            #     for row in sheet.iter_rows():
+            #         for cell in row:
+            #             if isinstance(cell.value, str):
+            #                 for key, value in user_dict.items():
+            #                     pattern = re.compile(r'\{\{\s*' + re.escape(key) + r'\s*\}\}')
+            #                     cell.value = pattern.sub(str(value), cell.value)
             for sheet in workbook.worksheets:
                 for row in sheet.iter_rows():
                     for cell in row:
                         if isinstance(cell.value, str):
-                            for key, value in user_dict.items():
-                                pattern = re.compile(r'\{\{\s*' + re.escape(key) + r'\s*\}\}')
-                                cell.value = pattern.sub(str(value), cell.value)
+                            # Находим все плейсхолдеры в ячейке
+                            pattern = re.compile(r'\{\{\s*([^}]+)\s*\}\}')
+                            
+                            def replace_match(match):
+                                key = match.group(1).strip()
+                                # Если ключ есть в словаре - возвращаем значение, иначе - пустую строку
+                                return str(user_dict.get(key, ''))
+                            
+                            # Заменяем все плейсхолдеры
+                            cell.value = pattern.sub(replace_match, cell.value)
 
             result_stream = BytesIO()
             workbook.save(result_stream)
