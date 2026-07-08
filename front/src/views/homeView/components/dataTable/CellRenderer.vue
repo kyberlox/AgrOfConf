@@ -28,9 +28,10 @@ export default defineComponent({
         });
 
         const displayValue = computed(() => {
+            // debugger
             const rawValue = props.params.value;
-            if (rawValue === undefined || rawValue === null || String(rawValue) === 'undefined' || String(rawValue) === 'Не определено') {
-                return 'Не определено';
+            if (rawValue === undefined || rawValue === null || rawValue === 'undefined' || rawValue === 'Не определено') {
+                return 'Не определено1';
             } else if (String(rawValue).includes(':')) {
                 return String(rawValue).split(' ')[0] || '';
             } else {

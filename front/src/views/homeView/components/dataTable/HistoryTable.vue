@@ -19,8 +19,6 @@
                    :animateRows="false"
                    :rowHeight="56"
                    :headerHeight="56"
-                   :suppressBrowserResizeObserver="false"
-                   :stopEditingWhenCellsLoseFocus="true"
                    :reactiveCustomComponents="true"
                    @first-data-rendered="onFirstDataRendered"
                    class="ag-theme-custom w-full" />
@@ -37,10 +35,7 @@ import EmptyHistoryPlug from '@/components/EmptyHistoryPlug.vue';
 import CellRenderer from './CellRenderer.vue';
 import { useUserStore } from '@/stores/user.ts';
 
-// Регистрация модулей AG Grid (обязательно для v36+)
 ModuleRegistry.registerModules([AllCommunityModule]);
-
-// Импорт стилей
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
@@ -65,7 +60,6 @@ export default defineComponent({
     setup(props) {
         const gridApi = ref<any>(null);
         const modules = [AllCommunityModule];
-
         const rowData = computed(() => {
             return props.tableData.map(row => {
                 const obj: Record<string, string | number> = {};
@@ -74,7 +68,7 @@ export default defineComponent({
                     if (raw === undefined || raw === null) {
                         obj[header] = 'Не определено';
                     } else if (/^\d+$/.test(raw)) {
-                        obj[header] = Number(raw);
+                        obj[header] = (raw);
                     } else {
                         obj[header] = raw;
                     }
@@ -85,11 +79,9 @@ export default defineComponent({
 
         const defaultColDef: ColDef = {
             sortable: true,
-            resizable: true,
-            suppressMovable: true,
+            resizable: false,
             autoHeight: false,
             wrapText: false,
-            suppressAutoSize: false,
             cellClass: 'ag-custom-cell',
             headerClass: 'ag-custom-header',
         };
@@ -108,22 +100,20 @@ export default defineComponent({
                 flex: undefined,
                 sortable: true,
                 filter: false,
-                comparator: (valueA: any, valueB: any) => {
-                    if (typeof valueA === 'number' && typeof valueB === 'number') {
-                        return valueA - valueB;
-                    }
-                    const strA = String(valueA ?? '');
-                    const strB = String(valueB ?? '');
-                    return strA.localeCompare(strB, 'ru');
-                }
+                // comparator: (valueA: any, valueB: any) => {
+                //     if (typeof valueA === 'number' && typeof valueB === 'number') {
+                //         return valueA - valueB;
+                //     }
+                //     const strA = String(valueA ?? '');
+                //     const strB = String(valueB ?? '');
+                //     return strA.localeCompare(strB, 'ru');
+                // }
             }));
         });
 
         const onFirstDataRendered = (params: GridReadyEvent) => {
             gridApi.value = params.api;
-            setTimeout(() => {
-                params.api.autoSizeAllColumns();
-            }, 50);
+            params.api.autoSizeAllColumns();
         };
 
         return {
@@ -170,6 +160,10 @@ export default defineComponent({
 .ag-theme-custom .ag-root-wrapper {
     border: none;
     border-radius: 0;
+}
+
+.ag-grid-pinned-top-rows {
+    z-index: 0;
 }
 
 .ag-theme-custom .ag-header {

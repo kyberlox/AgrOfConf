@@ -9,6 +9,6 @@ export const useHistoryStore = defineStore('historyStore', {
         }
     },
     getters: {
-        getHistoryData: (state) => state.historyData || 'Не определено'
+        getHistoryData: (state) => state.historyData
     }
 })

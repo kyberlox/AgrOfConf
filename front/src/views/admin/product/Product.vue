@@ -104,7 +104,7 @@ import { BaseButton } from 'beans-ui-kit';
 import CloseIcon from '@/assets/icons/Cross.svg?component';
 import Plus from '@/assets/icons/Plus.svg?component';
 import { useProductsData } from '@/stores/products';
-import { startDrag, onOver, onLeave, onDrop } from '@/utils/DragEvents';
+import { startDrag, onOver, onLeave, onDrop } from '@/utils/dragEvents.ts';
 import { VueDraggable } from 'vue-draggable-plus';
 import SettingsIcon from '@/assets/icons/Settings.svg?component';
 import ParameterSettings from './ParameterSettings.vue';

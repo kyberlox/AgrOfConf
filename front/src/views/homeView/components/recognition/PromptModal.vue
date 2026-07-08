@@ -1,10 +1,13 @@
 <template>
 <div class="pb-[15px]">
     <div v-if="!wasRecognized"
-         class="prompt-area__actions flex flex-col gap-[15px] w-[70vh] h-[70vh] justify-center px-[25px]">
-        <h3 class="text-left mt-[15px]">Измените промпт или оставьте стандартный</h3>
+         class="prompt-area__actions  flex flex-col gap-[15px] w-[80vh] h-[80vh] justify-center px-[25px]">
+        <h3 class="text-left mt-[15px]">Дополните промпт или отправьте без изменений</h3>
+        <span>Нередактируемый промпт</span>
+        <pre class="bg-blue-50 border border-gray-400 rounded-[16px] p-[25px] max-h-full overflow-auto"
+             v-html="defaultPromptToOCR"></pre>
+        <span>Если необходимо дополнить, заполните поле ниже</span>
         <BaseTextarea :propsClass="'prompt-area'"
-                      :propsValue="''"
                       @valueChanged="(newVal) => promptVal = newVal" />
         <BaseButton :propsClass="'button-primary'"
                     :disabled="docIsLoading"
@@ -102,6 +105,7 @@ export default defineComponent({
             wasRecognized,
             imagesUrl,
             convertAiIsLoading,
+            Marked,
             sendToServer,
             handleSuccessRecognized
         }
