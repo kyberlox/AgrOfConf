@@ -1020,23 +1020,23 @@ class CodeParametr:
         param = self._get_param_by_name("Цена /шт. руб с НДС 22%", selection_result)
         counter = param['sort'] + 1
         res = []
-        contact_info = ["ФИО заказчика", "Телефон заказчика", "Email заказчика", "Организация заказчика"]
+        contact_info = ["ФИО Заказчика", "Телефон Заказчика", "Email Заказчика", "Организация Заказчика"]
         
-        result = self._set_params(selection_result, counter, "ФИО заказчика", sort=counter, param_type='user_input')
+        result = self._set_params(selection_result, counter, "ФИО Заказчика", sort=counter, param_type='user_input')
         counter += 1
-        result = self._set_params(result, counter, "Телефон заказчика",sort=counter, param_type='user_input')
+        result = self._set_params(result, counter, "Телефон Заказчика",sort=counter, param_type='user_input')
         counter += 1
-        result = self._set_params(result, counter, "Email заказчика", sort=counter, param_type='user_input')
+        result = self._set_params(result, counter, "Email Заказчика", sort=counter, param_type='user_input')
         counter += 1
-        result = self._set_params(result, counter, "Организация заказчика", sort=counter, param_type='user_input')
+        result = self._set_params(result, counter, "Организация Заказчика", sort=counter, param_type='user_input')
         counter += 1
         result = self._set_params(result, counter, "Проектная организация", sort=counter, param_type='user_input')
         counter += 1
         result = self._set_params(result, counter, "Комментарий", sort=counter, param_type='user_input')
         counter += 1
-        result = self._set_params(result, counter, "Должность заказчика", sort=counter, param_type='user_input')
+        result = self._set_params(result, counter, "Должность Заказчика", sort=counter, param_type='user_input')
         counter += 1
-        result = self._set_params(result, counter, "Адрес заказчика", sort=counter, param_type='user_input')
+        result = self._set_params(result, counter, "Адрес Заказчика", sort=counter, param_type='user_input')
 
         if not select_formula_params:
             return {"total_change" : result}
