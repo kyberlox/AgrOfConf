@@ -413,7 +413,7 @@ class CodeParametr:
                 if not param_info:
                     continue
                 param_info = param_info[0]
-                res = self._set_params(res, param_info['id'], kir_param_name, param_description=param["description"], all_values=param_info['all_values'], response_value=value, sort=param_info['sort'])
+                res = self._set_params(res, param_info['id'], kir_param_name, param_description=param["description"], response_value=value, sort=param_info['sort'], param_type='user_input') # all_values=param_info['all_values'], 
             
             # Поскольку расчет смеси завершился, докидываем
             # параметры из БД для следующего расчета
