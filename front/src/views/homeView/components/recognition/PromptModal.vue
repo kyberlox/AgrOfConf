@@ -65,9 +65,7 @@ export default defineComponent({
 
         const sendToServer = async () => {
             const newFormData = copyFormData(props.formData);
-            if (promptVal.value) {
-                newFormData.append('user_promt', promptVal.value);
-            }
+            newFormData.append('user_promt', promptVal.value);
             docIsLoading.value = true;
             try {
                 const data = await Api.post(`AI/upload_OL?product_id=${route.params.id}`, newFormData)
