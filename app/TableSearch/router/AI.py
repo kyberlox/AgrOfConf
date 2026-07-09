@@ -95,15 +95,34 @@ async def upload_OL(
         #     "Организация заказчика": ''
         # }
         # total_params = res_params | agent_info
+        PROMT = f"""
+        Из документа, который я прислал, извлеки все параметры и их значения.
+        Верни результат строго в формате Markdown-таблицы с двумя колонками.
+
+        ПРАВИЛА ФОРМИРОВАНИЯ MARKDOWN:
+
+        1. Используй таблицу с колонками: | Параметр | Значение |
+        
+        2. В колонке "Значение" запиши сначала значение параметра, 
+        а если есть размерность — добавь её через запятую после значения.
+        
+        Примеры:
+        | Номинальный диаметр | 100, мм |
+        | Тип присоединения к трубопроводу | фланцевое |
+        | Давление (избыточное) | 1.6, МПа |
+        
+        3. {user_promt}
+        В ответе пришли ТОЛЬКО Markdown-таблицу, без пояснений.
+        """
         if not user_promt:
-            user_promt = UNIFIED_PROMPT
+            PROMT = UNIFIED_PROMPT
         
         content = await convert_file_to_jpeg_content(file)
         files = deepcopy(content)
         if not content:
             return {"error": "Unsupported file format"}
 
-        content.append({"type": "text", "text": user_promt})
+        content.append({"type": "text", "text": PROMT})
 
         response = await client.chat.completions.create(
             model=model_type,
