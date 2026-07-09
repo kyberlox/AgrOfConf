@@ -20,6 +20,7 @@
                    :propsPlaceholder="'Введите название документа'"
                    @value-changed="(value) => fileName = value" />
         <UploadFileArea :disabled="!fileName"
+                        :uploadFormats="'.xlsx,.docx'"
                         @ready-to-upload-file="uploadOlToProduct">
             Добавить
         </UploadFileArea>
@@ -31,7 +32,6 @@ import { defineComponent, ref, onMounted, type PropType } from 'vue';
 import UploadFileArea from '@/components/layout/UploadFileArea.vue';
 import { type ITkpVariant } from '@/assets/interfaces/ITkpVariant.ts';
 import { BaseInput } from 'beans-ui-kit';
-import Api from '@/utils/Api';
 
 export default defineComponent({
     components: {
@@ -52,12 +52,13 @@ export default defineComponent({
         const newFileFormData = new FormData();
         const fileName = ref<string>();
 
-        const uploadOlToProduct = async (formDataFile: FormData) => {
+        const uploadOlToProduct = (formDataFile: FormData) => {
             console.log(fileName)
             newFileFormData.append('file', formDataFile.get('file') as Blob);
             newFileFormData.append('product_id', props.id);
             newFileFormData.append('filename', fileName.value as string);
             emit('updateOlList', newFileFormData)
+            fileName.value = '';
         }
 
         return {

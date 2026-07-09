@@ -11,7 +11,7 @@
            ref="fileInput"
            class="hidden"
            id="docUpload"
-           accept=".jpg,.jpeg,.png,.webp,.bmp,.tiff,.tif,.pdf,.md,.html,.docx,.odt,.rtf"
+           :accept="formats"
            :disabled="disabled"
            @change="uploadFile" />
 
@@ -35,6 +35,9 @@ export default defineComponent({
         disabled: {
             type: Boolean,
             default: false
+        },
+        formats: {
+            type: String
         }
     },
     setup(_, { emit }) {
