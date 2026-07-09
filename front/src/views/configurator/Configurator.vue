@@ -93,6 +93,7 @@ import TkpVariants from './components/TkpVariants.vue';
 import { type ITkpVariant } from '@/assets/interfaces/ITkpVariant.ts';
 import { downloadFile } from '@/utils/downloadFile.ts';
 import Loader from '@/components/layout/Loader.vue';
+import { getTkpVariants } from '@/utils/getTkpVariants.ts';
 
 export default defineComponent({
     components: {
@@ -114,7 +115,7 @@ export default defineComponent({
             required: true
         }
     },
-    setup(props) {
+    setup(props, { emit }) {
         const form = ref<IFormattedData[]>([]);
         const userInputs = ref<{ [key: string]: string }>({});
         const modalVisible = ref(false);
@@ -169,19 +170,8 @@ export default defineComponent({
             }
         }
 
-        const getTkpVariants = async () => {
-            try {
-                const data: ITkpVariant[] = await Api.get(`/tkp_generation/get_tkp_of_product/${props.id}`)
-                if (data.length) {
-                    tkpVariants.value = data;
-                }
-            } catch (error) {
-                console.error(error)
-            }
-        }
-
-        onMounted(() => {
-            getTkpVariants();
+        onMounted(async () => {
+            tkpVariants.value = await getTkpVariants(props.id);
             if (!Object.keys(neuroOlData.value).length)
                 paramsUpdate(null)
 
@@ -208,7 +198,7 @@ export default defineComponent({
                 console.log(response.headers['Content-Disposition'])
                 const contentDisposition = response.headers['content-disposition']
                 console.log(contentDisposition)
-                const filename = contentDisposition?.split('filename=')[1]
+                const filename = contentDisposition?.split('filename=')[1].replaceAll('""', '')
                 await downloadFile(response.data, filename)
             }
             catch (error) {

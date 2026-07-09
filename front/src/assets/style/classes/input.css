@@ -42,3 +42,7 @@
 .input-product-edit__wrapper:has(.input-product-edit:placeholder-shown) .input-product-edit__label {
   display: none;
 }
+
+.input-admin{
+  @apply p-[15px] outline-0 bg-gray-50 w-full rounded-[5px] border border-gray-100
+}

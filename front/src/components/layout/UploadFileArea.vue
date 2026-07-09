@@ -1,6 +1,6 @@
 <template>
 <div class="dropzone-container w-[480px] max-w-full border border-(--color-information-orange-200) hover:bg-(--color-information-orange-200) transition-all duration-300 cursor-pointer border-dotted flex flex-col gap-[4px] rounded-[12px] text-center"
-     :class="[{ 'bg-(--color-information-green-50) hover:bg-(--color-information-green-150)!': !empty },
+     :class="[{ 'bg-gray-300 hover:bg-gray-300!': disabled }, { 'bg-(--color-information-green-50) hover:bg-(--color-information-green-150)!': !empty },
     isDragOver && !empty ? 'bg-(--color-information-orange-200)' : isDragOver && !empty ? 'bg-(--color-information-green-150)!' : '']"
      @dragover.prevent
      @dragover="isDragOver = true"
@@ -12,54 +12,35 @@
            class="hidden"
            id="docUpload"
            accept=".jpg,.jpeg,.png,.webp,.bmp,.tiff,.tif,.pdf,.md,.html,.docx,.odt,.rtf"
+           :disabled="disabled"
            @change="uploadFile" />
 
-    <div @click="handleClick">
-        <div v-if="empty"
-             class="dz-message p-[20px]">
-            <span class="text-[16px] font-semibold text-(--color-information-orange-800)">
-                Распознать ОЛ
-            </span>
-            <span class="text-[13px] font-normal text-(--text-text-secondary) block mt-1">
-                jpg, jpeg, png, webp, bmp, tiff, tif, pdf, md, html,
-                docx, odt, rtf
-            </span>
-            <span class="text-[12px] text-(--text-text-tertiary) block mt-2">
-                Перетащите файл сюда или нажмите для выбора
-            </span>
-        </div>
-
-        <div v-else
-             class="flex flex-row items-center justify-between">
-            <div class="flex flex-col gap-[4px] text-left">
-                <span class="text-[16px] font-semibold text-(--text-text-primary)">
-                    Поля {{ ' ' + storedFileName + ' ' }} Распознаны
-                </span>
-                <span class="text-[13px] font-normal text-(--text-text-secondary) block">
-                    Перепроверьте
-                </span>
-            </div>
-            <span class="text-[16px] text-(--color-information-orange-800) block">
-                Загрузить другой
-            </span>
-        </div>
+    <div @click="handleClick"
+         class="p-[20px]">
+        <slot></slot>
     </div>
 </div>
 </template>
 
 <script lang='ts'>
-import { defineComponent, ref, computed } from 'vue';
-import { useNeuroOlData } from '@/stores/neuroOl';
+import { defineComponent, ref } from 'vue';
 
 export default defineComponent({
     name: 'UploadDocButton',
     emits: ['readyToUploadFile'],
+    props: {
+        empty: {
+            type: Boolean,
+        },
+        disabled: {
+            type: Boolean,
+            default: false
+        }
+    },
     setup(_, { emit }) {
         const fileInput = ref<HTMLInputElement | null>(null);
         const uploadedFileName = ref('');
-        const storedFileName = computed(() => useNeuroOlData().getOlName);
         const isDragOver = ref(false);
-        const storedData = computed(() => useNeuroOlData().getOlInfo);
 
         const handleClick = () => {
             if (fileInput.value) {
@@ -96,12 +77,9 @@ export default defineComponent({
             fileInput,
             uploadedFileName,
             isDragOver,
-            storedFileName,
-            storedData,
             handleClick,
             uploadFile,
             dragFile,
-            empty: computed(() => !Object.keys(storedData.value).length)
         };
     }
 });

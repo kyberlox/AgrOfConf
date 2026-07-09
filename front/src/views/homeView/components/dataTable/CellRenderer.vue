@@ -21,7 +21,6 @@ export default defineComponent({
         }
     },
     setup(props) {
-        // console.log(props)
         const isFirst = computed(() => {
             const colDefs = props.params.colDefs || [];
             const fieldName = props.params.colDef?.field || '';
@@ -43,9 +42,6 @@ export default defineComponent({
                 }
         });
 
-        if (props.params.colDef.field === 'Созд.') {
-            console.log(props.params)
-        }
         return {
             isFirst,
             displayValue
