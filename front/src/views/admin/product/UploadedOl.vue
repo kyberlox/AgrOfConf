@@ -53,7 +53,6 @@ export default defineComponent({
         const fileName = ref<string>();
 
         const uploadOlToProduct = (formDataFile: FormData) => {
-            console.log(fileName)
             newFileFormData.append('file', formDataFile.get('file') as Blob);
             newFileFormData.append('product_id', props.id);
             newFileFormData.append('filename', fileName.value as string);

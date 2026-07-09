@@ -127,6 +127,7 @@ import type { IParameter } from '@/assets/interfaces/IParameter';
 import UploadedOl from './UploadedOl.vue';
 import { getTkpVariants } from '@/utils/getTkpVariants.ts';
 import { type ITkpVariant } from '@/assets/interfaces/ITkpVariant.ts';
+import { toast } from 'vue3-toastify';
 
 export default defineComponent({
     components: {
@@ -255,7 +256,10 @@ export default defineComponent({
 
         const uploadOl = async (fileFormData: FormData) => {
             try {
-                await Api.post('tkp_generation/add', fileFormData)
+                const data = await Api.post('tkp_generation/add', fileFormData);
+                if (data) {
+                    toast.success('ТКП успешно загружено')
+                }
                 await getOlList();
             } catch (error) {
                 console.error(error)
