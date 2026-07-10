@@ -17,15 +17,15 @@
             <span v-else>Создать ОЛ</span>
         </BaseButton>
     </div>
-    <div class="flex flex-row gap-[25px] items-start justify-center pt-[15px]">
-        <div class="flex flex-col gap-[5px] min-w-[40%] sticky top-0  z-10">
+    <div class="flex flex-row gap-[25px] items-start justify-center py-[15px]">
+        <div class="flex flex-col gap-[5px] min-w-[40%] sticky top-0 z-10 ">
             <div class="max-w-[650px] border border-gray-200 rounded-[16px] p-[15px] hover:bg-gray-50 hover:border-gray-500"
                  v-for="image in imagesUrl">
                 <VueImageZoomer :regular="image"
                                 hover-message="Наведите для приближения" />
             </div>
         </div>
-        <div class="max-w-full max-h-[80%] p-[25px] recognition-table-wrapper border border-gray-200 focus:outline-0 focus:border-gray-500 rounded-[16px]"
+        <div class="max-w-full sticky top-0 overflow-y-auto max-h-[85vh] p-[25px] recognition-table-wrapper border border-gray-200 focus:outline-0 focus:border-gray-500 rounded-[16px]"
              contenteditable="true"
              ref=mdTableNode
              v-html="recognizedTable"></div>
@@ -83,6 +83,7 @@ export default defineComponent({
     font-size: 12px;
     line-height: 1.2;
     color: #343b4c;
+    border-spacing: 10px;
 }
 
 .recognition-table-wrapper :deep(thead th) {
@@ -104,14 +105,13 @@ export default defineComponent({
 }
 
 .recognition-table-wrapper :deep(tbody td) {
-    padding: 3px 8px;
+    padding: 8px 8px;
     vertical-align: top;
     color: #343b4c;
     font-weight: 400;
     font-size: 14px;
     line-height: 1.3;
     border-bottom: 1px solid #EAECEF;
-    text-decoration: underline dotted;
 }
 
 .recognition-table-wrapper :deep(tbody tr:last-child td) {
@@ -122,13 +122,13 @@ export default defineComponent({
     padding-left: 12px;
     font-weight: 500;
     color: #171b26;
-    white-space: nowrap;
-    width: 1%;
+    width: 50%;
 }
 
 .recognition-table-wrapper :deep(tbody td:last-child) {
     padding-right: 12px;
     color: #343b4c;
     font-weight: 400;
+    text-decoration: underline dotted;
 }
 </style>

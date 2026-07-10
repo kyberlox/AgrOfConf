@@ -36,9 +36,8 @@
                     :propsId="param.name"
                     :propsClass="'paramsSelect'"
                     :propsValue="(param as IFormattedData).response_value ? String((param as IFormattedData).response_value) : ''"
-                    :propsOptions="switchOptions(param as IFormattedData)"
+                    :propsOptions="checkParams(param)"
                     :propsPlaceholder="!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param ? '' : 'Выберите значение'"
-                    :markedOptions="'filtered_values' in param && Array.isArray(param.filtered_values) ? param.filtered_values : typeof (param as IFormattedData).filtered_values == 'string' ? [(param as IFormattedData).filtered_values] : []"
                     :needReq="true"
                     :labelIcon="createLabelIconsComponent(param as IFormattedData, () => console.log('testComp'))"
                     :error="'error' in param ? param.error : ''"
@@ -60,6 +59,7 @@ import RequiredIcon from '@/assets/icons/RequiredIcon.svg?component';
 import SelectInput from '@/components/SelectInput.vue';
 import { BaseInput, BaseSelect } from 'beans-ui-kit';
 import { screenMixins } from '@/assets/static/screenMixins';
+import { useConfiguratorStore } from '@/stores/configurator.ts';
 
 export default defineComponent({
     components: {
@@ -82,7 +82,10 @@ export default defineComponent({
     },
     emits: ['valueChanged'],
     setup(props) {
-        const { width } = useWindowSize()
+        const { width } = useWindowSize();
+        const configurator = useConfiguratorStore();
+        const freeConfigMode = computed(() => configurator.getFreeModeConfig);
+
         const gridCols = computed(() => width.value < screenMixins.md ? 1 : width.value < screenMixins.lg ? 2 : 3);
         const renderData = computed(() => {
             const rows: Array<IFormattedData | { name: string }> = [];
@@ -101,18 +104,16 @@ export default defineComponent({
             return rows
         })
 
-        const switchOptions = (param: IFormattedData) => {
-            if ("error" in param || param.response_value || !('filtered_values' in param) || props.type == 'free') {
-                return Array.isArray(param.all_values) ? param.all_values : [param.all_values];
-            }
-            else if ('filtered_values' in param && param.filtered_values?.length && !param.response_value) {
-                return Array.isArray(param.filtered_values) ? param.filtered_values : [param.filtered_values];
-            }
-            else if (typeof param.filtered_values == 'string') {
-                return [param.filtered_values];
-            }
-            else {
-                return []
+        const checkParams = (param: IFormattedData) => {
+            switch (freeConfigMode.value) {
+                case true:
+                    return Array.from(param?.all_values) || []
+
+                case false:
+                    return Array.from(param?.filtered_values || [])
+
+                default:
+                    return []
             }
         }
 
@@ -120,8 +121,9 @@ export default defineComponent({
             AlertCircle,
             gridCols,
             renderData,
+            freeConfigMode,
             createLabelIconsComponent,
-            switchOptions
+            checkParams,
         }
     }
 });

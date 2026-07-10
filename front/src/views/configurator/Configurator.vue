@@ -17,14 +17,14 @@
                     </div>
                 </div>
 
-                <div v-if="!neuroOlData"
+                <div v-if="!Object.keys(neuroOlData).length"
                      class="flex flex-row gap-[11px] mt-[10px] items-center ml-auto">
                     <div class="font-normal">
                         Свободный режим
                     </div>
                     <div class=" rounded-[49px] px-[4px] w-[48px] h-[24px] flex flex-start items-center cursor-pointer transition-all duration-300"
                          :class="[freeConfigMode ? ' bg-[#F36E3C]' : ' bg-[#B4BCC8]']"
-                         @click="freeConfigMode = !freeConfigMode">
+                         @click="setFreeConfig(!freeConfigMode)">
                         <div class="bg-white rounded-[100px] w-[18px] h-[18px] transition-all duration-300"
                              :class="[freeConfigMode ? 'translate-x-[22px]' : '']"></div>
                     </div>
@@ -119,7 +119,6 @@ export default defineComponent({
         const form = ref<IFormattedData[]>([]);
         const userInputs = ref<{ [key: string]: string }>({});
         const modalVisible = ref(false);
-        const freeConfigMode = ref(false);
         const paramsRenderKey = ref(0);
         const neuroOlDataStore = useNeuroOlData();
         const neuroOlData = computed(() => neuroOlDataStore.getOlInfo);
@@ -129,9 +128,15 @@ export default defineComponent({
         const promptModalVisible = ref(false);
         const olFormData = ref<FormData>(new FormData());
         const newFileName = ref<string>();
+        const configuratorStore = useConfiguratorStore();
+        const freeConfigMode = computed(() => configuratorStore.getFreeModeConfig);
+
         let abortController: AbortController | null = null;
 
         const paramsUpdate = async (body: Record<string, string> | null) => {
+            if (freeConfigMode.value && body !== null) {
+                return
+            }
             if (abortController) {
                 abortController.abort();
             }
@@ -153,12 +158,12 @@ export default defineComponent({
                     }
                     questionCounter++
                 })
-                useConfiguratorStore().setCovered(Number(answeredCounter));
-                useConfiguratorStore().setAllQuestions(Number(questionCounter));
+                configuratorStore.setCovered(Number(answeredCounter));
+                configuratorStore.setAllQuestions(Number(questionCounter));
                 if (errors.length) {
-                    useConfiguratorStore().setError(errors)
+                    configuratorStore.setError(errors)
                 }
-                else useConfiguratorStore().setDefaultError()
+                else configuratorStore.setDefaultError()
                 if (!(data && 'parameters' in data)) return
                 form.value = data.parameters
                 productName.value = data.product_name
@@ -184,7 +189,7 @@ export default defineComponent({
 
         const handleValueChanged = (value: string, key: keyof typeof userInputs.value) => {
             if (key == 'Маркировка') {
-                useConfiguratorStore().setMark(value)
+                configuratorStore.setMark(value)
             }
             userInputs.value[key] = value;
             paramsUpdate(userInputs.value)
@@ -193,11 +198,8 @@ export default defineComponent({
         const handleDownloadTkp = async (variantId: number) => {
             try {
                 const response = await Api.post(`tkp_generation/create_tkp?file_id=${variantId}&product_id=${props.id}&save_to_statistic=true`, userInputs.value, { responseType: 'blob' }, undefined, true)
-                console.log(response.headers['Content-Disposition']);
                 const contentDisposition = response.headers['content-disposition'];
-                console.log(contentDisposition);
                 const filename = contentDisposition?.split('filename=')[1].replaceAll('"', '');
-                console.log(filename)
                 await downloadFile(response.data, filename)
             }
             catch (error) {
@@ -211,10 +213,13 @@ export default defineComponent({
             newFileName.value = fileName;
         }
 
+        const setFreeConfig = (mode: boolean) => {
+            configuratorStore.setFreeModeConfig(mode)
+        }
+
         return {
             form,
             modalVisible,
-            freeConfigMode,
             paramsRenderKey,
             neuroOlData,
             productName,
@@ -222,10 +227,12 @@ export default defineComponent({
             tkpVariants,
             promptModalVisible,
             olFormData,
+            freeConfigMode,
             newFileName,
             handleValueChanged,
             handleDownloadTkp,
-            handleFileUpload
+            handleFileUpload,
+            setFreeConfig,
         }
     }
 });
