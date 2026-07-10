@@ -131,12 +131,10 @@ export default defineComponent({
         const newFileName = ref<string>();
         let abortController: AbortController | null = null;
 
-        const paramsUpdate = async (body: any | null) => {
-            // Отменяем предыдущий запрос, если он ещё выполняется
+        const paramsUpdate = async (body: Record<string, string> | null) => {
             if (abortController) {
                 abortController.abort();
             }
-            // Создаём новый AbortController для текущего запроса
             abortController = new AbortController();
             const signal = abortController.signal;
             try {
@@ -195,10 +193,11 @@ export default defineComponent({
         const handleDownloadTkp = async (variantId: number) => {
             try {
                 const response = await Api.post(`tkp_generation/create_tkp?file_id=${variantId}&product_id=${props.id}&save_to_statistic=true`, userInputs.value, { responseType: 'blob' }, undefined, true)
-                console.log(response.headers['Content-Disposition'])
-                const contentDisposition = response.headers['content-disposition']
-                console.log(contentDisposition)
-                const filename = contentDisposition?.split('filename=')[1]
+                console.log(response.headers['Content-Disposition']);
+                const contentDisposition = response.headers['content-disposition'];
+                console.log(contentDisposition);
+                const filename = contentDisposition?.split('filename=')[1].replaceAll('""', '');
+                console.log(filename)
                 await downloadFile(response.data, filename)
             }
             catch (error) {

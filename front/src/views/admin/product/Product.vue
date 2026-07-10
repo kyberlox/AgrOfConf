@@ -104,6 +104,7 @@
     <SlotModal v-if="olListModalOpen && id"
                @closeModal="olListModalOpen = false">
         <UploadedOl :olList="olList"
+                    :olIsLoading="olIsLoading"
                     :id="id"
                     @updateOlList="uploadOl"
                     @removeOl="removeOl" />
@@ -159,6 +160,7 @@ export default defineComponent({
         const parameterUpdating = ref(false);
         const olListModalOpen = ref(false);
         const olList = ref<ITkpVariant[]>();
+        const olIsLoading = ref(false);
 
         const downloadExcell = async () => {
             try {
@@ -255,6 +257,7 @@ export default defineComponent({
         }
 
         const uploadOl = async (fileFormData: FormData) => {
+            olIsLoading.value = true;
             try {
                 const data = await Api.post('tkp_generation/add', fileFormData);
                 if (data) {
@@ -263,6 +266,8 @@ export default defineComponent({
                 await getOlList();
             } catch (error) {
                 console.error(error)
+            } finally {
+                olIsLoading.value = false;
             }
         }
 
@@ -279,6 +284,7 @@ export default defineComponent({
             // addParam,
             olList,
             olListModalOpen,
+            olIsLoading,
             removeOl,
             downloadExcell,
             sendNewSort,

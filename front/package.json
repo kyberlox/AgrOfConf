@@ -17,7 +17,7 @@
     "@vueuse/core": "^14.2.1",
     "ag-grid-vue3": "^36.0.0",
     "axios": "^1.13.6",
-    "beans-ui-kit": "^0.0.47",
+    "beans-ui-kit": "^0.0.48",
     "chart.js": "^4.5.1",
     "downloadjs": "^1.4.7",
     "pinia": "^3.0.4",

@@ -4,6 +4,10 @@
 @import 'tailwindcss';
 @import './classes.css';
 
+@theme {
+  --breakpoint-3xl: 120rem;
+}
+
 body {
   font-family: 'Inter', 'sans-serif';
   font-weight: 400;

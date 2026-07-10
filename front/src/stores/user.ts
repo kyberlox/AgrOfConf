@@ -8,7 +8,7 @@ export const useUserStore = defineStore('userStore', {
         isLogin: false
     }),
     actions: {
-        setUser(user: any) {
+        setUser(user: IUser) {
             this.user = user;
             this.isLogin = true;
         },

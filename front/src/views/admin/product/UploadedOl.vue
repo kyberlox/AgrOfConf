@@ -18,7 +18,9 @@
         <span>Для добавления нового документа - заполните название и нажмите "добавить"</span>
         <BaseInput :propsClass="'input-admin'"
                    :propsPlaceholder="'Введите название документа'"
-                   @value-changed="(value) => fileName = value" />
+                   :disabled="isLoading"
+                   :propsValue="fileName"
+                   @value-changed="(value) => { fileName = value; console.log(value) }" />
         <UploadFileArea :disabled="!fileName"
                         :uploadFormats="'.xlsx,.docx'"
                         @ready-to-upload-file="uploadOlToProduct">
@@ -45,6 +47,10 @@ export default defineComponent({
         id: {
             type: String,
             required: true
+        },
+        isLoading: {
+            type: Boolean,
+            default: false
         }
     },
     emits: ['updateOlList', 'removeOl'],
