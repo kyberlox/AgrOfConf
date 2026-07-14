@@ -56,8 +56,6 @@
                       :tableHead="Object.keys(headerComparsion)"
                       @create-ol="showEngineModal = true" />
 
-
-
         <!-- Модалка для выбора изделия -->
         <SlotModal v-if="showEngineModal"
                    @closeModal="showEngineModal = false">
@@ -80,7 +78,7 @@ import EnginePick from '@/views/homeView/components/EnginePickModal.vue'
 import Configurator from '../configurator/Configurator.vue';
 import { useProductsData } from '@/stores/products';
 import { useNavStore } from '@/stores/navigation.ts';
-import HistoryTable from './components/HistoryTable.vue';
+import HistoryTable from './components/dataTable/HistoryTable.vue';
 import Statistics from './components/statistics/Statistics.vue';
 import { useUserStore } from '@/stores/user.ts';
 import { useHistoryStore } from '@/stores/historyTable.ts';
@@ -103,7 +101,7 @@ export default defineComponent({
     setup(props) {
         const showEngineModal = ref(false);
         const engines = ref([]);
-        const engineId = ref();
+        const engineId = ref<number>();
         const section = ref('Тест');
         const currentTableNav = computed(() => useNavStore().getCurrentNav);
         const navStore = useNavStore();
@@ -144,7 +142,6 @@ export default defineComponent({
             tableData,
             headerComparsion,
             handlePageTypeChange,
-
         }
     }
 });

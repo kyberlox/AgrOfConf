@@ -1,4 +1,4 @@
-import axios, { type AxiosProgressEvent, type AxiosRequestConfig } from 'axios';
+import axios, { AxiosError, type AxiosProgressEvent, type AxiosRequestConfig } from 'axios';
 import { handleApiErrors } from './apiStatusCodeErrors';
 import type { IProduct } from '@/assets/interfaces/IProduct';
 import type { IParameter } from '@/assets/interfaces/IParameter';
@@ -33,11 +33,16 @@ export default class Api {
 
     static async post(url: string, data?: unknown, config?: AxiosRequestConfig & {
         onUploadProgress?: (progressEvent: AxiosProgressEvent) => void
-    }
+    }, signal?: AbortSignal, needRespInfo = false
     ) {
-        return await api.post(url, data, config)
-            .then(resp => config ? resp : resp.data)
-            .catch(e => handleApiErrors(e))
+        const mergedConfig: AxiosRequestConfig = { ...config, signal: signal ?? config?.signal }
+        try {
+            const respData = await api.post(url, data, mergedConfig)
+            return needRespInfo ? respData : respData.data
+        } catch (e) {
+            console.error(e)
+            handleApiErrors(e as AxiosError)
+        }
     }
 
     static async put(url: string, data?: IProduct | IParameter[] | FormData | { name?: string, description?: string }) {

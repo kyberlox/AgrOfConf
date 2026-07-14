@@ -38,7 +38,8 @@ def validate_file(file: UploadFile) -> None:
         raise HTTPException(status_code=400, detail="Invalid file extension. Allowed: .docx, .xlsx")
 
 async def convert_data(user_dict: dict, db_info: dict) -> dict:
-    user_dict['дата'] = db_info['date_search']
+    data = datetime.strptime(db_info['date_search'], "%d.%m.%Y %H:%M:%S")
+    user_dict['дата'] = data.strftime("%d.%m.%Y")
     user_dict['номер_запроса'] = user_dict['id']
     user_dict['адрес_исполнителя'] = db_info['user_work_city']
     user_dict['телефон_исполнителя'] = db_info['user_work_phone']
@@ -68,11 +69,11 @@ async def tkp_generation(
         if not file_info:
             raise HTTPException(status_code=404, detail="Файл не найден")
         template_path = file_info.file
-        contact_info = ["ФИО заказчика", "Маркировка"]
+        contact_info = ["ФИО Заказчика", "Маркировка"]
         if not all(key in user_dict for key in contact_info):
             raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
 
-        filename = f"TKP_{to_sql_name_lat(user_dict['ФИО заказчика'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
+        filename = f"TKP_{to_sql_name_lat(user_dict['ФИО Заказчика'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
 
         # Сохраняем статистику
         stat_info = await build_statistic_data(db, user_id, product_id)
@@ -105,13 +106,27 @@ async def tkp_generation(
         elif template_path.endswith(".xlsx"):
             workbook = load_workbook(template_path, data_only=True)
 
+            # for sheet in workbook.worksheets:
+            #     for row in sheet.iter_rows():
+            #         for cell in row:
+            #             if isinstance(cell.value, str):
+            #                 for key, value in user_dict.items():
+            #                     pattern = re.compile(r'\{\{\s*' + re.escape(key) + r'\s*\}\}')
+            #                     cell.value = pattern.sub(str(value), cell.value)
             for sheet in workbook.worksheets:
                 for row in sheet.iter_rows():
                     for cell in row:
                         if isinstance(cell.value, str):
-                            for key, value in user_dict.items():
-                                pattern = re.compile(r'\{\{\s*' + re.escape(key) + r'\s*\}\}')
-                                cell.value = pattern.sub(str(value), cell.value)
+                            # Находим все плейсхолдеры в ячейке
+                            pattern = re.compile(r'\{\{\s*([^}]+)\s*\}\}')
+                            
+                            def replace_match(match):
+                                key = match.group(1).strip()
+                                # Если ключ есть в словаре - возвращаем значение, иначе - пустую строку
+                                return str(user_dict.get(key, ''))
+                            
+                            # Заменяем все плейсхолдеры
+                            cell.value = pattern.sub(replace_match, cell.value)
 
             result_stream = BytesIO()
             workbook.save(result_stream)

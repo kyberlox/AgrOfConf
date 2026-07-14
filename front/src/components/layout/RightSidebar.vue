@@ -105,7 +105,7 @@ import DownloadIcon from '@/assets/icons/DownloadIcon.svg?component';
 import FileIcon from '@/assets/icons/FileIcon.svg?component';
 import { useConfiguratorStore } from '@/stores/configurator';
 import { featuresFlags } from '@/assets/static/featuresFlags.ts';
-import UploadDocButton from '@/views/homeView/components/UploadDocButton.vue';
+import UploadDocButton from '@/views/homeView/components/recognition/UploadDocButton.vue';
 
 export default defineComponent({
     components: {
@@ -116,7 +116,7 @@ export default defineComponent({
     },
     props: {},
     setup(_, { emit }) {
-        const activeImgBlock = ref();
+        const activeImgBlock = ref<number | null>(null);
         const configuratorStore = useConfiguratorStore();
 
         const handleFileUpload = (file: FormData, fileName: string) => {

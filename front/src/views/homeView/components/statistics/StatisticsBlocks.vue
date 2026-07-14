@@ -10,7 +10,7 @@
     <div class="mt-[16px] grid grid-cols-2 gap-[16px] max-w-[560px]">
         <div v-for="(block, index) in statBlocks"
              :key="'olBlock' + index"
-             class=" h-[160px] rounded-[16px] p-[24px] border border-(--color-information-gray-200)"
+             class="h-[160px] rounded-[16px] p-[24px] border border-(--color-information-gray-200) min-w-fit sm:min-w-fit  3xl:min-w-[271px]"
              :class="{ 'border-(--color-information-orange-200) bg-[linear-gradient(140deg,#fff_0%,#fff2e5_100%)]': index == 0 }">
             <div class="flex flex-row items-center justify-between">
                 <div class="font-bold text-[14px] text-(--color-information-gray-400)"

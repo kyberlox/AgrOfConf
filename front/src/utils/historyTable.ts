@@ -4,8 +4,8 @@ export const headerComparsion = {
     'Шифр ОЛ': 'id',
     'ОЛ №': 'document_number',
     'Статус': 'status',
-    'Документ №': 'document_number',
-    'Готовность': 'ready',
+    'Док. №': 'document_number',
+    'Готовность': 'status',
     'Наименование': 'product_name',
     'Шт.': 'quantity',
     'Комментарий:': 'Комментарий',
@@ -19,7 +19,13 @@ export const formatResultToHistory = (historyData: IHistory[]) => {
     historyData.forEach(historyElement => {
         const res: string[] = []
         Object.keys(headerComparsion).forEach(header => {
-            res.push(String(historyElement[headerComparsion[header as keyof typeof headerComparsion]]) || '?')
+            // if (!historyElement[headerComparsion[header as keyof typeof headerComparsion]]) {
+            //     console.log(header)
+            //     console.log(historyElement)
+            // }
+            const target = historyElement[headerComparsion[header as keyof typeof headerComparsion]];
+            res.push(target as string)
+            // console.log(res)
         })
         result.push(res)
     })

@@ -37,6 +37,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from dotenv import load_dotenv
 
+import os
+
 load_dotenv()
 
 
@@ -48,10 +50,10 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
 
-
+DOMAIN = os.getenv('DOMAIN')
 
 # # Настройка CORS
-origins = ["http://localhost:5173", "*"]
+origins = ["http://localhost:5173", DOMAIN]
 
 app.add_middleware(
     CORSMiddleware,
@@ -65,6 +67,8 @@ app.add_middleware(
 open_links = ["/api/docs", "/api/openapi.json"]
 
 redis_storage = RedisStorage()
+
+
 
 # @app.middleware("http")
 # async def session_middleware(request: Request, call_next):
@@ -129,6 +133,7 @@ redis_storage = RedisStorage()
 #         return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
 
 
+
 # Создаём таблицы при старте приложения
 @app.on_event("startup")
 async def startup_event():
@@ -136,6 +141,7 @@ async def startup_event():
     #создаем elasticsearch индекс
     create_selection_index()
     create_recognition_index()
+
 
 
 # Подключаем статические файлы (для изображений)
@@ -175,6 +181,7 @@ app.include_router(requests_router, prefix="/api")
 @app.get("/")
 async def read_root():
     return {"message": "Welcome to App for API"}
+
 
 
 # В app/main.py

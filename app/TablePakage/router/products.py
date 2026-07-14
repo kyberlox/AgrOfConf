@@ -8,6 +8,7 @@ from fastapi import UploadFile
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import text
 
 import uuid
 from pathlib import Path
@@ -25,7 +26,6 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # Настройки
 MAX_FILE_SIZE = 35 * 1024 * 1024  # 35 МБ
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif"}
-
 
 
 def validate_image(file: UploadFile) -> None:
@@ -99,7 +99,6 @@ async def create_product(
         image: UploadFile = File(None),
         db: AsyncSession = Depends(get_db)
 ):
-    
     image_path = None
     image_url = None
 
@@ -132,6 +131,7 @@ async def get_products(skip: int = 0, limit: int = 100, db: AsyncSession = Depen
     result = await db.execute(select(Product).offset(skip).limit(limit))
     return result.scalars().all()
 
+
 @router.get("/{product_id}", response_model=ProductResponse,
             description="Выведение вариации всех параметров товара по его {ID}.")
 async def get_product(product_id: int, db: AsyncSession = Depends(get_db)):
@@ -142,16 +142,15 @@ async def get_product(product_id: int, db: AsyncSession = Depends(get_db)):
     return product
 
 
-
 @router.put("/{product_id}", response_model=ProductResponse, description="Запрос на изменение товара.")
 async def edit_product(
-    product_id: int, 
-    name: str = Form(...),
-    description: str = Form(None),
-    manufacturer: str = Form(None),
-    image: UploadFile = File(None),
-    db: AsyncSession = Depends(get_db)):
-    #!!!!!!!!!!! ПРОБЛЕМА С ЭТОЙ РУЧКОЙ "AttributeError: 'ProductUpdate' object has no attribute 'params'"
+        product_id: int,
+        name: str = Form(...),
+        description: str = Form(None),
+        manufacturer: str = Form(None),
+        image: UploadFile = File(None),
+        db: AsyncSession = Depends(get_db)):
+    # !!!!!!!!!!! ПРОБЛЕМА С ЭТОЙ РУЧКОЙ "AttributeError: 'ProductUpdate' object has no attribute 'params'"
     result = await db.execute(
         select(Product).where(Product.id == product_id)
     )
@@ -164,7 +163,7 @@ async def edit_product(
     product.description = description
     product.manufacturer = manufacturer
 
-    #отдельно замена файла
+    # отдельно замена файла
     image_path = product.image
 
     if image:
@@ -183,11 +182,10 @@ async def edit_product(
             product.image = image_path
             product.image_url = image_url
 
-
-
     await db.commit()
     await db.refresh(product)
     return product
+
 
 @router.delete("/{product_id}", response_model=ProductResponse, description="Запрос на удаление товара.")
 async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
@@ -198,9 +196,52 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
         return HTTPException(status_code=404, detail="Product not found")
 
     image_path = product.image
-    if image_path is not None and image_path != "" and os.path.exists(image_path):
+
+    # Получаем имена Excel-таблиц до удаления продукта
+    tables_result = await db.execute(
+        text("""
+                SELECT DISTINCT table_name
+                FROM parameter_schemas
+                WHERE product_id = :product_id
+                  AND table_name IS NOT NULL
+            """),
+        {"product_id": product_id}
+    )
+
+    table_names = [
+        row[0]
+        for row in tables_result.fetchall()
+        if row[0]
+    ]
+
+    try:
+        # Удаляем таблицы, созданные из Excel
+        for table_name in table_names:
+            await db.execute(
+                text(f'DROP TABLE IF EXISTS "{table_name}" CASCADE')
+            )
+
+        # Удаляем datamart-таблицу продукта
+        dm_table_name = f"dm_product_{product_id}"
+
+        await db.execute(
+            text(f'DROP TABLE IF EXISTS "{dm_table_name}" CASCADE')
+        )
+
+        # Удаляем сам продукт
+        await db.delete(product)
+
+        await db.commit()
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка удаления продукта: {e}"
+        )
+
+    # Удаляем файл изображения
+    if image_path and os.path.exists(image_path):
         os.remove(image_path)
 
-    await db.delete(product)
-    await db.commit()
     return product

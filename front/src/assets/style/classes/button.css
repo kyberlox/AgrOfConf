@@ -21,3 +21,8 @@
     @apply cursor-not-allowed!;
   }
 }
+
+.button-primary__loader{
+  width: 20px;
+  height: 20px;
+}

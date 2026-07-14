@@ -33,8 +33,8 @@
 <script lang='ts'>
 import { defineComponent, type PropType } from 'vue';
 import type { IProduct } from '@/assets/interfaces/IProduct';
-import UploadDocButton from '@/views/homeView/components/UploadDocButton.vue';
-import PromptModal from './PromptModal.vue';
+import UploadDocButton from '@/views/homeView/components/recognition/UploadDocButton.vue';
+import PromptModal from './recognition/PromptModal.vue';
 
 export default defineComponent({
     components: {

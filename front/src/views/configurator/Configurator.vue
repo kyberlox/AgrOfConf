@@ -1,6 +1,6 @@
 <template>
 <div class="p-[32px] w-full bg-[#FDFDFD] max-w-full border border-gray-200 rounded-xl">
-    <div class="flex flex-row gap-[24px] flex-wrap md:flex-wrap lg:flex-nowrap">
+    <div class="flex flex-row gap-[24px] h-full flex-wrap md:flex-wrap lg:flex-nowrap">
         <div class="flex flex-col gap-[24px] w-full">
             <div
                  class="flex flex-row items-start justify-between lg:flex-wrap xl:flex-wrap xxl:flex-nowrap w-full gap-y-[20px] ">
@@ -17,24 +17,29 @@
                     </div>
                 </div>
 
-                <div v-if="!neuroOlData"
+                <div v-if="!Object.keys(neuroOlData).length"
                      class="flex flex-row gap-[11px] mt-[10px] items-center ml-auto">
                     <div class="font-normal">
                         Свободный режим
                     </div>
                     <div class=" rounded-[49px] px-[4px] w-[48px] h-[24px] flex flex-start items-center cursor-pointer transition-all duration-300"
                          :class="[freeConfigMode ? ' bg-[#F36E3C]' : ' bg-[#B4BCC8]']"
-                         @click="freeConfigMode = !freeConfigMode">
+                         @click="setFreeConfig(!freeConfigMode)">
                         <div class="bg-white rounded-[100px] w-[18px] h-[18px] transition-all duration-300"
                              :class="[freeConfigMode ? 'translate-x-[22px]' : '']"></div>
                     </div>
                 </div>
             </div>
-            <EngineParams :form="form"
+            <EngineParams v-if="form.length"
+                          :form="form"
                           :type="neuroOlData ? 'free' : 'auto'"
                           :key="paramsRenderKey"
                           @valueChanged="(value: string, key: string) => handleValueChanged(value, key)" />
-            <div class="flex flex-row justify-end gap-[8px] flex-wrap">
+            <div v-else
+                 class="w-[60px] h-[60px] m-auto">
+                <Loader />
+            </div>
+            <div class="flex flex-row justify-end gap-[8px] flex-wrap mt-0">
                 <BaseButton :propsClass="'button-secondary'">
                     <span class="block px-[40px] flex flex-row items-center gap-[4px]">
                         <FavoriteIcon />
@@ -64,7 +69,7 @@
     <SlotModal v-if="promptModalVisible"
                @closeModal="promptModalVisible = false">
         <PromptModal :formData="olFormData"
-                     :uploadedFileName="newFileName"
+                     :uploadedFileName="newFileName || ''"
                      @closeModal="promptModalVisible = false" />
     </SlotModal>
 </div>
@@ -79,14 +84,16 @@ import Api from '@/utils/Api';
 import type { IFormattedData } from '@/assets/interfaces/IForm';
 import SlotModal from '@/components/layout/SlotModal.vue';
 import { useNeuroOlData } from '@/stores/neuroOl';
-import UploadDocButton from '@/views/homeView/components/UploadDocButton.vue';
+import UploadDocButton from '@/views/homeView/components/recognition/UploadDocButton.vue';
 import RightSidebar from '@/components/layout/RightSidebar.vue';
 import { useConfiguratorStore } from '@/stores/configurator.ts';
 import FavoriteIcon from '@/assets/icons/Favorite.svg?component';
-import PromptModal from '../homeView/components/PromptModal.vue';
+import PromptModal from '../homeView/components/recognition/PromptModal.vue';
 import TkpVariants from './components/TkpVariants.vue';
 import { type ITkpVariant } from '@/assets/interfaces/ITkpVariant.ts';
 import { downloadFile } from '@/utils/downloadFile.ts';
+import Loader from '@/components/layout/Loader.vue';
+import { getTkpVariants } from '@/utils/getTkpVariants.ts';
 
 export default defineComponent({
     components: {
@@ -99,7 +106,8 @@ export default defineComponent({
         PromptModal,
         SlotModal,
         UploadDocButton,
-        RightSidebar
+        RightSidebar,
+        Loader
     },
     props: {
         id: {
@@ -107,11 +115,10 @@ export default defineComponent({
             required: true
         }
     },
-    setup(props) {
+    setup(props, { emit }) {
         const form = ref<IFormattedData[]>([]);
         const userInputs = ref<{ [key: string]: string }>({});
         const modalVisible = ref(false);
-        const freeConfigMode = ref(false);
         const paramsRenderKey = ref(0);
         const neuroOlDataStore = useNeuroOlData();
         const neuroOlData = computed(() => neuroOlDataStore.getOlInfo);
@@ -120,14 +127,27 @@ export default defineComponent({
         const tkpModalIsVisible = ref(false);
         const promptModalVisible = ref(false);
         const olFormData = ref<FormData>(new FormData());
-        const newFileName = ref();
+        const newFileName = ref<string>();
+        const configuratorStore = useConfiguratorStore();
+        const freeConfigMode = computed(() => configuratorStore.getFreeModeConfig);
 
-        const paramsUpdate = async (body: any | null) => {
+        let abortController: AbortController | null = null;
+
+        const paramsUpdate = async (body: Record<string, string> | null) => {
+            if (freeConfigMode.value && body !== null) {
+                return
+            }
+            if (abortController) {
+                abortController.abort();
+            }
+            abortController = new AbortController();
+            const signal = abortController.signal;
             try {
-                const data = await Api.post(`/module_search/process_table_data?product_id=${props.id}`, body)
+                const data = await Api.post(`/module_search/process_table_data?product_id=${props.id}`, body, {}, signal)
                 const errors: string[] = [];
                 let answeredCounter = 0;
                 let questionCounter = 0;
+                if (!data || !('parameters' in data) || !data.parameters.length) return
                 data.parameters.forEach((e: IFormattedData) => {
                     if ('error' in e && e.error) {
                         errors.push(e.error)
@@ -138,12 +158,12 @@ export default defineComponent({
                     }
                     questionCounter++
                 })
-                useConfiguratorStore().setCovered(Number(answeredCounter));
-                useConfiguratorStore().setAllQuestions(Number(questionCounter));
+                configuratorStore.setCovered(Number(answeredCounter));
+                configuratorStore.setAllQuestions(Number(questionCounter));
                 if (errors.length) {
-                    useConfiguratorStore().setError(errors)
+                    configuratorStore.setError(errors)
                 }
-                else useConfiguratorStore().setDefaultError()
+                else configuratorStore.setDefaultError()
                 if (!(data && 'parameters' in data)) return
                 form.value = data.parameters
                 productName.value = data.product_name
@@ -153,20 +173,9 @@ export default defineComponent({
             }
         }
 
-        const getTkpVariants = async () => {
-            try {
-                const data: ITkpVariant[] = await Api.get(`/tkp_generation/get_tkp_of_product/${props.id}`)
-                if (data.length) {
-                    tkpVariants.value = data;
-                }
-            } catch (error) {
-                console.error(error)
-            }
-        }
-
-        onMounted(() => {
-            getTkpVariants();
-            if (!neuroOlData.value)
+        onMounted(async () => {
+            tkpVariants.value = await getTkpVariants(props.id);
+            if (!Object.keys(neuroOlData.value).length)
                 paramsUpdate(null)
 
         })
@@ -180,7 +189,7 @@ export default defineComponent({
 
         const handleValueChanged = (value: string, key: keyof typeof userInputs.value) => {
             if (key == 'Маркировка') {
-                useConfiguratorStore().setMark(value)
+                configuratorStore.setMark(value)
             }
             userInputs.value[key] = value;
             paramsUpdate(userInputs.value)
@@ -188,9 +197,9 @@ export default defineComponent({
 
         const handleDownloadTkp = async (variantId: number) => {
             try {
-                const response = await Api.post(`tkp_generation/create_tkp?file_id=${variantId}&product_id=${props.id}&save_to_statistic=true`, userInputs.value, { responseType: 'blob' })
-                const contentDisposition = response.headers['content-disposition']
-                const filename = contentDisposition?.split('filename=')[1]?.replace(/"/g, '')
+                const response = await Api.post(`tkp_generation/create_tkp?file_id=${variantId}&product_id=${props.id}&save_to_statistic=true`, userInputs.value, { responseType: 'blob' }, undefined, true)
+                const contentDisposition = response.headers['content-disposition'];
+                const filename = contentDisposition?.split('filename=')[1].replaceAll('"', '');
                 await downloadFile(response.data, filename)
             }
             catch (error) {
@@ -204,10 +213,13 @@ export default defineComponent({
             newFileName.value = fileName;
         }
 
+        const setFreeConfig = (mode: boolean) => {
+            configuratorStore.setFreeModeConfig(mode)
+        }
+
         return {
             form,
             modalVisible,
-            freeConfigMode,
             paramsRenderKey,
             neuroOlData,
             productName,
@@ -215,10 +227,12 @@ export default defineComponent({
             tkpVariants,
             promptModalVisible,
             olFormData,
+            freeConfigMode,
             newFileName,
             handleValueChanged,
             handleDownloadTkp,
-            handleFileUpload
+            handleFileUpload,
+            setFreeConfig,
         }
     }
 });

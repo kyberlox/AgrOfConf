@@ -15,7 +15,21 @@ export default defineConfig({
     svgLoader()
   ],
   build: {
-    sourcemap: true
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('ag-grid-vue3')) {
+              return 'ag-grid-vue-3'
+            } else if (id.includes('ag-grid-community')) {
+              return 'ag-grid-community'
+            }
+            return 'vendor'
+          }
+        }
+      }
+    }
   },
   resolve: {
     alias: {

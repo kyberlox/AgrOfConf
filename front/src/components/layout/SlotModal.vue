@@ -1,7 +1,7 @@
 <template>
 <div class="fixed inset-0 flex items-center justify-center bg-[#00000013] w-full"
      @click="$emit('closeModal')">
-    <div class="relative w-fit">
+    <div class="relative w-fit max-w-[80vw] max-h-[80vw]">
         <div class="bg-white p-[12px] rounded-[8px] shadow-sm max-h-screen overflow-y-auto w-full"
              @click.stop>
             <slot></slot>

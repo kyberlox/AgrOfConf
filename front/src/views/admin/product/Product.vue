@@ -43,6 +43,13 @@
             </Transition>
         </div>
     </div>
+    <div class="mt-[20px] max-w-[250px]">
+        <BaseButton propsClass="button-secondary"
+                    @clicked="olListModalOpen = true">
+            Загруженные ТКП
+        </BaseButton>
+    </div>
+
     <div class="flex flex-col gap-[20px]">
         <div class="flex flex-col gap-2 mt-4 border border-gray-200 p-[20px] rounded-xl"
              v-if="productTableType.length">
@@ -93,6 +100,15 @@
                        :disabled="parameterUpdating"
                        @updateParameter="(id, parameter) => updateParameter(id, parameter)"
                        @closeModal="{ productSettingsVisible = false; idInSettings = false }" />
+
+    <SlotModal v-if="olListModalOpen && id"
+               @closeModal="olListModalOpen = false">
+        <UploadedOl :olList="olList"
+                    :olIsLoading="olIsLoading"
+                    :id="id"
+                    @updateOlList="uploadOl"
+                    @removeOl="removeOl" />
+    </SlotModal>
 </div>
 </template>
 <script lang='ts'>
@@ -104,11 +120,15 @@ import { BaseButton } from 'beans-ui-kit';
 import CloseIcon from '@/assets/icons/Cross.svg?component';
 import Plus from '@/assets/icons/Plus.svg?component';
 import { useProductsData } from '@/stores/products';
-import { startDrag, onOver, onLeave, onDrop } from '@/utils/DragEvents';
+import { startDrag, onOver, onLeave, onDrop } from '@/utils/dragEvents.ts';
 import { VueDraggable } from 'vue-draggable-plus';
 import SettingsIcon from '@/assets/icons/Settings.svg?component';
 import ParameterSettings from './ParameterSettings.vue';
 import type { IParameter } from '@/assets/interfaces/IParameter';
+import UploadedOl from './UploadedOl.vue';
+import { getTkpVariants } from '@/utils/getTkpVariants.ts';
+import { type ITkpVariant } from '@/assets/interfaces/ITkpVariant.ts';
+import { toast } from 'vue3-toastify';
 
 export default defineComponent({
     components: {
@@ -119,7 +139,8 @@ export default defineComponent({
         TransitionGroup,
         VueDraggable,
         SettingsIcon,
-        ParameterSettings
+        ParameterSettings,
+        UploadedOl
     },
     props: {
         id: {
@@ -130,23 +151,26 @@ export default defineComponent({
     setup(props) {
         const productTableType = ref<IParameter[]>([]);
         const product = computed(() => useProductsData().getProducts.find(e => e.id == Number(props.id)))
-        const list = ref();
         const url = import.meta.env.VITE_API_URL;
         const excellFileNode = ref();
         const drag = ref(false);
         const sortChanged = ref(false);
         const productSettingsVisible = ref(false);
-        const idInSettings = ref();
+        const idInSettings = ref<number | false>();
         const parameterUpdating = ref(false);
+        const olListModalOpen = ref(false);
+        const olList = ref<ITkpVariant[]>();
+        const olIsLoading = ref(false);
 
         const downloadExcell = async () => {
             try {
-                const data = await Api.post(`tables/download_xlsx?product_id=${props.id}`, undefined, { responseType: 'blob' });
-                download(data.data, String(data.headers['content-disposition'].split('=')[1]).replaceAll('"', ''), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                const response = await Api.post(`tables/download_xlsx?product_id=${props.id}`, undefined, { responseType: 'blob' }, undefined, true);
+                const contentDisposition = response.headers['content-disposition'];
+                const filename = contentDisposition?.split('filename=')[1].replaceAll('"', '');
+                download(response.data, String(filename));
             }
             catch (error) { console.error(error) }
         }
-
 
         const handleExcellUpload = async () => {
             const excell = excellFileNode.value.files[0];
@@ -175,20 +199,15 @@ export default defineComponent({
             }
         }
 
-        // const addParam = async () => {
-        //     const newBody = {};
-        //     try {
-        //         Api.post('api/parameters/', newBody)
-        //     }
-        //     finally {
-        //         getParams()
-        //     }
-        // }
-
-
-        onMounted(() => {
+        onMounted(async () => {
             getParams();
+            getOlList();
         })
+
+        const getOlList = async () => {
+            if (props.id)
+                olList.value = await getTkpVariants(props.id)
+        }
 
         const deleteParam = () => {
             console.log('del')
@@ -234,18 +253,41 @@ export default defineComponent({
             }
         }
 
+        const removeOl = async (id: number) => {
+            await Api.delete(`tkp_generation/delete/${id}`)
+            await getOlList();
+        }
+
+        const uploadOl = async (fileFormData: FormData) => {
+            olIsLoading.value = true;
+            try {
+                const data = await Api.post('tkp_generation/add', fileFormData);
+                if (data) {
+                    toast.success('ТКП успешно загружено')
+                }
+                await getOlList();
+            } catch (error) {
+                console.error(error)
+            } finally {
+                olIsLoading.value = false;
+            }
+        }
+
         return {
             url,
             productTableType,
             excellFileNode,
             product,
-            list,
             sortChanged,
             drag,
             productSettingsVisible,
             idInSettings,
             parameterUpdating,
             // addParam,
+            olList,
+            olListModalOpen,
+            olIsLoading,
+            removeOl,
             downloadExcell,
             sendNewSort,
             handleExcellUpload,
@@ -258,6 +300,8 @@ export default defineComponent({
             onEnd,
             changeSettings,
             updateParameter,
+            getTkpVariants,
+            uploadOl
         }
     }
 });

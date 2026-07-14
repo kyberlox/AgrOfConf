@@ -10,7 +10,8 @@ export const useConfiguratorStore = defineStore('configuratorStore', {
             status: 'Выполним',
             answeredQuestions: 0,
             allQuestions: 0
-        }
+        },
+        freeModeConfig: false
     }),
     actions: {
         setError(error: string | string[]) {
@@ -34,11 +35,15 @@ export const useConfiguratorStore = defineStore('configuratorStore', {
         },
         setAllQuestions(count: number) {
             this.status.allQuestions = count
+        },
+        setFreeModeConfig(freeMode: boolean) {
+            this.freeModeConfig = freeMode
         }
     },
     getters: {
         getError: (state) => state.error,
         getErrorStatus: (state) => state.errorStatus,
-        getStatus: (state) => state.status
+        getStatus: (state) => state.status,
+        getFreeModeConfig: (state) => state.freeModeConfig
     }
 })
