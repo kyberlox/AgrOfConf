@@ -102,10 +102,14 @@ async def upload_xlsx(
         # Удаляем параметры из parameter_schemas этой таблицы
         await db.execute(
             text("""
-                   DELETE FROM parameter_schemas
-                   WHERE table_name = :table_name
-               """),
-            {"table_name": table_name}
+                DELETE FROM parameter_schemas
+                WHERE product_id = :product_id
+                  AND table_name = :table_name
+            """),
+            {
+                "product_id": product_id,
+                "table_name": table_name
+            }
         )
 
         await mark_datamart_dirty(db, product_id)
@@ -162,9 +166,13 @@ async def upload_xlsx(
     await db.execute(
         text("""
             DELETE FROM parameter_schemas
-            WHERE table_name = :table_name
+            WHERE product_id = :product_id
+              AND table_name = :table_name
         """),
-        {"table_name": table_name}
+        {
+            "product_id": product_id,
+            "table_name": table_name
+        }
     )
 
     # Добавляем заново в правильном порядке
