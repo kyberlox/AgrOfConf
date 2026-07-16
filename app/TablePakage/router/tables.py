@@ -18,6 +18,8 @@ from .parameter_values import mark_datamart_dirty
 
 import io
 
+import re
+
 router = APIRouter(prefix="/tables", tags=["Tables"])
 
 
@@ -100,10 +102,14 @@ async def upload_xlsx(
         # Удаляем параметры из parameter_schemas этой таблицы
         await db.execute(
             text("""
-                   DELETE FROM parameter_schemas
-                   WHERE table_name = :table_name
-               """),
-            {"table_name": table_name}
+                DELETE FROM parameter_schemas
+                WHERE product_id = :product_id
+                  AND table_name = :table_name
+            """),
+            {
+                "product_id": product_id,
+                "table_name": table_name
+            }
         )
 
         await mark_datamart_dirty(db, product_id)
@@ -160,9 +166,13 @@ async def upload_xlsx(
     await db.execute(
         text("""
             DELETE FROM parameter_schemas
-            WHERE table_name = :table_name
+            WHERE product_id = :product_id
+              AND table_name = :table_name
         """),
-        {"table_name": table_name}
+        {
+            "product_id": product_id,
+            "table_name": table_name
+        }
     )
 
     # Добавляем заново в правильном порядке
@@ -358,3 +368,117 @@ async def download_xlsx(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Access-Control-Expose-Headers": "Content-Disposition"}
     )
+
+
+@router.delete(
+    "/{product_id}/{table_name}",
+    description="Удаление таблицы продукта из БД по названию."
+)
+async def delete_table(
+        product_id: int,
+        table_name: str,
+        db: AsyncSession = Depends(get_db)
+):
+    # Разрешаем только безопасные SQL-имена, создаваемые to_sql_name_lat
+    if not re.fullmatch(r"[a-zA-Z0-9_]+", table_name):
+        raise HTTPException(
+            status_code=400,
+            detail="Некорректное название таблицы"
+        )
+
+    # Проверяем существование продукта
+    product_result = await db.execute(
+        text("""
+            SELECT id
+            FROM products
+            WHERE id = :product_id
+        """),
+        {"product_id": product_id}
+    )
+
+    if product_result.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Продукция не найдена"
+        )
+
+    # Проверяем, что таблица действительно относится к этому продукту
+    schema_result = await db.execute(
+        text("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM parameter_schemas
+                WHERE product_id = :product_id
+                  AND table_name = :table_name
+                  AND type = 'Table'
+            )
+        """),
+        {
+            "product_id": product_id,
+            "table_name": table_name
+        }
+    )
+
+    if not schema_result.scalar():
+        raise HTTPException(
+            status_code=404,
+            detail="Таблица не найдена у выбранной продукции"
+        )
+
+    # Проверяем наличие самой физической SQL-таблицы
+    physical_table_result = await db.execute(
+        text("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = current_schema()
+                  AND table_name = :table_name
+            )
+        """),
+        {"table_name": table_name}
+    )
+
+    physical_table_exists = physical_table_result.scalar()
+
+    try:
+        # Удаляем физическую SQL-таблицу
+        if physical_table_exists:
+            await db.execute(
+                text(f'DROP TABLE "{table_name}" CASCADE')
+            )
+
+        # Удаляем описания всех колонок этой таблицы
+        await db.execute(
+            text("""
+                DELETE FROM parameter_schemas
+                WHERE product_id = :product_id
+                  AND table_name = :table_name
+            """),
+            {
+                "product_id": product_id,
+                "table_name": table_name
+            }
+        )
+
+        # Сообщаем, что витрину продукта нужно перестроить
+        await mark_datamart_dirty(
+            db=db,
+            product_id=product_id
+        )
+
+        await db.commit()
+
+    except Exception as error:
+        await db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка удаления таблицы: {error}"
+        )
+
+    return {
+        "product_id": product_id,
+        "table_name": table_name,
+        "physical_table_deleted": bool(physical_table_exists),
+        "message": f"Таблица {table_name} удалена"
+    }
