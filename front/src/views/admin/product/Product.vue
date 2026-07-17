@@ -16,38 +16,42 @@
         <div class="flex justify-start gap-2">
             <div
                  class="flex flex-row flex-wrap md:flex-nowrap  gap-2 items-center border border-green-300 bg-green-100 rounded-md p-4">
+
                 <div class="text-lg w-full">
                     Excell
                 </div>
                 <BaseButton @click="downloadExcell"
-                            :propsClass="'button-primary'">
-                    Скачать
+                            :propsClass="'button-primary'"
+                            :disabled="excellDownloading">
+                    <Loader v-if=excellDownloading />
+                    <span v-else>Скачать</span>
                 </BaseButton>
-                <BaseButton @click="excellFileNode.click()"
-                            :propsClass="'button-primary'">
-                    {{ excellFileNode?.files[0]?.name ?? 'Загрузить' }}
-                </BaseButton>
-                <input class="hidden"
-                       @change="handleExcellUpload"
-                       ref="excellFileNode"
-                       type="file" />
+
+                <VInputFile :buttonClass="'button-primary'"
+                            :needFileNameInTitle="false"
+                            :isLoading="excellUploading"
+                            @fileUpload="(file) => handleExcellUpload(file)" />
             </div>
         </div>
         <div class="w-fit m-auto">
             <Transition name="fade-btn">
                 <BaseButton v-if="sortChanged"
-                            :propsClass="'button-primary'"
+                            :propsClass="'button - primary'"
                             @clicked="sendNewSort">
                     Принять сортировку
                 </BaseButton>
             </Transition>
         </div>
     </div>
-    <div class="mt-[20px] max-w-[250px]">
-        <BaseButton propsClass="button-secondary"
-                    @clicked="olListModalOpen = true">
-            Загруженные ТКП
-        </BaseButton>
+    <div class="flex flex-row items-center justify-start gap-[15px]">
+        <div class="mt-[20px] max-w-[250px] w-[250px]"
+             v-for="(item, index) in actionButtons"
+             :key="item.name + index">
+            <BaseButton propsClass="button-secondary"
+                        @clicked="item.name == 'tkp' ? olListModalOpen = true : tablesModalIsOpen = true">
+                {{ item.title }}
+            </BaseButton>
+        </div>
     </div>
 
     <div class="flex flex-col gap-[20px]">
@@ -81,7 +85,6 @@
                             <div class="text-sm text-gray-600 mb-3 wrap-break-word">
                                 {{ parameter.description }}
                             </div>
-                            <!-- <div class="text-xs text-gray-500 text-right mb-1">Тип: {{ parameter.type }}</div> -->
                             <div class="text-xs text-gray-500  wrap-break-word">
                                 Из таблицы: {{ parameter.table_name }}
                             </div>
@@ -101,14 +104,19 @@
                        @updateParameter="(id, parameter) => updateParameter(id, parameter)"
                        @closeModal="{ productSettingsVisible = false; idInSettings = false }" />
 
-    <SlotModal v-if="olListModalOpen && id"
-               @closeModal="olListModalOpen = false">
-        <UploadedOl :olList="olList"
-                    :olIsLoading="olIsLoading"
-                    :id="id"
-                    @updateOlList="uploadOl"
-                    @removeOl="removeOl" />
-    </SlotModal>
+    <UploadedOl v-if="id"
+                :id="id"
+                :isOpen="olListModalOpen"
+                :olList="olList"
+                :olIsLoading="olIsLoading"
+                @closeModal="olListModalOpen = false"
+                @updateOlList="uploadOl"
+                @removeOl="removeOl" />
+
+    <TablesManageModal v-if="tablesModalIsOpen"
+                       :tables="Array.from(productTablesList)"
+                       @closeModal="tablesModalIsOpen = false"
+                       @deleteTable="deleteTableFromProduct" />
 </div>
 </template>
 <script lang='ts'>
@@ -123,12 +131,15 @@ import { useProductsData } from '@/stores/products';
 import { startDrag, onOver, onLeave, onDrop } from '@/utils/dragEvents.ts';
 import { VueDraggable } from 'vue-draggable-plus';
 import SettingsIcon from '@/assets/icons/Settings.svg?component';
-import ParameterSettings from './ParameterSettings.vue';
+import ParameterSettings from './ParameterSettingsModal.vue';
 import type { IParameter } from '@/assets/interfaces/IParameter';
-import UploadedOl from './UploadedOl.vue';
+import UploadedOl from './UploadedOlModal.vue';
 import { getTkpVariants } from '@/utils/getTkpVariants.ts';
 import { type ITkpVariant } from '@/assets/interfaces/ITkpVariant.ts';
 import { toast } from 'vue3-toastify';
+import Loader from '@/components/layout/Loader.vue';
+import VInputFile from '@/components/layout/VInputFile.vue';
+import TablesManageModal from './TablesManageModal.vue';
 
 export default defineComponent({
     components: {
@@ -140,7 +151,10 @@ export default defineComponent({
         VueDraggable,
         SettingsIcon,
         ParameterSettings,
-        UploadedOl
+        UploadedOl,
+        Loader,
+        VInputFile,
+        TablesManageModal
     },
     props: {
         id: {
@@ -161,21 +175,27 @@ export default defineComponent({
         const olListModalOpen = ref(false);
         const olList = ref<ITkpVariant[]>();
         const olIsLoading = ref(false);
+        const excellDownloading = ref(false);
+        const excellUploading = ref(false);
+        const tablesModalIsOpen = ref(false);
+        const productTablesList = ref<string[]>([]);
 
         const downloadExcell = async () => {
             try {
+                excellDownloading.value = true;
                 const response = await Api.post(`tables/download_xlsx?product_id=${props.id}`, undefined, { responseType: 'blob' }, undefined, true);
                 const contentDisposition = response.headers['content-disposition'];
                 const filename = contentDisposition?.split('filename=')[1].replaceAll('"', '');
                 download(response.data, String(filename));
             }
             catch (error) { console.error(error) }
+            finally { excellDownloading.value = false }
         }
 
-        const handleExcellUpload = async () => {
-            const excell = excellFileNode.value.files[0];
+        const handleExcellUpload = async (file: File) => {
+            excellUploading.value = true;
             const body = new FormData();
-            body.append('file', excell);
+            body.append('file', file);
             try {
                 await Api.post(`tables/upload_xlsx?product_id=${props.id}`, body)
             }
@@ -183,16 +203,19 @@ export default defineComponent({
                 console.error('excellUpload', error)
             }
             finally {
-                getParams()
+                excellUploading.value = false;
+                getParams();
             }
         }
 
         const getParams = async () => {
             try {
-                const products = await Api.get(`parameters/by_product/${props.id}`)
+                const products: IParameter[] = await Api.get(`parameters/by_product/${props.id}`)
                 if (!products || 'detail' in products) { productTableType.value = [] }
-                else
+                else {
                     productTableType.value = (products as IParameter[]).sort((a, b) => Number(a['sort']) - Number(b['sort']));
+                    productTablesList.value = Array.from(new Set(products.map(e => e.table_name)));
+                }
             }
             catch {
                 productTableType.value = []
@@ -230,10 +253,7 @@ export default defineComponent({
                 e.sort = index + 1;
                 return e
             })
-            try {
-                await Api.put(`/parameters/sort/${props.id}`, newBody)
-            }
-            catch { (err: unknown) => console.error(err) }
+            await Api.put(`/parameters/sort/${props.id}`, newBody)
         }
 
         const changeSettings = (id: number) => {
@@ -254,8 +274,12 @@ export default defineComponent({
         }
 
         const removeOl = async (id: number) => {
-            await Api.delete(`tkp_generation/delete/${id}`)
-            await getOlList();
+            try {
+                await Api.delete(`tkp_generation/delete/${id}`)
+                await getOlList();
+            } catch (error) {
+                console.error(error)
+            }
         }
 
         const uploadOl = async (fileFormData: FormData) => {
@@ -273,6 +297,15 @@ export default defineComponent({
             }
         }
 
+        const deleteTableFromProduct = async (tableName: string) => {
+            try {
+                await Api.delete(`tables/${props.id}/${tableName}`)
+                await getParams();
+            } catch (error) {
+                console.error(error)
+            }
+        }
+
         return {
             url,
             productTableType,
@@ -283,10 +316,14 @@ export default defineComponent({
             productSettingsVisible,
             idInSettings,
             parameterUpdating,
-            // addParam,
             olList,
             olListModalOpen,
             olIsLoading,
+            excellUploading,
+            tablesModalIsOpen,
+            excellDownloading,
+            productTablesList,
+            actionButtons: [{ name: 'tkp', title: 'Загруженные ТКП' }, { name: 'tables', title: 'Загруженные таблицы' }],
             removeOl,
             downloadExcell,
             sendNewSort,
@@ -301,7 +338,8 @@ export default defineComponent({
             changeSettings,
             updateParameter,
             getTkpVariants,
-            uploadOl
+            uploadOl,
+            deleteTableFromProduct
         }
     }
 });

@@ -3,21 +3,18 @@ import { toast } from 'vue3-toastify';
 
 export const handleApiErrors = (e: AxiosError) => {
      switch (e.status) {
+          case 400:
+               return toast.error('Некорректные данные');
           case 401:
-               toast('Сессия истекла. Необходимо войти в систему заново.')
-               break;
+               return toast.error('Сессия истекла. Необходимо войти в систему заново.');
           case 404:
-               toast('По запросу ничего не найдено')
-               break;
+               return toast.error('По запросу ничего не найдено');
           case 422:
-               toast(e.status)
-               break;
+               return toast.error(e.status);
           case 500:
-               toast('Ошибка сервера, сообщите в поддержку сайта')
-               break;
+               return toast.error('Ошибка сервера, сообщите в поддержку сайта');
           case 502:
-               toast('502')
-               break;
+               return toast.error('502');
           default:
                break;
      }

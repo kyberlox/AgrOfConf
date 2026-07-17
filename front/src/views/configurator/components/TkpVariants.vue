@@ -1,16 +1,19 @@
 <template>
 <div class="min-w-[250px] p-[24px] flex flex-col gap-[24px]">
     <h3>Выберите вариант ТКП</h3>
-    <BaseSelect :propsId="'tkpVariants'"
-                :props-placeholder="'Выберите варианты ТКП'"
-                :propsClass="'paramsSelect'"
-                :propsOptions="formatToSelect(tkpVariants)"
-                @valueChanged="(id) => chosenVariant = id" />
+    <div v-if="tkpVariants.length">
+        <BaseSelect :propsId="'tkpVariants'"
+                    :props-placeholder="'Выберите варианты ТКП'"
+                    :propsClass="'paramsSelect'"
+                    :propsOptions="formatToSelect(tkpVariants)"
+                    @valueChanged="(id) => chosenVariant = id" />
 
-    <BaseButton :propsClass="'button-primary'"
-                @clicked=handleDownload>
-        Скачать
-    </BaseButton>
+        <BaseButton :propsClass="'button-primary'"
+                    @clicked=handleDownload>
+            Скачать
+        </BaseButton>
+    </div>
+    <span v-else>Ткп пока не загружены</span>
 </div>
 </template>
 <script lang='ts'>

@@ -1,0 +1,41 @@
+:root {
+  /* Цвета под вашу дизайн-систему */
+  --toastify-color-light: #fff;
+  --toastify-color-success: var(--color-information-green-400);   /* #66BB6A */
+  --toastify-color-error: var(--color-information-red-400);       /* #E53935 */
+  --toastify-color-warning: var(--color-information-orange-500);  /* #F36E3C */
+  --toastify-color-info: var(--color-information-gray-400);       /* #8E99A8 */
+
+  /* Текст */
+  --toastify-text-color-light: var(--text-primary);               /* #171b26 */
+
+  /* Прогресс-бар */
+  --toastify-color-progress-light: var(--color-information-gray-200);
+
+  /* Размеры и скругления */
+  --toastify-toast-width: 380px;
+  --toastify-toast-min-height: 56px;
+  --toastify-toast-bd-radius: 8px;
+
+  /* Тени — под ваш UI */
+  --toastify-toast-shadow: 0px 4px 12px rgba(0, 0, 0, 0.08);
+
+  /* Отступы внутри тоста */
+  --toastify-toast-padding: 12px 16px;
+}
+
+.Toastify__toast--error {
+  background-color: var(--color-information-red-50);
+}
+
+.Toastify__toast--success {
+  background-color: var(--color-information-green-50);
+}
+
+.Toastify__toast--warning {
+  background-color: var(--color-information-orange-50);
+}
+
+.Toastify__toast--info {
+  background-color: var(--color-information-gray-50);
+}

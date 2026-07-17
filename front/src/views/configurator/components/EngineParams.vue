@@ -11,7 +11,7 @@
 <div class="border border-[#EAECEF] w-full h-[1px] col-span-full"></div>
 <div class="grid gap-[25px] items-end"
      :class="`grid-cols-${gridCols}`">
-    <template v-for="(param, index) in renderData.filter(e => (e as IFormattedData).visibility || (e as IFormattedData).visibility == null)"
+    <template v-for="(param, index) in renderData.filter(e => (e as IFormattedData).visibility && (e as IFormattedData).required_type !== 'raschet')"
               :key="'formParam' + param.name + index">
         <div v-if="param.name == 'sep' && index !== 0"
              class="divider">
@@ -110,7 +110,8 @@ export default defineComponent({
                     return Array.from(param?.all_values) || []
 
                 case false:
-                    return Array.from(param?.filtered_values || [])
+                    console.log(param)
+                    return Array.from(!('filtered_values' in param) ? param?.all_values : param?.filtered_values || [])
 
                 default:
                     return []

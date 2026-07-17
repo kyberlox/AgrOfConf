@@ -59,13 +59,19 @@ export default defineComponent({
     },
     emits: ['closeAllModals', 'deleteProduct', 'changeProduct'],
     setup(props) {
-        const userInputs = ref<IProduct>({ ...props.product });
+        const userInputs = ref<IProduct>({} as IProduct);
+
+        watch(() => props.product, () => {
+            userInputs.value = { ...props.product };
+        }, { immediate: true })
 
         type ProductKey = keyof IProduct;
         const updateUserInputs = <K extends ProductKey>(key: K, value: IProduct[K]) => {
-            userInputs.value[key] = value;
+            if ((typeof value == 'string' && value && value !== 'null') || value === '') {
+                userInputs.value[key] = value;
+            }
         }
-        const params = ref(Object.keys(props.product));
+        const params = ref(Object.keys(userInputs.value));
 
         return {
             params,

@@ -36,7 +36,7 @@
                           :key="paramsRenderKey"
                           @valueChanged="(value: string, key: string) => handleValueChanged(value, key)" />
             <div v-else
-                 class="w-[60px] h-[60px] m-auto">
+                 class="engine-params__loader">
                 <Loader />
             </div>
             <div class="flex flex-row justify-end gap-[8px] flex-wrap mt-0">
@@ -94,6 +94,7 @@ import { type ITkpVariant } from '@/assets/interfaces/ITkpVariant.ts';
 import { downloadFile } from '@/utils/downloadFile.ts';
 import Loader from '@/components/layout/Loader.vue';
 import { getTkpVariants } from '@/utils/getTkpVariants.ts';
+import { toast } from 'vue3-toastify';
 
 export default defineComponent({
     components: {
@@ -197,13 +198,15 @@ export default defineComponent({
 
         const handleDownloadTkp = async (variantId: number) => {
             try {
-                const response = await Api.post(`tkp_generation/create_tkp?file_id=${variantId}&product_id=${props.id}&save_to_statistic=true`, userInputs.value, { responseType: 'blob' }, undefined, true)
-                const contentDisposition = response.headers['content-disposition'];
-                const filename = contentDisposition?.split('filename=')[1].replaceAll('"', '');
-                await downloadFile(response.data, filename)
+                const response = await Api.post(`tkp_generation/create_tkp?file_id=${variantId}&product_id=${props.id}&save_to_statistic=true`, userInputs.value, { responseType: 'blob' }, undefined, true);
+                if (response) {
+                    const contentDisposition = response.headers['content-disposition'];
+                    const filename = contentDisposition?.split('filename=')[1].replaceAll('"', '');
+                    await downloadFile(response.data, filename)
+                }
             }
             catch (error) {
-                console.error(error)
+                toast.error(error)
             }
         }
 

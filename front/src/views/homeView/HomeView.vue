@@ -10,7 +10,7 @@
         <div class="flex flex-row mt-[32px] gap-[24px] justify-between px-[24px] flex-wrap">
             <div class="flex flex-row gap-[24px] border-b-[1px] border-b-[#EAECEF] flex-grow flex-wrap">
                 <div v-for="item in tableNav"
-                     class="flex flex-row  items-center relative cursor-pointer px-[24px] hover:text-(--text-primary) duration-300"
+                     class="flex flex-row  items-center relative cursor-pointer px-[24px] hover:text-(--text-primary) duration-300 pb-[10px]"
                      :class="currentTableNav == item.name ? 'text-(--text-primary)' : 'text-(--text-secondary)'"
                      :key="item.id + 'tableNav'"
                      @click="handlePageTypeChange(item.name)">
@@ -28,9 +28,11 @@
             </div>
 
             <!-- Поиск -->
-            <BaseInput :propsClass="'searchInput'"
+            <BaseInput v-if="userId"
+                       :propsClass="'searchInput'"
                        :propsPlaceholder="'Поиск'"
-                       :type="'search'">
+                       :type="'search'"
+                       @value-changed="search">
                 <template #input-icon>
                     <SearchIcon />
                 </template>
@@ -52,8 +54,10 @@
 
         <!--  Таблица запросов-->
         <HistoryTable :currentTableNav="currentTableNav"
+                      :tableReady="tableReady"
                       :tableData="tableData"
                       :tableHead="Object.keys(headerComparsion)"
+                      :isSearchResult="!!textToSearch"
                       @create-ol="showEngineModal = true" />
 
         <!-- Модалка для выбора изделия -->
@@ -71,7 +75,6 @@ import { tableNav } from '@/assets/static/tableNav';
 import { BaseButton, BaseInput } from 'beans-ui-kit';
 import SearchIcon from '@/assets/icons/SearchIcon.svg?component';
 import Blank from '@/assets/icons/Blank.svg?component';
-import EmptyHistoryPlug from '@/components/EmptyHistoryPlug.vue';
 import SlotModal from '@/components/layout/SlotModal.vue';
 import Api from '@/utils/Api';
 import EnginePick from '@/views/homeView/components/EnginePickModal.vue'
@@ -91,7 +94,6 @@ export default defineComponent({
         BaseButton,
         Blank,
         SearchIcon,
-        EmptyHistoryPlug,
         SlotModal,
         EnginePick,
         Configurator,
@@ -107,8 +109,21 @@ export default defineComponent({
         const navStore = useNavStore();
         const tableData = computed(() => useHistoryStore().getHistoryData);
         const userId = computed(() => useUserStore().getId);
+        const tableReady = ref(false);
+        const textToSearch = ref('');
+
+        const getHistoryData = async () => {
+            try {
+                tableReady.value = false
+                const historyData: IHistory[] = await Api.get(`selection_statistic/selection?user_id=${userId.value}`)
+                useHistoryStore().setHistoryData(formatResultToHistory(historyData))
+            } catch (error) {
+                console.error('Error history:', error)
+            } finally { tableReady.value = true }
+        }
 
         onMounted(async () => {
+            textToSearch.value = '';
             try {
                 const data = await Api.get('products/?skip=0&limit=100')
                 useProductsData().setProducts(data);
@@ -118,18 +133,33 @@ export default defineComponent({
             }
         })
 
+
         watch(() => userId.value, async () => {
-            if (userId.value && !tableData.value.length)
-                try {
-                    const historyData: IHistory[] = await Api.get(`selection_statistic/selection?user_id=${userId.value}`)
-                    useHistoryStore().setHistoryData(formatResultToHistory(historyData))
-                } catch (error) {
-                    console.error('Error history:', error)
-                }
+            if (!userId.value) return
+            getHistoryData();
         }, { immediate: true })
 
         const handlePageTypeChange = (newType: "requests" | "statistics") => {
             navStore.setCurrentNav(newType)
+        }
+
+        let abortController: AbortController | null = null;
+        const search = async (newTextToSearch: string) => {
+            textToSearch.value = newTextToSearch;
+            if (abortController) {
+                abortController.abort();
+            }
+            abortController = new AbortController();
+            try {
+                if (!newTextToSearch) {
+                    return getHistoryData()
+                }
+                const searchRes = await Api.get(`/selection_statistic/search_by_value?value=${textToSearch.value}&skip=0&limit=100`, abortController)
+                useHistoryStore().setHistoryData(formatResultToHistory(searchRes))
+            }
+            catch (e) {
+                console.error(e);
+            }
         }
 
         return {
@@ -141,7 +171,11 @@ export default defineComponent({
             currentTableNav,
             tableData,
             headerComparsion,
+            tableReady,
+            textToSearch,
+            userId,
             handlePageTypeChange,
+            search
         }
     }
 });

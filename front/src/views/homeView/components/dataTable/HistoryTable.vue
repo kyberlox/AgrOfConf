@@ -2,11 +2,12 @@
 <div v-if="currentTableNav !== 'statistics'"
      class="w-full">
     <!-- Заглушка если нет истории -->
-    <div v-if="(!rowData.length)"
+    <div v-if="(!tableData.length && tableReady)"
          class="2xl:mt-[100px] xl:mt-[20px]">
-        <EmptyHistoryPlug @createOl="$emit('createOl')" />
+        <EmptyHistoryPlug @createOl="$emit('createOl')"
+                          :isSearchResult="isSearchResult" />
     </div>
-    <div v-else
+    <div v-else-if="tableData.length && tableReady"
          class="w-full">
         <AgGridVue :rowData="rowData"
                    :columnDefs="columnDefs"
@@ -18,7 +19,13 @@
                    :reactiveCustomComponents="true"
                    :autoSizeStrategy="autoSizeStrategy"
                    @grid-ready="onGridReady"
+                   @grid-size-changed="autoSize"
                    class="w-full" />
+        <Pagination />
+    </div>
+    <div v-else
+         class="engine-params__loader">
+        <Loader />
     </div>
 </div>
 </template>
@@ -41,7 +48,8 @@ import EmptyHistoryPlug from '@/components/EmptyHistoryPlug.vue';
 import CellRenderer from './CellRenderer.vue';
 import { useUserStore } from '@/stores/user.ts';
 import { historyTableTheme } from '@/assets/static/historyThemeAdGrid.ts';
-import { useLayoutStore } from '@/stores/layout.ts';
+import Pagination from './TablePagination.vue';
+import Loader from '@/components/layout/Loader.vue';
 
 ModuleRegistry.registerModules([
     ClientSideRowModelModule,
@@ -54,7 +62,7 @@ const theme = themeAlpine
 
 export default defineComponent({
     name: 'HistoryTable',
-    components: { AgGridVue, EmptyHistoryPlug, CellRenderer },
+    components: { AgGridVue, EmptyHistoryPlug, CellRenderer, Pagination, Loader },
     emits: ['createOl'],
     props: {
         currentTableNav: {
@@ -68,11 +76,18 @@ export default defineComponent({
         tableHead: {
             type: Array as PropType<string[]>,
             required: true
+        },
+        tableReady: {
+            type: Boolean,
+            default: false
+        },
+        isSearchResult: {
+            type: Boolean,
+            default: false
         }
     },
     setup(props) {
         const gridApi = shallowRef<GridApi | null>(null);
-        const isSidebarRolled = computed(() => useLayoutStore().isSidebarRolled);
 
         const columnMinWidths: Record<string, number> = {
             'Наименование': 250,
@@ -138,16 +153,13 @@ export default defineComponent({
             autoSize()
         }
 
-        watch((isSidebarRolled), () => {
-            autoSize()
-        })
-
         return {
             rowData,
             columnDefs,
             defaultColDef,
             autoSizeStrategy,
             theme,
+            gridApi,
             autoSize,
             onGridReady,
             onFirstDataRendered,

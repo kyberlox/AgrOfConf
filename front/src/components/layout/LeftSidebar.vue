@@ -112,11 +112,6 @@ export default defineComponent({
         }
 
         const handleRoute = (route: string) => {
-            // if (route == 'user' || route == 'myRequests') {
-            //     router.push({ name: route, params: { id: 2366 } })
-            // }
-            // else
-            //     router.push({ name: route })
             if (route == 'user') {
                 router.push({ name: route, params: { id: 2366 } })
             } else if (route == 'admin') {

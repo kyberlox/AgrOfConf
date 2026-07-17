@@ -25,8 +25,9 @@ const api = axios.create({
 // })
 
 export default class Api {
-    static async get(url: string, config?: AxiosRequestConfig) {
-        return await api.get(url, config)
+    static async get(url: string, config?: AxiosRequestConfig, signal?: AbortSignal) {
+        const mergedConfig: AxiosRequestConfig = { ...config, signal: signal ?? config?.signal }
+        return await api.get(url, mergedConfig)
             .then(resp => resp.data)
             .catch(e => handleApiErrors(e))
     }

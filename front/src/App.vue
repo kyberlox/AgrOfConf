@@ -23,7 +23,6 @@ export default defineComponent({
   props: {},
   setup() {
     const userStore = useUserStore();
-
     const authorize = async () => {
       try {
         const user: IUser = await Api.get('auth/user_id_by_session_id')

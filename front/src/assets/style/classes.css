@@ -4,3 +4,5 @@
 @import './classes/sidebar';
 @import './classes/searchInput.css';
 @import './classes/input.css';
+@import './classes/loader.css';
+@import './classes/toastify.css';

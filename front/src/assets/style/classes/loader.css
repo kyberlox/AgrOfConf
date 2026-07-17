@@ -1,0 +1,30 @@
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.loader {
+    width: 100%;
+    height: 100%;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #F36E3C;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.button-primary .loader__wrapper,
+.button-secondary .loader__wrapper{
+    width: 20px;
+    height: 20px;
+}
+
+.engine-params__loader .loader__wrapper{
+    margin: auto;
+    width: 80px;
+    height: 80px;
+}
