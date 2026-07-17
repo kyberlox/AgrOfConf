@@ -154,13 +154,21 @@ class CodeParametr:
         #климатика
         if got_envs:
             #список ВСЕХ климатик
-            climate = self._get_param_by_name("Климатическое исполнение по ГОСТ 15150-69", selection_result)['all_values']
+            is_climate = self._get_param_by_name("Климатическое исполнение по ГОСТ 15150-69", selection_result)
+            error_climate = None 
+            climate = None
+            if not is_climate:
+                error_climate = "Невозможно подобрать климатическое исполнение для таких сред"
+            else:
+                climate = is_climate['all_values']
             type_param = [value for param_name, value in select_formula_params.items() if param_name == "Климатическое исполнение по ГОСТ 15150-69"]
             
             climate_values = type_param[0] if type_param else None # is not None
             #если нет
-            if climate_values is None:
+            if climate_values is None and climate:
                 res = self._set_params(res, param_info.id, "Климатическое исполнение по ГОСТ 15150-69", all_values=climate, sort=3)
+            elif not climate:
+                res = self._set_params(res, param_info.id, "Климатическое исполнение по ГОСТ 15150-69", all_values=[], sort=3, error=error_climate)
             else:
                 res = self._set_params(res, param_info.id, "Климатическое исполнение по ГОСТ 15150-69", all_values=climate, sort=3, response_value=climate_values)
                 got_climate = True
