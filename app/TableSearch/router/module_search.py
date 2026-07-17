@@ -626,6 +626,7 @@ async def process_table_data(
 
         # После первой ошибки в ТОЙ ЖЕ ТАБЛИЦЕ незаполненные параметры пока недоступны
         elif is_after_error and not is_selected:
+            # ТУТ ПРОБЛЕМА, не понятно из-за чего возникла ошибка
             print('cxvm,nmnxc')
             filtered_value = []
 
