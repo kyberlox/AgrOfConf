@@ -371,7 +371,7 @@ class CodeParametr:
                         density_ch += float(env["density"]) * r
                         density_zn += r
 
-                    pre_u += r * float(env["viscosity"]) * M
+                    pre_u += r * float(env["vjazkost_pa_s"]) * M
 
                     if r > r_max:
                         # Плотность несущей среды при нормальных условиях
