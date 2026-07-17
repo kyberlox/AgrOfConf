@@ -677,7 +677,7 @@ async def process_table_data(
         select_formula_params=selected_params,
         column_to_param=all_column_to_param
     )
-    print(formula_params, 'че получили')
+    # print(formula_params, 'че получили')
     response_params = sorted(
         formula_params,
         key=lambda param: param.get("sort") or param["id"]
