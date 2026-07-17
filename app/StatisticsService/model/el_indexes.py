@@ -132,7 +132,7 @@ def create_selection_index():
             ]
         }
     }
-
+    
     if not es.indices.exists(index=SELECTION_INDEX):
         # Создаём альтернативный анализатор для partial match (опционально)
         es.indices.create(
