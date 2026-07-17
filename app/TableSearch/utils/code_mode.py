@@ -367,7 +367,7 @@ class CodeParametr:
                         density_ch += (float(env["moljarnaja_massa"]) / 22.4) * r
                         density_zn += r
                     elif env["environment"] == "Жидкость":
-                        M = float(env["molecular_weight"])
+                        M = float(env["molekuljarnaja_massa"])
                         density_ch += float(env["plotnost_zhidkosti"]) * r
                         density_zn += r
 
