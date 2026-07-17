@@ -629,6 +629,7 @@ async def process_table_data(
 
         # Обычный fallback применяется только до ошибки
         elif filtered_value is None:
+            print(123123123)
             filtered_value = all_values or []
 
         response_value = None
