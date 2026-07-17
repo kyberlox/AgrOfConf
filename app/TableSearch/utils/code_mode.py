@@ -621,11 +621,13 @@ class CodeParametr:
         #Ищем Устройство принудительного открытия
         for param_name, value in select_formula_params.items():
             if param_name == "Устройство принудительного открытия":
-                force_open = value
+                
                 #ищем данные параметра
                 param_info = [param for param in selection_result if param["name"] == param_name]
                 if not param_info:
+                    # res = self._set_params(selection_result, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
                     return {'error': 'Не найден параметр в БД - Устройство принудительного открытия'}
+                force_open = value
                 param_info = param_info[0]
                 # res = self._set_params(res, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
                 last_sort = param_info['sort']

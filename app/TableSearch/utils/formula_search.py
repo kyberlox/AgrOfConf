@@ -195,7 +195,8 @@ async def search_formula(db, params, table_name_params, select_formula_params=[]
             # }
             
             if "error" in res:
-                params.append(res)
+                # params.append(res)
+                continue
             #     item['error'] = res["error"]
             # if "result" in res:
             #     item['result'] = res["result"]
