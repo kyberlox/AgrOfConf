@@ -356,15 +356,15 @@ class CodeParametr:
                 density_zn = 0
                 pre_u = 0
                 for env in envs_json:
-
+                    # print(env, "че такое?")
                     r = env["r"]
                     result["nazvanie_rabochej_sredy"] += f"{env['name']}:{r}% "
 
                     # pre_viscosity += log10(env["viscosity"]) * r
 
                     if env["environment"] == "Газ":
-                        M = float(env["molar_mass"])
-                        density_ch += (float(env["molar_mass"]) / 22.4) * r
+                        M = float(env["moljarnaja_massa"])
+                        density_ch += (float(env["moljarnaja_massa"]) / 22.4) * r
                         density_zn += r
                     elif env["environment"] == "Жидкость":
                         M = float(env["molecular_weight"])
