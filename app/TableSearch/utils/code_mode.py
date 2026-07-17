@@ -199,8 +199,8 @@ class CodeParametr:
         if got_type:
             # задана пользователем?
             # T_param  = self._get_param_by_name("Температура рабочей среды", select_formula_params)
-            T_param  = [value for param_name, value in select_formula_params.items() if param_name == "Температура рабочей среды"]
-            T = int(T_param[0]) if T_param else None
+            T_param  = select_formula_params.get("Температура рабочей среды")
+            T = int(T_param) if T_param else None
 
             description = "Ввведите значение температуры рабочей среды (°C)"
             required_type = "user_input"
