@@ -621,10 +621,12 @@ async def process_table_data(
             filtered_value = error_filtered_values.get((table_name, name))
 
             if filtered_value is None:
+                print('asdasd')
                 filtered_value = all_values or []
 
         # После первой ошибки в ТОЙ ЖЕ ТАБЛИЦЕ незаполненные параметры пока недоступны
         elif is_after_error and not is_selected:
+            print('cxvm,nmnxc')
             filtered_value = []
 
         # Обычный fallback применяется только до ошибки
