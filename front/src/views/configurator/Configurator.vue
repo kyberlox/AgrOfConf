@@ -192,8 +192,11 @@ export default defineComponent({
             if (key == 'Маркировка') {
                 configuratorStore.setMark(value)
             }
-            userInputs.value[key] = value;
-            paramsUpdate(userInputs.value)
+            if (value || value == '') {
+                console.log({ 'val': value, 'key': key })
+                userInputs.value[key] = value;
+                paramsUpdate(userInputs.value)
+            }
         }
 
         const handleDownloadTkp = async (variantId: number) => {

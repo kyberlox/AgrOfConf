@@ -12,7 +12,7 @@
 <div class="grid gap-[25px] items-end"
      :class="`grid-cols-${gridCols}`">
     <template v-for="(param, index) in renderData.filter(e => (e as IFormattedData).visibility && (e as IFormattedData).required_type !== 'raschet')"
-              :key="'formParam' + param.name + index">
+              :key="'formParam' + param.name">
         <div v-if="param.name == 'sep' && index !== 0"
              class="divider">
         </div>
