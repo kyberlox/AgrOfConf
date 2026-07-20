@@ -642,8 +642,8 @@ class CodeParametr:
         # counter_for_id += 1
         # counter_for_sort += 1
         sorted_params = sorted(selection_result, key=lambda x: x['sort'])
-        # filtered_params = [param for param in sorted_params if p]
-        print(sorted_params[-1])
+        filtered_params = [param['sort'] for param in sorted_params]
+        print(sorted_params[-1], filtered_params)
         #Ищем Устройство принудительного открытия
         for param_name, value in select_formula_params.items():
             if param_name == "Устройство принудительного открытия":
