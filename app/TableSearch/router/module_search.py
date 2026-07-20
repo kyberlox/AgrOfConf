@@ -333,9 +333,11 @@ async def get_available_values_for_param(
             break
 
     if target_column is None or not row:
-        return []
+        return None#[]
 
-    values = row[target_column] or []
+    values = row[target_column] or None#[]
+    if not values:
+        return None
 
     return sorted(
         {str(value) for value in values},
