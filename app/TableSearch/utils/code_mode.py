@@ -102,22 +102,26 @@ class CodeParametr:
         got_type = False
         got_T = False
 
+        counter_for_id = param_info.id
+        counter_for_sort = 1
         # поиск смеси среди выбранных значений
         if select_formula_params != []:
             for param_name, value in select_formula_params.items():
                 if param_name == "Смесь":
                     naydeno = True
                     if value == "Да":
-                        res = self._set_params(res, param_info.id, "Смесь", param_description=param_info.description, all_values=["Да", "Нет"], response_value="Да", sort=1)
+                        res = self._set_params(res, counter_for_id, "Смесь", param_description=param_info.description, all_values=["Да", "Нет"], response_value="Да", sort=counter_for_sort)
                         is_mixture = True
 
                     elif value == "Нет":
-                        res = self._set_params(selection_result, param_info.id, "Смесь", param_description=param_info.description, all_values=["Да", "Нет"], response_value="Нет", sort=1)
+                        res = self._set_params(selection_result, counter_for_id, "Смесь", param_description=param_info.description, all_values=["Да", "Нет"], response_value="Нет", sort=counter_for_sort)
                         
         if not naydeno:
             res = self._set_params(res, 1, "Смесь", all_values=["Да", "Нет"], sort=1)
         
         if is_mixture:
+            counter_for_id += 1
+            counter_for_sort += 1
             #список ВСЕХ сред
             param = self._get_param_by_name("Название рабочей среды", selection_result)
             all_values = param["all_values"]
@@ -125,7 +129,7 @@ class CodeParametr:
             
             if not envs_param:
                 description = "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)"
-                res = self._set_params(res, param_info.id, "Состав смеси", param_description=description, all_values=all_values, sort=2, param_type="select-input")
+                res = self._set_params(res, counter_for_id, "Состав смеси", param_description=description, all_values=all_values, sort=counter_for_sort, param_type="select-input")
 
             elif envs_param:
                 #проверить правильность
@@ -137,22 +141,24 @@ class CodeParametr:
                 if envs == [] or len(envs) == 1:
                     description = "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)"
                     error = "Смесь не может состоять менее чем из двух сред!"
-                    res = self._set_params(res, param_info.id, "Состав смеси", param_description=description, all_values=all_values, sort=2, param_type="select-input", response_value=envs, error=error)
+                    res = self._set_params(res, counter_for_id, "Состав смеси", param_description=description, all_values=all_values, sort=counter_for_sort, param_type="select-input", response_value=envs, error=error)
 
                 #праивльная ли сумма их долей?
                 elif r_sum != 100:
                     description = "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)"
                     error = f"Сумма мольных долей сред смеси должна составлять 100%, а не {r_sum}%"
-                    res = self._set_params(res, param_info.id, "Состав смеси", param_description=description, all_values=all_values, sort=2, param_type="select-input", response_value=envs, error=error)
+                    res = self._set_params(res, counter_for_id, "Состав смеси", param_description=description, all_values=all_values, sort=counter_for_sort, param_type="select-input", response_value=envs, error=error)
                 
                 #если всё правильно
                 else:
                     description = "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)"
-                    res = self._set_params(res, param_info.id, "Состав смеси", param_description=description, all_values=all_values, sort=2, param_type="select-input", response_value=envs)
+                    res = self._set_params(res, counter_for_id, "Состав смеси", param_description=description, all_values=all_values, sort=counter_for_sort, param_type="select-input", response_value=envs)
                     got_envs = True
 
         #климатика
         if got_envs:
+            counter_for_id += 1
+            counter_for_sort += 1
             #список ВСЕХ климатик
             is_climate = self._get_param_by_name("Климатическое исполнение по ГОСТ 15150-69", selection_result)
             error_climate = None 
@@ -166,15 +172,17 @@ class CodeParametr:
             climate_values = type_param[0] if type_param else None # is not None
             #если нет
             if climate_values is None and climate:
-                res = self._set_params(res, param_info.id, "Климатическое исполнение по ГОСТ 15150-69", all_values=climate, sort=3)
+                res = self._set_params(res, counter_for_id, "Климатическое исполнение по ГОСТ 15150-69", all_values=climate, sort=counter_for_sort)
             elif not climate:
-                res = self._set_params(res, param_info.id, "Климатическое исполнение по ГОСТ 15150-69", all_values=[], sort=3, error=error_climate)
+                res = self._set_params(res, counter_for_id, "Климатическое исполнение по ГОСТ 15150-69", all_values=[], sort=counter_for_sort, error=error_climate)
             else:
-                res = self._set_params(res, param_info.id, "Климатическое исполнение по ГОСТ 15150-69", all_values=climate, sort=3, response_value=climate_values)
+                res = self._set_params(res, counter_for_id, "Климатическое исполнение по ГОСТ 15150-69", all_values=climate, sort=counter_for_sort, response_value=climate_values)
                 got_climate = True
 
         #Тип клапана
         if got_climate:
+            counter_for_id += 1
+            counter_for_sort += 1
             #список ВСЕХ климатик
             all_type_names = self._get_param_by_name("Тип клапана", selection_result)["all_values"]
             # type_param = self._get_param_by_name("Тип предохранительного клапана", select_formula_params)
@@ -184,19 +192,21 @@ class CodeParametr:
 
             #если нет
             if type_val is None:
-                res = self._set_params(res, param_info.id, "Тип клапана", all_values=all_type_names, sort=4)
+                res = self._set_params(res, counter_for_id, "Тип клапана", all_values=all_type_names, sort=counter_for_sort)
 
             #валидация нужна
             elif type_val not in all_type_names:
                 error = "Надо выбрать один из предложеннных вариантов"
-                res = self._set_params(res, param_info.id, "Тип клапана", all_values=all_type_names, sort=4, error=error, response_value=type_val)
+                res = self._set_params(res, counter_for_id, "Тип клапана", all_values=all_type_names, sort=counter_for_sort, error=error, response_value=type_val)
 
             else:
-                res = self._set_params(res, param_info.id, "Тип клапана", all_values=all_type_names, sort=4, response_value=type_val)
+                res = self._set_params(res, counter_for_id, "Тип клапана", all_values=all_type_names, sort=counter_for_sort, response_value=type_val)
                 got_type = True
         
         #Температура
         if got_type:
+            counter_for_id += 1
+            counter_for_sort += 1
             # задана пользователем?
             # T_param  = self._get_param_by_name("Температура рабочей среды", select_formula_params)
             T_param  = select_formula_params.get("Температура рабочей среды")
@@ -208,20 +218,22 @@ class CodeParametr:
             
             #если нет
             if T is None:
-                res = self._set_params(res, param_info.id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=5, param_type=required_type)
+                res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=counter_for_sort, param_type=required_type)
             
             #валидировать:
             elif (type_val == "Пружинный (В)" and (T < -60 or T > 600) ) or (type_val == "Пилотный (П)" and (T < -60 or T > 250) ):
                 error = "Температура должна быть в диапазоне от -60°С до 600°С для пружинных и от -60°С до 250°С для пилотных клапанов"
-                res = self._set_params(res, param_info.id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=5, param_type=required_type, response_value=response_value, error=error)
+                res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=counter_for_sort, param_type=required_type, response_value=response_value, error=error)
             
             else:
-                res = self._set_params(res, param_info.id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=5, param_type=required_type, response_value=response_value)
+                res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=counter_for_sort, param_type=required_type, response_value=response_value)
 
                 got_T = True
 
         ################# РАСЧЕТ #################
         if got_T:
+            counter_for_id += 1
+            counter_for_sort += 1
             #ключи === названия колонок БД
             searching_table_name = "pktable_1"
 
@@ -421,8 +433,9 @@ class CodeParametr:
                 if not param_info:
                     continue
                 param_info = param_info[0]
-                res = self._set_params(res, param_info['id'], kir_param_name, param_description=param["description"], response_value=value, sort=param_info['sort'], param_type='raschet') # all_values=param_info['all_values'], 
-            
+                res = self._set_params(res, counter_for_id, kir_param_name, param_description=param["description"], response_value=value, sort=counter_for_sort, param_type='raschet') # all_values=param_info['all_values'], 
+                counter_for_id += 1
+                counter_for_sort += 1
             # Поскольку расчет смеси завершился, докидываем
             # параметры из БД для следующего расчета
             for param_db in selection_result:
@@ -436,7 +449,10 @@ class CodeParametr:
                 if param_db["table_name"] in ['table2', 'table3', 'table10']:
                     # print(param_db['name'], 'ЧТО ТАБЛИЧНОЕ?')
                     continue
-                
+                param_db['id'] = counter_for_id
+                param_db['sort'] = counter_for_sort
+                counter_for_id += 1
+                counter_for_sort += 1
                 res.append(param_db)
 
         return {"total_change" : res}
