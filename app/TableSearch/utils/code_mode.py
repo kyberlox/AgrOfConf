@@ -108,11 +108,11 @@ class CodeParametr:
                 if param_name == "Смесь":
                     naydeno = True
                     if value == "Да":
-                        res = self._set_params(res, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Да", sort=1)
+                        res = self._set_params(res, param_info.id, "Смесь", param_description=param_info.description, all_values=["Да", "Нет"], response_value="Да", sort=1)
                         is_mixture = True
 
                     elif value == "Нет":
-                        res = self._set_params(selection_result, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Нет", sort=1)
+                        res = self._set_params(selection_result, param_info.id, "Смесь", param_description=param_info.description, all_values=["Да", "Нет"], response_value="Нет", sort=1)
                         
         if not naydeno:
             res = self._set_params(res, 1, "Смесь", all_values=["Да", "Нет"], sort=1)
@@ -325,7 +325,7 @@ class CodeParametr:
                     for env in envs_json:
                         r = env["r"]
                         result["nazvanie_rabochej_sredy"] += f"{env['name']}:{r}% " 
-                        result["molekuljarnaja_massa"] += float(env["molecular_weight"]) * r
+                        result["molekuljarnaja_massa"] += float(env["molekuljarnaja_massa"]) * r
                         ch_den += float(env["density"]) * r
                         zn_den += r
                         pre_viscosity += log10(float(env["viscosity"])) * r
@@ -674,8 +674,6 @@ class CodeParametr:
                 if Pp > Pn * 0.7 or Pp < 0:
                     res = self._set_params(res, last_sort, "Противодавление статическое", param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
                 else:
-                    
-                    last_sort += 1
                     res = self._set_params(res, last_sort, "Противодавление статическое", param_type='user_input', param_description="", response_value=Pp, sort=last_sort)
             elif param_name == "Противодавление динамическое" and Pn:
                 if not value:

@@ -54,13 +54,13 @@ DOMAIN = os.getenv('DOMAIN')
 # # Настройка CORS
 origins = ["http://localhost:5173", DOMAIN]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,  # В продакшене укажите конкретные домены
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=origins,  # В продакшене укажите конкретные домены
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 #Открытые эндпоинты
 open_links = ["/api/docs", "/api/openapi.json"]
