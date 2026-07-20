@@ -1193,6 +1193,7 @@ class CodeParametr:
         - Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ (need_bellows)
         - Маркировка (mark)
         """
+        print(selection_result, 123123123)
         sorted_params = sorted(selection_result, key=lambda x: x['sort'])
         last_param = sorted_params[-1]
         counter_for_id = last_param['id']
