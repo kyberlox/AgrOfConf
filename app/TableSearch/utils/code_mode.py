@@ -522,10 +522,8 @@ class CodeParametr:
         request = stmt.all()
 
         if request == None or request == []:
-            print("ТУТ СЧТО ДЛИ")
             return False
         ans = False
-        print("ТУТ СЧТО ДЛИ 123123123")
         #найти самый подходящий - MIN по DNS и P1
         minDNS = request[0].dns3
         #minP1 = request[0].P1
