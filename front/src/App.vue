@@ -3,7 +3,7 @@
   <VHeader />
   <div class="p-[24px] bg-[#F6F7F9] flex flex-row gap-[32px]">
     <LeftSidebar />
-    <RouterView @getTkpVariants="console.log('ablst')" />
+    <RouterView />
   </div>
 </div>
 </template>
