@@ -15,6 +15,20 @@
             </div>
         </div>
     </div>
+    <!-- Блок расчетных параметров -->
+    <div v-if="featuresFlags.rightSidebar.calcParams && calcParams.length"
+         class="sidebar-block">
+        <div class="text-[13px]">Расчетные параметры</div>
+        <div class="divider mt-[10px]!"></div>
+        <div class="flex flex-col">
+            <div class="mt-[10px] text-[13px] flex flex-row justify-between"
+                 v-for="(item, index) in calcParams"
+                 :key='index'>
+                <div class="text-(--text-secondary) text-left w-[50%]">{{ item.name }}</div>
+                <div class="text-(--text-primary) text-left">{{ item.response_value }}</div>
+            </div>
+        </div>
+    </div>
     <!-- Блок маркировки -->
     <div v-if="featuresFlags.rightSidebar.mark"
          class="sidebar-block">
@@ -135,6 +149,7 @@ export default defineComponent({
             errorStatus: computed(() => configuratorStore.getErrorStatus),
             featuresFlags,
             status: computed(() => configuratorStore.getStatus),
+            calcParams: computed(() => configuratorStore.getCalcParams),
             handleFileUpload
         }
     }

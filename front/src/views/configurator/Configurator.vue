@@ -159,6 +159,7 @@ export default defineComponent({
                     }
                     questionCounter++
                 })
+                configuratorStore.setCalcParams(data.parameters.filter((e: IFormattedData) => e.required_type == 'raschet' && e.response_value));
                 configuratorStore.setCovered(Number(answeredCounter));
                 configuratorStore.setAllQuestions(Number(questionCounter));
                 if (errors.length) {
@@ -170,7 +171,7 @@ export default defineComponent({
                 productName.value = data.product_name
             }
             catch (error) {
-                console.error(error)
+                // console.error(error)
             }
         }
 

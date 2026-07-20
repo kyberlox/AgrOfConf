@@ -2,6 +2,9 @@
 .input-param {
   @apply p-[16px] flex flex-row gap-[8px] font-[400] text-[16px] rounded-[8px] bg-[#F6F7F9] outline-0 w-full;
 }
+.input-param:disabled {
+  @apply bg-[#a4a7ac];
+}
 .input-param__wrapper {
   @apply flex flex-col gap-[6px] w-full;
 }

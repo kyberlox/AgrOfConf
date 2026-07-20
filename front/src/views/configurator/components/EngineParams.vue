@@ -30,6 +30,14 @@
                    :error="'error' in param ? param.error : ''"
                    @valueChanged="(value: string | null) => $emit('valueChanged', value ?? '', param.name)" />
 
+        <!-- Для параметров которые нужно просто отобразить -->
+        <!-- <BaseInput v-else-if="(param as IFormattedData).required_type == 'raschet'"
+                   :propsClass="'input-param'"
+                   :propsName="param.name + (index + 1)"
+                   :props-label="param.name"
+                   :disabled="true"
+                   :propsValue="(param as IFormattedData).response_value!" /> -->
+
         <!-- выпадающий список -->
         <BaseSelect v-else-if="(param.name !== 'sep')"
                     :propsLabel="param.name"
@@ -44,6 +52,8 @@
                     :errorIcon="AlertCircle"
                     :disabled="((!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')) && type == 'auto'"
                     @valueChanged="(value: string) => $emit('valueChanged', value, param.name)" />
+
+
     </template>
 </div>
 </template>
