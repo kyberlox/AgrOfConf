@@ -621,19 +621,16 @@ async def process_table_data(
             filtered_value = error_filtered_values.get((table_name, name))
 
             if filtered_value is None:
-                print('asdasd')
-                filtered_value = all_values or []
+                filtered_value = all_values or None#[]
 
         # После первой ошибки в ТОЙ ЖЕ ТАБЛИЦЕ незаполненные параметры пока недоступны
         elif is_after_error and not is_selected:
             # ТУТ ПРОБЛЕМА, не понятно из-за чего возникла ошибка
-            print('cxvm,nmnxc')
-            filtered_value = []
+            filtered_value = None#[]
 
         # Обычный fallback применяется только до ошибки
         elif filtered_value is None:
-            print(123123123)
-            filtered_value = all_values or []
+            filtered_value = all_values or None#[]
 
         response_value = None
 
