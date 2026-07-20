@@ -1116,6 +1116,7 @@ class CodeParametr:
         check_value = self._get_param_by_name("Диаметр седла клапана, мм:", selection_result)
         DN = float(check_value['response_value']) if check_value else None
         check_value = self._get_param_by_name("Температура рабочей среды", selection_result)
+        print(check_value, 123123123123)
         T = float(check_value['response_value']) if check_value else None
         check_value = self._get_param_by_name("Давление начала открытия с противодавлением", selection_result)
         Ppo = float(check_value['response_value']) if check_value else None
