@@ -333,9 +333,11 @@ async def get_available_values_for_param(
             break
 
     if target_column is None or not row:
-        return []
+        return None#[]
 
-    values = row[target_column] or []
+    values = row[target_column] or None#[]
+    if not values:
+        return None
 
     return sorted(
         {str(value) for value in values},
@@ -621,18 +623,16 @@ async def process_table_data(
             filtered_value = error_filtered_values.get((table_name, name))
 
             if filtered_value is None:
-                print('asdasd')
-                filtered_value = all_values or []
+                filtered_value = all_values or None#[]
 
         # После первой ошибки в ТОЙ ЖЕ ТАБЛИЦЕ незаполненные параметры пока недоступны
         elif is_after_error and not is_selected:
-            print('cxvm,nmnxc')
-            filtered_value = []
+            # ТУТ ПРОБЛЕМА, не понятно из-за чего возникла ошибка
+            filtered_value = None#[]
 
         # Обычный fallback применяется только до ошибки
         elif filtered_value is None:
-            print(123123123)
-            filtered_value = all_values or []
+            filtered_value = all_values or None#[]
 
         response_value = None
 
