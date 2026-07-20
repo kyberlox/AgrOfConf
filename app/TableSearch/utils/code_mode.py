@@ -446,7 +446,7 @@ class CodeParametr:
                     # print(param_info, 'ЧТО НЕ ПРОШЛО УСЛОВИЕ И ТО ЧТО УЖЕ БЫЛО В РЕЗУЛЬТАТЕ')
                     continue
                 
-                if param_db["table_name"] in ['table2', 'table3', 'table10']:
+                if param_db["table_name"] in ['table2', 'table3', 'table4', 'table10']:
                     # print(param_db['name'], 'ЧТО ТАБЛИЧНОЕ?')
                     continue
                 if param_db['name'] == 'Название рабочей среды' and (select_formula_params.get('Смесь') and select_formula_params.get('Смесь') == 'Да'):
@@ -642,6 +642,7 @@ class CodeParametr:
         # counter_for_id += 1
         # counter_for_sort += 1
         sorted_params = sorted(selection_result, key=lambda x: x['sort'])
+        # filtered_params = [param for param in sorted_params if p]
         print(sorted_params[-1])
         #Ищем Устройство принудительного открытия
         for param_name, value in select_formula_params.items():
