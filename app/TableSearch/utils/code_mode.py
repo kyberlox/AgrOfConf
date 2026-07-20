@@ -640,7 +640,7 @@ class CodeParametr:
 
         last_sort = 0
         
-        sorted_params = sorted(selection_result, key=lambda x: x['sort'])
+        sorted_params = sorted([item for item in selection_result if 'sort' in item], key=lambda x: x['sort'])
         last_param = sorted_params[-1]
         counter_for_id = last_param['id']
         counter_for_sort = last_param['sort']
@@ -1193,8 +1193,7 @@ class CodeParametr:
         - Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ (need_bellows)
         - Маркировка (mark)
         """
-        print(selection_result, 123123123)
-        sorted_params = sorted(selection_result, key=lambda x: x['sort'])
+        sorted_params = sorted([item for item in selection_result if 'sort' in item], key=lambda x: x['sort'])
         last_param = sorted_params[-1]
         counter_for_id = last_param['id']
         counter_for_sort = last_param['sort']
