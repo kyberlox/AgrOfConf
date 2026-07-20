@@ -1102,6 +1102,8 @@ class CodeParametr:
         """
         # Переменная длоя сбора аргументов маркировки
         MARK_ARR = ['X', "X", "X", "X", "X", "X", "X", ""]
+        if not select_formula_params:
+            return {"total_change" : selection_result}
         valve_type_full = select_formula_params.get("Тип клапана")
         valve_type = None
         if valve_type_full:
