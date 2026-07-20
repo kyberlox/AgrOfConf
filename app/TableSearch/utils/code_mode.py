@@ -449,6 +449,8 @@ class CodeParametr:
                 if param_db["table_name"] in ['table2', 'table3', 'table10']:
                     # print(param_db['name'], 'ЧТО ТАБЛИЧНОЕ?')
                     continue
+                if param_db['name'] == 'Название рабочей среды':
+                    print(123123123)
                 param_db['id'] = counter_for_id
                 param_db['sort'] = counter_for_sort
                 counter_for_id += 1
