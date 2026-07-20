@@ -639,8 +639,8 @@ class CodeParametr:
         res = deepcopy(selection_result)
 
         last_sort = 0
-        counter_for_id += 1
-        counter_for_sort += 1
+        # counter_for_id += 1
+        # counter_for_sort += 1
         sorted_params = sorted(selection_result, key=lambda x: x['sort'])
         print(sorted_params[-1])
         #Ищем Устройство принудительного открытия
