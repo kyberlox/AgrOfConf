@@ -1116,18 +1116,17 @@ class CodeParametr:
         check_value = self._get_param_by_name("Диаметр седла клапана, мм:", selection_result)
         DN = float(check_value['response_value']) if check_value else None
         check_value = self._get_param_by_name("Температура рабочей среды", selection_result)
-        print(check_value, 123123123123)
-        T = float(check_value['response_value']) if check_value else None
+        T = float(check_value['response_value']) if check_value and 'response_value' in check_value else None
         check_value = self._get_param_by_name("Давление начала открытия с противодавлением", selection_result)
-        Ppo = float(check_value['response_value']) if check_value else None
+        Ppo = float(check_value['response_value']) if check_value and 'response_value' in check_value else None
         check_value = self._get_param_by_name("Тип присоединения", selection_result)
-        joining_type = check_value['response_value'] if check_value else None
+        joining_type = check_value['response_value'] if check_value and 'response_value' in check_value else None
         check_value = self._get_param_by_name("Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ", selection_result)
-        need_bellows = check_value['response_value'] if check_value else None
+        need_bellows = check_value['response_value'] if check_value and 'response_value' in check_value else None
         check_value = self._get_param_by_name("Материал", selection_result)
-        material = check_value['response_value'] if check_value else None
+        material = check_value['response_value'] if check_value and 'response_value' in check_value else None
         check_value = self._get_param_by_name("Устройство принудительного открытия", selection_result)
-        force_open = check_value['response_value'] if check_value else None
+        force_open = check_value['response_value'] if check_value and 'response_value' in check_value else None
 
         is_exist = [valve_type, PN, PN2, DN, T, Ppo, joining_type, need_bellows, material, force_open]
         
