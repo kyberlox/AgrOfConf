@@ -46,7 +46,7 @@ export const useConfiguratorStore = defineStore('configuratorStore', {
             if (targetMark && targetMark.response_value) {
                 this.setMark(targetMark.response_value)
             }
-            this.calcParams = params;
+            this.calcParams = params.filter(e => e.name == 'Маркировка');
         }
     },
     getters: {
