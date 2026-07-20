@@ -510,6 +510,7 @@ class CodeParametr:
     async def _searchParams(self, db, DNS, Pn, PN, valve_type):
         #найти все подходящие строки их DNS и P1 - больше искомых
         # request = db.query(Params).filter(Params.DNS >= DNS, Params.PN == PN, Params.valve_type == valve_type).all()
+        print(DNS, type(DNS), PN, type(PN), valve_type, 123123123)
         query = """
             SELECT * FROM table3 
             WHERE dns3::float >= :DNS_val 
