@@ -529,7 +529,7 @@ class CodeParametr:
     async def _searchParams(self, db, DNS, Pn, PN, valve_type):
         #найти все подходящие строки их DNS и P1 - больше искомых
         # request = db.query(Params).filter(Params.DNS >= DNS, Params.PN == PN, Params.valve_type == valve_type).all()
-        print(DNS, type(DNS), PN, type(PN), valve_type, 123123123)
+        # print(DNS, type(DNS), PN, type(PN), valve_type, 123123123)
         query = """
             SELECT * FROM table3 
             WHERE dns3::float >= :DNS_val 
@@ -634,9 +634,15 @@ class CodeParametr:
         Pp_din = None # Противодавление динамическое
         if not select_formula_params:
             return {"total_change" : selection_result}
-        last_sort = 0
+        
         selection_result.pop(0)
         res = deepcopy(selection_result)
+
+        last_sort = 0
+        counter_for_id += 1
+        counter_for_sort += 1
+        sorted_params = sorted(selection_result, key=lambda x: x['sort'])
+
         #Ищем Устройство принудительного открытия
         for param_name, value in select_formula_params.items():
             if param_name == "Устройство принудительного открытия":
@@ -1148,7 +1154,7 @@ class CodeParametr:
         is_exist = [valve_type, PN, PN2, DN, T, Ppo, joining_type, need_bellows, material, force_open]
         
         if not all(x is not None for x in is_exist):
-            print(is_exist)
+            # print(is_exist)
             total_res = list()
             for param in selection_result:
                 if "table_name" in param and param["table_name"] in ['table2', 'table3', 'table10', 'table4']:
