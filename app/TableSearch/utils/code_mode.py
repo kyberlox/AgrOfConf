@@ -325,7 +325,7 @@ class CodeParametr:
                     for env in envs_json:
                         r = env["r"]
                         result["nazvanie_rabochej_sredy"] += f"{env['name']}:{r}% " 
-                        result["molekuljarnaja_massa"] += float(env["molecular_weight"]) * r
+                        result["molekuljarnaja_massa"] += float(env["molekuljarnaja_massa"]) * r
                         ch_den += float(env["density"]) * r
                         zn_den += r
                         pre_viscosity += log10(float(env["viscosity"])) * r
