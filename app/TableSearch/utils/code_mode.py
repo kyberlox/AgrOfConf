@@ -674,8 +674,6 @@ class CodeParametr:
                 if Pp > Pn * 0.7 or Pp < 0:
                     res = self._set_params(res, last_sort, "Противодавление статическое", param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
                 else:
-                    
-                    last_sort += 1
                     res = self._set_params(res, last_sort, "Противодавление статическое", param_type='user_input', param_description="", response_value=Pp, sort=last_sort)
             elif param_name == "Противодавление динамическое" and Pn:
                 if not value:
