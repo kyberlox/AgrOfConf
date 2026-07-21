@@ -666,8 +666,9 @@ class CodeParametr:
             counter_for_sort += 1
             if Pn > 16 or Pn < 0:
                 res = self._set_params(res, counter_for_id, "Давление настройки", param_type='user_input', param_description="", response_value=Pn, sort=counter_for_sort, error="Давление настройки не может быть меньше 0 и больше 16")
-                continue
-            res = self._set_params(res, counter_for_id, param_name, param_type='user_input', param_description="", response_value=Pn, sort=counter_for_sort)
+                # continue
+            else:
+                res = self._set_params(res, counter_for_id, param_name, param_type='user_input', param_description="", response_value=Pn, sort=counter_for_sort)
         elif select_formula_params.get("Максимальный аварийный расход жидкости и газа") and force_open:
             # if not value:
             #     continue
@@ -677,8 +678,8 @@ class CodeParametr:
             counter_for_sort += 1
             if Gab < 0:
                 res = self._set_params(res, counter_for_id, "Максимальный аварийный расход жидкости и газа", param_type='user_input', param_description="", response_value=Gab, sort=counter_for_sort, error="Значение не может быть меньше 0")
-                continue
-            res = self._set_params(res, counter_for_id, "Максимальный аварийный расход жидкости и газа", param_type='user_input', param_description="", response_value=Gab, sort=counter_for_sort)
+            else:
+                res = self._set_params(res, counter_for_id, "Максимальный аварийный расход жидкости и газа", param_type='user_input', param_description="", response_value=Gab, sort=counter_for_sort)
         elif select_formula_params.get("Количество параллельно установленных и одновременно работающих клапанов (шт)") and force_open:
             # if not value:
             #     continue
@@ -688,8 +689,8 @@ class CodeParametr:
             counter_for_sort += 1
             if N < 0:
                 res = self._set_params(res, counter_for_id, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_type='user_input', param_description="", response_value=N, sort=counter_for_sort, error="Значение не может быть меньше 0")
-                continue
-            res = self._set_params(res, counter_for_id, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_type='user_input', param_description="", response_value=N, sort=counter_for_sort)
+            else:
+                res = self._set_params(res, counter_for_id, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_type='user_input', param_description="", response_value=N, sort=counter_for_sort)
         elif select_formula_params.get("Мембранно-предохранительное устройство") and force_open:
             pre_Kc = select_formula_params.get("Мембранно-предохранительное устройство")
             # last_sort += 1
