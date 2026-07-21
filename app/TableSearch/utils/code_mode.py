@@ -380,9 +380,9 @@ class CodeParametr:
                         r = env["r"]
                         result["nazvanie_rabochej_sredy"] += f"{env['name']}:{r}% " 
                         result["molekuljarnaja_massa"] += float(env["molekuljarnaja_massa"]) * r
-                        ch_den += float(env["density"]) * r
+                        ch_den += float(env["plotnost_zhidkosti"]) * r
                         zn_den += r
-                        pre_viscosity += log10(float(env["viscosity"])) * r
+                        pre_viscosity += log10(float(env["vjazkost_pa_s"])) * r
 
 
                     result["plotnost_zhidkosti"] = ch_den/zn_den
