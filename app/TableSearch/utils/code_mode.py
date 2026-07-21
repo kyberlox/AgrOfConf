@@ -645,82 +645,80 @@ class CodeParametr:
         counter_for_id = last_param['id']
         counter_for_sort = last_param['sort']
         #Ищем Устройство принудительного открытия
-        for param_name, value in select_formula_params.items():
-            if param_name == "Устройство принудительного открытия":
-                
-                #ищем данные параметра
-                param_info = [param for param in selection_result if param["name"] == param_name]
-                if not param_info:
-                    # res = self._set_params(selection_result, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
-                    return {'error': 'Не найден параметр в БД - Устройство принудительного открытия'}
-                force_open = value
-                param_info = param_info[0]
-                # res = self._set_params(res, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
-                last_sort = param_info['sort']
-            elif param_name == "Давление настройки" and force_open:
-                if not value:
-                    continue
-                Pn = float(value)
-                # last_sort += 1
-                counter_for_id += 1
-                counter_for_sort += 1
-                if Pn > 16 or Pn < 0:
-                    res = self._set_params(res, counter_for_id, param_name, param_type='user_input', param_description="", response_value=value, sort=counter_for_sort, error="Давление настройки не может быть меньше 0 и больше 16")
-                    continue
-                res = self._set_params(res, counter_for_id, param_name, param_type='user_input', param_description="", response_value=Pn, sort=counter_for_sort)
-            elif param_name == "Максимальный аварийный расход жидкости и газа" and force_open:
-                if not value:
-                    continue
-                Gab = float(value)
-                # last_sort += 1
-                counter_for_id += 1
-                counter_for_sort += 1
-                if Gab < 0:
-                    res = self._set_params(res, counter_for_id, param_name, param_type='user_input', param_description="", response_value=value, sort=counter_for_sort, error="Значение не может быть меньше 0")
-                    continue
-                res = self._set_params(res, counter_for_id, param_name, param_type='user_input', param_description="", response_value=Gab, sort=counter_for_sort)
-            elif param_name == "Количество параллельно установленных и одновременно работающих клапанов (шт)" and force_open:
-                if not value:
-                    continue
-                N = float(value)
-                # last_sort += 1
-                counter_for_id += 1
-                counter_for_sort += 1
-                if N < 0:
-                    res = self._set_params(res, counter_for_id, param_name, param_type='user_input', param_description="", response_value=value, sort=counter_for_sort, error="Значение не может быть меньше 0")
-                    continue
-                res = self._set_params(res, counter_for_id, param_name, param_type='user_input', param_description="", response_value=N, sort=counter_for_sort)
-            elif param_name == "Мембранно-предохранительное устройство" and force_open:
-                pre_Kc = value
-                # last_sort += 1
-                counter_for_id += 1
-                counter_for_sort += 1
-                print(counter_for_id, counter_for_sort, 'После выбора Мембранно')
-                res = self._set_params(res, counter_for_id, param_name, param_description="", all_values=["Да", "Нет"], response_value=value, sort=counter_for_sort)
-            elif param_name == "Противодавление статическое" and Pn:
-                if not value:
-                    continue
-                # last_sort += 1
-                counter_for_id += 1
-                counter_for_sort += 1
-                Pp = float(value)
-                print(counter_for_id, counter_for_sort, 'После выбора')
-                if Pp > Pn * 0.7 or Pp < 0:
-                    res = self._set_params(res, counter_for_id, "Противодавление статическое", param_type='user_input', param_description="", response_value=value, sort=counter_for_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
-                else:
-                    res = self._set_params(res, counter_for_id, "Противодавление статическое", param_type='user_input', param_description="", response_value=Pp, sort=counter_for_sort)
-            elif param_name == "Противодавление динамическое" and Pn:
-                if not value:
-                    continue
-                # last_sort += 1
-                counter_for_id += 1
-                counter_for_sort += 1
-                Pp_din = float(value)
-                
-                if Pp_din > Pn * 0.7 or Pp_din < 0:
-                    res = self._set_params(res, counter_for_id, "Противодавление динамическое", param_type='user_input', param_description="", response_value=value, sort=counter_for_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
-                else:
-                    res = self._set_params(res, counter_for_id, "Противодавление динамическое", param_type='user_input', param_description="", response_value=Pp_din, sort=counter_for_sort)
+        # for param_name, value in select_formula_params.items():
+        if select_formula_params.get("Устройство принудительного открытия"):
+            
+            #ищем данные параметра
+            param_info = [param for param in selection_result if param["name"] == "Устройство принудительного открытия"]
+            if not param_info:
+                # res = self._set_params(selection_result, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
+                return {'error': 'Не найден параметр в БД - Устройство принудительного открытия'}
+            force_open = select_formula_params.get("Устройство принудительного открытия")
+            # param_info = param_info[0]
+            # res = self._set_params(res, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
+            # last_sort = param_info['sort']
+        elif select_formula_params.get("Давление настройки") and force_open:
+            # if not value:
+            #     continue
+            Pn = float(select_formula_params.get("Давление настройки"))
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            if Pn > 16 or Pn < 0:
+                res = self._set_params(res, counter_for_id, "Давление настройки", param_type='user_input', param_description="", response_value=Pn, sort=counter_for_sort, error="Давление настройки не может быть меньше 0 и больше 16")
+                continue
+            res = self._set_params(res, counter_for_id, param_name, param_type='user_input', param_description="", response_value=Pn, sort=counter_for_sort)
+        elif select_formula_params.get("Максимальный аварийный расход жидкости и газа") and force_open:
+            # if not value:
+            #     continue
+            Gab = float(select_formula_params.get("Максимальный аварийный расход жидкости и газа"))
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            if Gab < 0:
+                res = self._set_params(res, counter_for_id, "Максимальный аварийный расход жидкости и газа", param_type='user_input', param_description="", response_value=Gab, sort=counter_for_sort, error="Значение не может быть меньше 0")
+                continue
+            res = self._set_params(res, counter_for_id, "Максимальный аварийный расход жидкости и газа", param_type='user_input', param_description="", response_value=Gab, sort=counter_for_sort)
+        elif select_formula_params.get("Количество параллельно установленных и одновременно работающих клапанов (шт)") and force_open:
+            # if not value:
+            #     continue
+            N = float(select_formula_params.get("Количество параллельно установленных и одновременно работающих клапанов (шт)"))
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            if N < 0:
+                res = self._set_params(res, counter_for_id, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_type='user_input', param_description="", response_value=N, sort=counter_for_sort, error="Значение не может быть меньше 0")
+                continue
+            res = self._set_params(res, counter_for_id, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_type='user_input', param_description="", response_value=N, sort=counter_for_sort)
+        elif select_formula_params.get("Мембранно-предохранительное устройство") and force_open:
+            pre_Kc = select_formula_params.get("Мембранно-предохранительное устройство")
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Мембранно-предохранительное устройство", param_description="", all_values=["Да", "Нет"], response_value=pre_Kc, sort=counter_for_sort)
+        elif select_formula_params.get("Противодавление статическое") and Pn:
+            # if not value:
+            #     continue
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            Pp = float(select_formula_params.get("Противодавление статическое"))
+            if Pp > Pn * 0.7 or Pp < 0:
+                res = self._set_params(res, counter_for_id, "Противодавление статическое", param_type='user_input', param_description="", response_value=Pp, sort=counter_for_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
+            else:
+                res = self._set_params(res, counter_for_id, "Противодавление статическое", param_type='user_input', param_description="", response_value=Pp, sort=counter_for_sort)
+        elif select_formula_params.get("Противодавление динамическое") and Pn:
+            # if not value:
+            #     continue
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            Pp_din = float(select_formula_params.get("Противодавление динамическое"))
+            
+            if Pp_din > Pn * 0.7 or Pp_din < 0:
+                res = self._set_params(res, counter_for_id, "Противодавление динамическое", param_type='user_input', param_description="", response_value=Pp_din, sort=counter_for_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
+            else:
+                res = self._set_params(res, counter_for_id, "Противодавление динамическое", param_type='user_input', param_description="", response_value=Pp_din, sort=counter_for_sort)
 
         #Формируем Устройство принудительного открытия
         if not force_open:
@@ -748,14 +746,12 @@ class CodeParametr:
             # last_sort += 1
             counter_for_id += 1
             counter_for_sort += 1
-            print(counter_for_id, counter_for_sort, 'До выбора Мембранно')
             res = self._set_params(res, counter_for_id, "Мембранно-предохранительное устройство", param_description="", all_values=["Да", "Нет"], sort=counter_for_sort)
         #Формируем Противодавление статическое
         if not Pp and Pn:
             # last_sort += 1
             counter_for_id += 1
             counter_for_sort += 1
-            print(counter_for_id, counter_for_sort, 'До выбора')
             res = self._set_params(res, counter_for_id, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], sort=counter_for_sort, param_type="user_input")
         #Формируем Противодавление динамическое
         if not Pp_din and Pn:
