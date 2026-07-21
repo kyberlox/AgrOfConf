@@ -193,7 +193,7 @@ class CodeParametr:
             #список ВСЕХ климатик
             all_type_names = self._get_param_by_name("Тип клапана", selection_result)["all_values"]
             # type_param = self._get_param_by_name("Тип предохранительного клапана", select_formula_params)
-            type_param = select_formula_params.items("Тип клапана")
+            type_param = select_formula_params.get("Тип клапана")
             
             type_val = type_param # is not None
 
