@@ -330,8 +330,7 @@ class CodeParametr:
                 sql_result = await db.execute( text(env_params_sql) )
                 env_result = sql_result.mappings().first() 
                 if not env_result:
-                    continue
-                # print(env_result, "ЧЕ получили перед ошибкой")
+                    print(env_result, "ЧЕ получили перед ошибкой, строка 333")
                 ###################### обработать его в json ###########################
                 env_json = {
                     "name" : env_result.nazvanie_rabochej_sredy,
