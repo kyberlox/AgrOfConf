@@ -668,7 +668,7 @@ class CodeParametr:
                 res = self._set_params(res, counter_for_id, "Давление настройки", param_type='user_input', param_description="", response_value=Pn, sort=counter_for_sort, error="Давление настройки не может быть меньше 0 и больше 16")
                 # continue
             else:
-                res = self._set_params(res, counter_for_id, param_name, param_type='user_input', param_description="", response_value=Pn, sort=counter_for_sort)
+                res = self._set_params(res, counter_for_id, "Давление настройки", param_type='user_input', param_description="", response_value=Pn, sort=counter_for_sort)
         if select_formula_params.get("Максимальный аварийный расход жидкости и газа") and force_open:
             # if not value:
             #     continue
