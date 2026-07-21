@@ -160,7 +160,8 @@ class CodeParametr:
             envs = select_formula_params.get("Название рабочей среды")
             if envs:
                 # got_envs = True
-                got_type = True
+                # got_type = True
+                got_climate = True
         #климатика
         if got_envs:
             counter_for_id += 1
@@ -192,9 +193,9 @@ class CodeParametr:
             #список ВСЕХ климатик
             all_type_names = self._get_param_by_name("Тип клапана", selection_result)["all_values"]
             # type_param = self._get_param_by_name("Тип предохранительного клапана", select_formula_params)
-            type_param = [value for param_name, value in select_formula_params.items() if param_name == "Тип клапана"]
+            type_param = select_formula_params.items("Тип клапана")
             
-            type_val = type_param[0] if type_param else None # is not None
+            type_val = type_param # is not None
 
             #если нет
             if type_val is None:
