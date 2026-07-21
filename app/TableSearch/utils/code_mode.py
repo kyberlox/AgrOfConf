@@ -811,8 +811,8 @@ class CodeParametr:
         #Все заполнено, можно выполнять расчет
         P_atm = 0.101320
         R = 8.31446261815324  # Газовая постоянная ( Па / (моль * K))
-        u_info = [param for param in res if param["name"] == 'Вязкость (Па*с)']
-        u = float(u_info[0]["response_value"])
+        u_info = select_formula_params.get("Вязкость (Па*с)")
+        u = float(u_info) if u_info else None
 
         "Климатическое исполнение по ГОСТ 15150-69"
         
