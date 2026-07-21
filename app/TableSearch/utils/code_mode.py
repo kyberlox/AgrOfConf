@@ -639,106 +639,127 @@ class CodeParametr:
         res = deepcopy(selection_result)
 
         last_sort = 0
-        # counter_for_id += 1
-        # counter_for_sort += 1
-        sorted_params = sorted(selection_result, key=lambda x: x['sort'])
-        filtered_params = [param['sort'] for param in sorted_params]
-        print(sorted_params[-1], filtered_params)
+        
+        sorted_params = sorted([item for item in selection_result if 'sort' in item], key=lambda x: x['sort'])
+        last_param = sorted_params[-1]
+        counter_for_id = last_param['id']
+        counter_for_sort = last_param['sort']
         #Ищем Устройство принудительного открытия
-        for param_name, value in select_formula_params.items():
-            if param_name == "Устройство принудительного открытия":
-                
-                #ищем данные параметра
-                param_info = [param for param in selection_result if param["name"] == param_name]
-                if not param_info:
-                    # res = self._set_params(selection_result, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
-                    return {'error': 'Не найден параметр в БД - Устройство принудительного открытия'}
-                force_open = value
-                param_info = param_info[0]
-                # res = self._set_params(res, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
-                last_sort = param_info['sort']
-            elif param_name == "Давление настройки" and force_open:
-                if not value:
-                    continue
-                Pn = float(value)
-                last_sort += 1
-                
-                if Pn > 16 or Pn < 0:
-                    res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Давление настройки не может быть меньше 0 и больше 16")
-                    continue
-                res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=Pn, sort=last_sort)
-            elif param_name == "Максимальный аварийный расход жидкости и газа" and force_open:
-                if not value:
-                    continue
-                Gab = float(value)
-                last_sort += 1
-                
-                if Gab < 0:
-                    res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Значение не может быть меньше 0")
-                    continue
-                res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=Gab, sort=last_sort)
-            elif param_name == "Количество параллельно установленных и одновременно работающих клапанов (шт)" and force_open:
-                if not value:
-                    continue
-                N = float(value)
-                last_sort += 1
-                
-                if N < 0:
-                    res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Значение не может быть меньше 0")
-                    continue
-                res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=N, sort=last_sort)
-            elif param_name == "Мембранно-предохранительное устройство" and force_open:
-                pre_Kc = value
-                last_sort += 1
-                res = self._set_params(res, last_sort, param_name, param_description="", all_values=["Да", "Нет"], response_value=value, sort=last_sort)
-            elif param_name == "Противодавление статическое" and Pn:
-                if not value:
-                    continue
-                last_sort += 1
-                Pp = float(value)
-                
-                if Pp > Pn * 0.7 or Pp < 0:
-                    res = self._set_params(res, last_sort, "Противодавление статическое", param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
-                else:
-                    res = self._set_params(res, last_sort, "Противодавление статическое", param_type='user_input', param_description="", response_value=Pp, sort=last_sort)
-            elif param_name == "Противодавление динамическое" and Pn:
-                if not value:
-                    continue
-                last_sort += 1
-                Pp_din = float(value)
-                
-                if Pp_din > Pn * 0.7 or Pp_din < 0:
-                    res = self._set_params(res, last_sort, "Противодавление динамическое", param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
-                else:
-                    res = self._set_params(res, last_sort, "Противодавление динамическое", param_type='user_input', param_description="", response_value=Pp_din, sort=last_sort)
+        # for param_name, value in select_formula_params.items():
+        if select_formula_params.get("Устройство принудительного открытия"):
+            
+            #ищем данные параметра
+            param_info = [param for param in selection_result if param["name"] == "Устройство принудительного открытия"]
+            if not param_info:
+                # res = self._set_params(selection_result, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
+                return {'error': 'Не найден параметр в БД - Устройство принудительного открытия'}
+            force_open = select_formula_params.get("Устройство принудительного открытия")
+            # param_info = param_info[0]
+            # res = self._set_params(res, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
+            # last_sort = param_info['sort']
+        if select_formula_params.get("Давление настройки") and force_open:
+            # if not value:
+            #     continue
+            Pn = float(select_formula_params.get("Давление настройки"))
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            if Pn > 16 or Pn < 0:
+                res = self._set_params(res, counter_for_id, "Давление настройки", param_type='user_input', param_description="", response_value=Pn, sort=counter_for_sort, error="Давление настройки не может быть меньше 0 и больше 16")
+                # continue
+            else:
+                res = self._set_params(res, counter_for_id, "Давление настройки", param_type='user_input', param_description="", response_value=Pn, sort=counter_for_sort)
+        if select_formula_params.get("Максимальный аварийный расход жидкости и газа") and force_open:
+            # if not value:
+            #     continue
+            Gab = float(select_formula_params.get("Максимальный аварийный расход жидкости и газа"))
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            if Gab < 0:
+                res = self._set_params(res, counter_for_id, "Максимальный аварийный расход жидкости и газа", param_type='user_input', param_description="", response_value=Gab, sort=counter_for_sort, error="Значение не может быть меньше 0")
+            else:
+                res = self._set_params(res, counter_for_id, "Максимальный аварийный расход жидкости и газа", param_type='user_input', param_description="", response_value=Gab, sort=counter_for_sort)
+        if select_formula_params.get("Количество параллельно установленных и одновременно работающих клапанов (шт)") and force_open:
+            # if not value:
+            #     continue
+            N = float(select_formula_params.get("Количество параллельно установленных и одновременно работающих клапанов (шт)"))
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            if N < 0:
+                res = self._set_params(res, counter_for_id, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_type='user_input', param_description="", response_value=N, sort=counter_for_sort, error="Значение не может быть меньше 0")
+            else:
+                res = self._set_params(res, counter_for_id, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_type='user_input', param_description="", response_value=N, sort=counter_for_sort)
+        if select_formula_params.get("Мембранно-предохранительное устройство") and force_open:
+            pre_Kc = select_formula_params.get("Мембранно-предохранительное устройство")
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Мембранно-предохранительное устройство", param_description="", all_values=["Да", "Нет"], response_value=pre_Kc, sort=counter_for_sort)
+        if select_formula_params.get("Противодавление статическое") and Pn:
+            # if not value:
+            #     continue
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            Pp = float(select_formula_params.get("Противодавление статическое"))
+            if Pp > Pn * 0.7 or Pp < 0:
+                res = self._set_params(res, counter_for_id, "Противодавление статическое", param_type='user_input', param_description="", response_value=Pp, sort=counter_for_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
+            else:
+                res = self._set_params(res, counter_for_id, "Противодавление статическое", param_type='user_input', param_description="", response_value=Pp, sort=counter_for_sort)
+        if select_formula_params.get("Противодавление динамическое") and Pn:
+            # if not value:
+            #     continue
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            Pp_din = float(select_formula_params.get("Противодавление динамическое"))
+            
+            if Pp_din > Pn * 0.7 or Pp_din < 0:
+                res = self._set_params(res, counter_for_id, "Противодавление динамическое", param_type='user_input', param_description="", response_value=Pp_din, sort=counter_for_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
+            else:
+                res = self._set_params(res, counter_for_id, "Противодавление динамическое", param_type='user_input', param_description="", response_value=Pp_din, sort=counter_for_sort)
 
         #Формируем Устройство принудительного открытия
         if not force_open:
             {"total_change" : res}
         #Формируем Давление настройки
         if not Pn and force_open:
-            last_sort += 1
-            res = self._set_params(res, last_sort, "Давление настройки", param_description="", all_values=[0, 16], sort=last_sort, param_type="user_input")
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Давление настройки", param_description="", all_values=[0, 16], sort=counter_for_sort, param_type="user_input")
         #Формируем Максимальный аварийный расход жидкости и газа
         if not Gab and force_open:
-            last_sort += 1
-            res = self._set_params(res, last_sort, "Максимальный аварийный расход жидкости и газа", param_description="", all_values=[0, 10 ** 100], sort=last_sort, param_type="user_input")
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Максимальный аварийный расход жидкости и газа", param_description="", all_values=[0, 10 ** 100], sort=counter_for_sort, param_type="user_input")
         #Формируем Количество параллельно установленных и одновременно работающих клапанов (шт)
         if not N and force_open:
-            last_sort += 1
-            res = self._set_params(res, last_sort, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_description="", all_values=[0, 10 ** 100], sort=last_sort, param_type="user_input")
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_description="", all_values=[0, 10 ** 100], sort=counter_for_sort, param_type="user_input")
         #Формируем Мембранно-предохранительное устройство
         if not pre_Kc and force_open:
-            last_sort += 1
-            res = self._set_params(res, last_sort, "Мембранно-предохранительное устройство", param_description="", all_values=["Да", "Нет"], sort=last_sort)
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Мембранно-предохранительное устройство", param_description="", all_values=["Да", "Нет"], sort=counter_for_sort)
         #Формируем Противодавление статическое
         if not Pp and Pn:
-            last_sort += 1
-            res = self._set_params(res, last_sort, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], sort=last_sort, param_type="user_input")
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], sort=counter_for_sort, param_type="user_input")
         #Формируем Противодавление динамическое
         if not Pp_din and Pn:
-            last_sort += 1
-            res = self._set_params(res, last_sort, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], sort=last_sort, param_type="user_input")
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], sort=counter_for_sort, param_type="user_input")
         
         #Если не все заполнено, возвращаем массив параметров для заполнения
         is_exist = [force_open, Pn, Gab, N, pre_Kc, Pp, Pp_din]
@@ -945,8 +966,11 @@ class CodeParametr:
             #Собираем ответ
             #Получаем последний айдишник
             param = self._get_param_by_name("Мембранно-предохранительное устройство", res)
-            counter = param['sort'] + 1 #Счетчик для увеличения порядкового номера
-            res = self._set_params(res, counter, "Номинальное давление", param_type='user-input', sort=counter, error="Ошибка расчетов: Нет возможности подобрать PN")
+            # counter = param['sort'] + 1 #Счетчик для увеличения порядкового номера
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Номинальное давление", param_type='user-input', sort=counter_for_sort, error="Ошибка расчетов: Нет возможности подобрать PN")
             return {"total_change" : res}
 
         param = self._get_param_by_name("Тип клапана", selection_result)
@@ -959,47 +983,70 @@ class CodeParametr:
         #Собираем ответ
         #Получаем последний айдишник
         param = self._get_param_by_name("Мембранно-предохранительное устройство", res)
-        counter = param['sort'] + 1 #Счетчик для увеличения порядкового номера
+        # last_sort += 1
+        counter_for_id += 1
+        counter_for_sort += 1#Счетчик для увеличения порядкового номера
 
         #Минимальная рабочая температура
-        res = self._set_params(res, counter, "Минимальная рабочая температура", param_type='raschet', response_value=T_min, sort=counter, visibility=False)
-        counter += 1
+        res = self._set_params(res, counter_for_id, "Минимальная рабочая температура", param_type='raschet', response_value=T_min, sort=counter_for_sort, visibility=False)
         #Максимальная рабочая температура
-        res = self._set_params(res, counter, "Максимальная рабочая температура", param_type='raschet', response_value=T_max, sort=counter, visibility=False)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Максимальная рабочая температура", param_type='raschet', response_value=T_max, sort=counter_for_sort, visibility=False)
+        # counter += 1
         # Давление начала открытия с противодавлением
-        res = self._set_params(res, counter, "Давление начала открытия с противодавлением", param_type='raschet', response_value=Pno * 10.197162, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Давление начала открытия с противодавлением", param_type='raschet', response_value=Pno * 10.197162, sort=counter_for_sort)
+        # counter += 1
         # Давление полного открытия с противодавлением
-        res = self._set_params(res, counter, "Давление полного открытия с противодавлением", param_type='raschet', response_value=Ppo * 10.197162, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Давление полного открытия с противодавлением", param_type='raschet', response_value=Ppo * 10.197162, sort=counter_for_sort)
+        # counter += 1
         # Давление на входе
-        res = self._set_params(res, counter, "Давление на входе", param_type='raschet', response_value=P1 * 10.197162, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Давление на входе", param_type='raschet', response_value=P1 * 10.197162, sort=counter_for_sort)
+        # counter += 1
         # Давление на выходе
-        res = self._set_params(res, counter, "Давление на выходе", param_type='raschet', response_value=P2 * 10.197162, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Давление на выходе", param_type='raschet', response_value=P2 * 10.197162, sort=counter_for_sort)
+        # counter += 1
         # Коэффициент, учитывающий эффект неполного открытия разгруженных ПК из-за противодавления
-        res = self._set_params(res, counter, "Коэффициент, учитывающий эффект неполного открытия разгруженных ПК из-за противодавления", param_type='raschet', response_value=Kw, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Коэффициент, учитывающий эффект неполного открытия разгруженных ПК из-за противодавления", param_type='raschet', response_value=Kw, sort=counter_for_sort)
+        # counter += 1
         # Массовая скорость
-        res = self._set_params(res, counter, "Массовая скорость", param_type='raschet', response_value=Gideal, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Массовая скорость", param_type='raschet', response_value=Gideal, sort=counter_for_sort)
+        # counter += 1
         # Предварительный Диаметр седла клапана, мм:
-        res = self._set_params(res, counter, "Предварительный Диаметр седла клапана, мм:", param_type='raschet', response_value=DN_s, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Предварительный Диаметр седла клапана, мм:", param_type='raschet', response_value=DN_s, sort=counter_for_sort)
+        # counter += 1
         # Предварительный Диаметр седла клапана, мм
-        res = self._set_params(res, counter, "Диаметр седла клапана, мм:", param_type='raschet', response_value=float(example['DN']), sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Диаметр седла клапана, мм:", param_type='raschet', response_value=float(example['DN']), sort=counter_for_sort)
+        # counter += 1
         # Номинальный диаметр седла !f example:
-        res = self._set_params(res, counter, "Номинальный диаметр седла", param_type='raschet', response_value=float(example["DNS"]), sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Номинальный диаметр седла", param_type='raschet', response_value=float(example["DNS"]), sort=counter_for_sort)
+        # counter += 1
         # Номинальный диаметр !f example:
         # res = self._set_params(res, counter, "Номинальный диаметр", param_type='raschet', response_value=example["DN"], sort=counter)
         # counter += 1
         # Номинальное давление !f example:
-        res = self._set_params(res, counter, "Номинальное давление", param_type='raschet', response_value=float(example["PN"]), sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Номинальное давление", param_type='raschet', response_value=float(example["PN"]), sort=counter_for_sort)
+        # counter += 1
         # Номинальный диаметр на выходе
         DN2 = {
             25.0: 40.0,
@@ -1009,8 +1056,10 @@ class CodeParametr:
             150.0: 200.0,
             200.0: 300.0
         }
-        res = self._set_params(res, counter, "Номинальный диаметр на выходе", param_type='raschet', response_value=DN2[int(example["DN"])], sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Номинальный диаметр на выходе", param_type='raschet', response_value=DN2[int(example["DN"])], sort=counter_for_sort)
+        # counter += 1
         # Номинальное давление на выходе
         PN2 = {
             16.0: 6,
@@ -1020,25 +1069,37 @@ class CodeParametr:
             160.0: 40.0,
             250.0: 40.0
         }
-        res = self._set_params(res, counter, "Номинальное давление на выходе", param_type='raschet', response_value=PN2[int(example["PN"])], sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Номинальное давление на выходе", param_type='raschet', response_value=PN2[int(example["PN"])], sort=counter_for_sort)
+        # counter += 1
         # Площадь седла клапана
         DN_s = int(example["DNS"])
         S = (pi * DN_s**2 )/ 4
-        res = self._set_params(res, counter, "Площадь седла клапана", param_type='raschet', response_value=S, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Площадь седла клапана", param_type='raschet', response_value=S, sort=counter_for_sort)
+        # counter += 1
         # Эффективная площадь седла калапана
-        res = self._set_params(res, counter, "Эффективная площадь седла калапана", param_type='raschet', response_value=S * alpha, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Эффективная площадь седла калапана", param_type='raschet', response_value=S * alpha, sort=counter_for_sort)
+        # counter += 1
         # Материал пружины
-        res = self._set_params(res, counter, "Материал пружины", param_type='raschet', response_value=example["spring_material"], sort=counter, visibility=False)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Материал пружины", param_type='raschet', response_value=example["spring_material"], sort=counter_for_sort, visibility=False)
+        # counter += 1
         # Номер пружины
-        res = self._set_params(res, counter, "Номер пружины", param_type='raschet', response_value=example["spring_number"], sort=counter, visibility=False)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Номер пружины", param_type='raschet', response_value=example["spring_number"], sort=counter_for_sort, visibility=False)
+        # counter += 1
         # Диапазон давлений настройки
-        res = self._set_params(res, counter, "Диапазон давлений настройки", param_type='raschet', response_value=example["Pnd"], sort=counter, visibility=False)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Диапазон давлений настройки", param_type='raschet', response_value=example["Pnd"], sort=counter_for_sort, visibility=False)
+        # counter += 1
         
         # Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ
         # Проверка есть ли этот параметр среди выбранных и какое у него значение
@@ -1089,19 +1150,27 @@ class CodeParametr:
             material = "12Х18Н12М3ТЛ"
             
         # Заполняем need_bellows (list), open_close_type(raschet, тип ПК:, visibility=False), material(raschet, молибденовое исполнение, visibility=False)
-        res = self._set_params(res, counter, "Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ", all_values=["Да", "Нет"], response_value=need_bellows, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ", all_values=["Да", "Нет"], response_value=need_bellows, sort=counter_for_sort)
+        # counter += 1
 
-        res = self._set_params(res, counter, "Открытый / Закрытый тип", param_type='raschet', response_value=open_close_type, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Открытый / Закрытый тип", param_type='raschet', response_value=open_close_type, sort=counter_for_sort)
+        # counter += 1
 
         is_joining_type = select_formula_params.get("Тип присоединения")
         joining_type_values = ["Фланцевое", "Под приварку", "Штуцерно-торцовое", "Муфтовое", "Ниппельное", "Кламповое", "Комбинированное"]
-        res = self._set_params(res, counter, "Тип присоединения", all_values=joining_type_values, response_value=is_joining_type, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Тип присоединения", all_values=joining_type_values, response_value=is_joining_type, sort=counter_for_sort)
+        # counter += 1
         if material:
-            res = self._set_params(res, counter, "Молибденовое исполнение", param_type='raschet', response_value=material, sort=counter, visibility=False)
-            counter += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Молибденовое исполнение", param_type='raschet', response_value=material, sort=counter_for_sort, visibility=False)
+            # counter += 1
         
         new_list = []
         for param in res:
@@ -1124,6 +1193,11 @@ class CodeParametr:
         - Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ (need_bellows)
         - Маркировка (mark)
         """
+        sorted_params = sorted([item for item in selection_result if 'sort' in item], key=lambda x: x['sort'])
+        last_param = sorted_params[-1]
+        counter_for_id = last_param['id']
+        counter_for_sort = last_param['sort']
+
         # Переменная длоя сбора аргументов маркировки
         MARK_ARR = ['X', "X", "X", "X", "X", "X", "X", ""]
         if not select_formula_params:
@@ -1218,9 +1292,11 @@ class CodeParametr:
         else:
             tightness = None
             err_tightness = f"Невозможно определить класс герметичнности, Некорректое значение типа ПК: {valve_type}"
-        
-        res = self._set_params(selection_result, counter, "Класс герметичности", response_value=tightness, sort=counter, error=err_tightness, param_type="raschet")
-        counter += 1
+
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(selection_result, counter_for_id, "Класс герметичности", response_value=tightness, sort=counter_for_sort, error=err_tightness, param_type="raschet")
+        # counter += 1
 
         #подбор фланцев
         if joining_type == "Фланцевое":
@@ -1255,16 +1331,23 @@ class CodeParametr:
 
         #Фланцы
         user_inlet_flange = select_formula_params.get("Фланец на входе")
-        res = self._set_params(selection_result, counter, "Фланец на входе", all_values=inlet_flange, response_value=user_inlet_flange, sort=counter, param_type='list')
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(selection_result, counter_for_id, "Фланец на входе", all_values=inlet_flange, response_value=user_inlet_flange, sort=counter_for_sort, param_type='list')
+        # counter += 1
+
+        counter_for_id += 1
+        counter_for_sort += 1
         user_outlet_flange = select_formula_params.get("Фланец на выходе")
-        res = self._set_params(selection_result, counter, "Фланец на выходе", all_values=outlet_flange, response_value=user_outlet_flange, sort=counter, param_type='list')
-        counter += 1
+        res = self._set_params(selection_result, counter_for_id, "Фланец на выходе", all_values=outlet_flange, response_value=user_outlet_flange, sort=counter_for_sort, param_type='list')
+        # counter += 1
         
         # Материал сильфона
+        counter_for_id += 1
+        counter_for_sort += 1
         material_bellows = "08Х18Н10Т" if need_bellows else None
-        res = self._set_params(selection_result, counter, "Материал сильфона", response_value=material_bellows, sort=counter, param_type='raschet')
-        counter += 1
+        res = self._set_params(selection_result, counter_for_id, "Материал сильфона", response_value=material_bellows, sort=counter_for_sort, param_type='raschet')
+        # counter += 1
 
         # Испытания
         env_names = list()
@@ -1393,34 +1476,48 @@ class CodeParametr:
 
         
         # material_spool "Материал золотника"
-        res = self._set_params(selection_result, counter, "Материал золотника", response_value=material_spool, sort=counter, param_type='raschet')
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(selection_result, counter_for_id, "Материал золотника", response_value=material_spool, sort=counter_for_sort, param_type='raschet')
+        # counter += 1
 
-        # weight Маccа 
-        res = self._set_params(selection_result, counter, "Маccа", response_value=float(weight), sort=counter, param_type='raschet')
-        counter += 1
+        # weight Маccа
+        counter_for_id += 1
+        counter_for_sort += 1 
+        res = self._set_params(selection_result, counter_for_id, "Маccа", response_value=float(weight), sort=counter_for_sort, param_type='raschet')
+        # counter += 1
 
         # painting_area Площадь под покраску
-        res = self._set_params(selection_result, counter, "Площадь под покраску", response_value=float(painting_area), sort=counter, param_type='raschet')
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(selection_result, counter_for_id, "Площадь под покраску", response_value=float(painting_area), sort=counter_for_sort, param_type='raschet')
+        # counter += 1
 
         # assignment Срок службы
-        res = self._set_params(selection_result, counter, "Срок службы", response_value=assignment, sort=counter, param_type='raschet')
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(selection_result, counter_for_id, "Срок службы", response_value=assignment, sort=counter_for_sort, param_type='raschet')
+        # counter += 1
 
         # color Цвет
+        counter_for_id += 1
+        counter_for_sort += 1
         user_color = select_formula_params.get("Цвет")
-        res = self._set_params(selection_result, counter, "Цвет", all_values=color, response_value=user_color, sort=counter, param_type='list')
-        counter += 1
+        res = self._set_params(selection_result, counter_for_id, "Цвет", all_values=color, response_value=user_color, sort=counter_for_sort, param_type='list')
+        # counter += 1
 
         # packaging Упаковка
+        counter_for_id += 1
+        counter_for_sort += 1
         user_packaging = select_formula_params.get("Упаковка")
-        res = self._set_params(selection_result, counter, "Упаковка", all_values=packaging, response_value=user_packaging, sort=counter, param_type='list')
-        counter += 1
+        res = self._set_params(selection_result, counter_for_id, "Упаковка", all_values=packaging, response_value=user_packaging, sort=counter_for_sort, param_type='list')
+        # counter += 1
 
         # trials Испытания
-        res = self._set_params(selection_result, counter, "Испытания", response_value=trials, sort=counter, param_type='raschet')
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(selection_result, counter_for_id, "Испытания", response_value=trials, sort=counter_for_sort, param_type='raschet')
+        # counter += 1
 
         #Собираем маркировку
         MARK_ARR[0] = mark
@@ -1480,8 +1577,11 @@ class CodeParametr:
             MARK_ARR[7] = ""
         total_mark = ''
         total_mark += '.'.join(MARK_ARR)
-        res = self._set_params(res, counter, "Маркировка", response_value=total_mark, sort=counter, param_type='raschet')
-        counter += 1
+
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Маркировка", response_value=total_mark, sort=counter_for_sort, param_type='raschet')
+        # counter += 1
 
         #изменился Материал material
         total_res = list()
