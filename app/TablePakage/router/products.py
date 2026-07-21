@@ -285,7 +285,7 @@ async def upload_product_drawing(
         await db.rollback()
         return {'error': f"Ошибка добавления чертежа к продукту: {e}"}
 
-@router.delete("/delete_product_drawing", description="Загрузка чертежей для продукта", status_code=201)
+@router.delete("/delete_product_drawing/{id}", description="Удаление чертежей для продукта", status_code=201)
 async def delete_product_drawing(
     id: int,
     db: AsyncSession = Depends(get_db)
@@ -298,7 +298,6 @@ async def delete_product_drawing(
 
         await db.delete(node)
         await db.commit()
-
 
         if node.file_path and os.path.exists(node.file_path):
             os.remove(node.file_path)
