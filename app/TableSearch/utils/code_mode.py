@@ -812,7 +812,7 @@ class CodeParametr:
         P_atm = 0.101320
         R = 8.31446261815324  # Газовая постоянная ( Па / (моль * K))
         u_info = [param for param in res if param["name"] == 'Вязкость (Па*с)']
-        u = u_info[0]["response_value"]
+        u = float(u_info[0]["response_value"])
 
         "Климатическое исполнение по ГОСТ 15150-69"
         
