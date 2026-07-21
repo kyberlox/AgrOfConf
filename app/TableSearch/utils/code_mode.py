@@ -160,8 +160,8 @@ class CodeParametr:
             envs = select_formula_params.get("Название рабочей среды")
             if envs:
                 # got_envs = True
-                # got_type = True
-                got_climate = True
+                got_type = True
+                # got_climate = True
         #климатика
         if got_envs:
             counter_for_id += 1
@@ -185,8 +185,9 @@ class CodeParametr:
             else:
                 res = self._set_params(res, counter_for_id, "Климатическое исполнение по ГОСТ 15150-69", all_values=climate, sort=counter_for_sort, response_value=climate_values)
                 got_climate = True
-
+        
         #Тип клапана
+        type_val = None
         if got_climate:
             counter_for_id += 1
             counter_for_sort += 1
