@@ -657,7 +657,7 @@ class CodeParametr:
             # param_info = param_info[0]
             # res = self._set_params(res, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
             # last_sort = param_info['sort']
-        elif select_formula_params.get("Давление настройки") and force_open:
+        if select_formula_params.get("Давление настройки") and force_open:
             # if not value:
             #     continue
             Pn = float(select_formula_params.get("Давление настройки"))
@@ -669,7 +669,7 @@ class CodeParametr:
                 # continue
             else:
                 res = self._set_params(res, counter_for_id, param_name, param_type='user_input', param_description="", response_value=Pn, sort=counter_for_sort)
-        elif select_formula_params.get("Максимальный аварийный расход жидкости и газа") and force_open:
+        if select_formula_params.get("Максимальный аварийный расход жидкости и газа") and force_open:
             # if not value:
             #     continue
             Gab = float(select_formula_params.get("Максимальный аварийный расход жидкости и газа"))
@@ -680,7 +680,7 @@ class CodeParametr:
                 res = self._set_params(res, counter_for_id, "Максимальный аварийный расход жидкости и газа", param_type='user_input', param_description="", response_value=Gab, sort=counter_for_sort, error="Значение не может быть меньше 0")
             else:
                 res = self._set_params(res, counter_for_id, "Максимальный аварийный расход жидкости и газа", param_type='user_input', param_description="", response_value=Gab, sort=counter_for_sort)
-        elif select_formula_params.get("Количество параллельно установленных и одновременно работающих клапанов (шт)") and force_open:
+        if select_formula_params.get("Количество параллельно установленных и одновременно работающих клапанов (шт)") and force_open:
             # if not value:
             #     continue
             N = float(select_formula_params.get("Количество параллельно установленных и одновременно работающих клапанов (шт)"))
@@ -691,13 +691,13 @@ class CodeParametr:
                 res = self._set_params(res, counter_for_id, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_type='user_input', param_description="", response_value=N, sort=counter_for_sort, error="Значение не может быть меньше 0")
             else:
                 res = self._set_params(res, counter_for_id, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_type='user_input', param_description="", response_value=N, sort=counter_for_sort)
-        elif select_formula_params.get("Мембранно-предохранительное устройство") and force_open:
+        if select_formula_params.get("Мембранно-предохранительное устройство") and force_open:
             pre_Kc = select_formula_params.get("Мембранно-предохранительное устройство")
             # last_sort += 1
             counter_for_id += 1
             counter_for_sort += 1
             res = self._set_params(res, counter_for_id, "Мембранно-предохранительное устройство", param_description="", all_values=["Да", "Нет"], response_value=pre_Kc, sort=counter_for_sort)
-        elif select_formula_params.get("Противодавление статическое") and Pn:
+        if select_formula_params.get("Противодавление статическое") and Pn:
             # if not value:
             #     continue
             # last_sort += 1
@@ -708,7 +708,7 @@ class CodeParametr:
                 res = self._set_params(res, counter_for_id, "Противодавление статическое", param_type='user_input', param_description="", response_value=Pp, sort=counter_for_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
             else:
                 res = self._set_params(res, counter_for_id, "Противодавление статическое", param_type='user_input', param_description="", response_value=Pp, sort=counter_for_sort)
-        elif select_formula_params.get("Противодавление динамическое") and Pn:
+        if select_formula_params.get("Противодавление динамическое") and Pn:
             # if not value:
             #     continue
             # last_sort += 1
