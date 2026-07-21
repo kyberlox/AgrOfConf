@@ -703,7 +703,7 @@ class CodeParametr:
                 counter_for_id += 1
                 counter_for_sort += 1
                 Pp = float(value)
-                
+                print(counter_for_id, counter_for_sort, 'После выбора')
                 if Pp > Pn * 0.7 or Pp < 0:
                     res = self._set_params(res, counter_for_id, "Противодавление статическое", param_type='user_input', param_description="", response_value=value, sort=counter_for_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
                 else:
@@ -753,6 +753,7 @@ class CodeParametr:
             # last_sort += 1
             counter_for_id += 1
             counter_for_sort += 1
+            print(counter_for_id, counter_for_sort, 'До выбора')
             res = self._set_params(res, counter_for_id, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], sort=counter_for_sort, param_type="user_input")
         #Формируем Противодавление динамическое
         if not Pp_din and Pn:
