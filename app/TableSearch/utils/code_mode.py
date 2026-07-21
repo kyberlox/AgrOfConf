@@ -475,7 +475,7 @@ class CodeParametr:
                 if not param_info:
                     continue
                 param_info = param_info[0]
-                res = self._set_params(res, counter_for_id, kir_param_name, param_description=param["description"], response_value=value, sort=counter_for_sort, param_type='raschet') # all_values=param_info['all_values'], 
+                res = self._set_params(res, counter_for_id, kir_param_name, param_description=param_info["description"], response_value=value, sort=counter_for_sort, param_type='raschet') 
                 counter_for_id += 1
                 counter_for_sort += 1
             # Поскольку расчет смеси завершился, докидываем
