@@ -864,7 +864,8 @@ class CodeParametr:
         else:
             #Ищем плотность
             # density_inf = [param for param in selection_result if param["name"] == 'Плотность жидкости']
-            p1 = select_formula_params.get('Плотность жидкости')
+            density_inf = select_formula_params.get('Плотность жидкости')
+            p1 = int(density_inf) if density_inf else None
         
         #!!!!!!!!!!!!! ОБРАТИТЬ ВНИМАНИЕ
         # dt["density"] = #p1 !!!!!!!!!!!!! ОБРАТИТЬ ВНИМАНИЕ
