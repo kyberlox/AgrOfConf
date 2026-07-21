@@ -187,7 +187,7 @@ class CodeParametr:
                 got_climate = True
         
         #Тип клапана
-        type_val = None
+        # type_val = None
         if got_climate:
             counter_for_id += 1
             counter_for_sort += 1
@@ -224,6 +224,9 @@ class CodeParametr:
             required_type = "user_input"
             response_value = T
             
+            type_param = select_formula_params.get("Тип клапана")
+            
+            type_val = type_param
             #если нет
             if T is None:
                 res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, sort=counter_for_sort, param_type=required_type) #all_values=all_type_names, 
