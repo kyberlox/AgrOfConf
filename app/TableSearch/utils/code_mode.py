@@ -223,7 +223,7 @@ class CodeParametr:
             description = "Ввведите значение температуры рабочей среды (°C)"
             required_type = "user_input"
             response_value = T
-            
+
             type_param = select_formula_params.get("Тип клапана")
             
             type_val = type_param
@@ -469,7 +469,8 @@ class CodeParametr:
                     result["material"] = mat
 
             #если климатика => то материал
-            if ((climate == "ХЛ1") or (climate == "УХЛ1")) and (result["material"] == "25Л"):
+            climate = select_formula_params.get('Климатическое исполнение по ГОСТ 15150-69')
+            if climate and ((climate == "ХЛ1") or (climate == "УХЛ1")) and (result["material"] == "25Л"):
                 if T < 350.0:
                     result["material"] = "20ГЛ"
                 elif T >= 350.0 and climate == "ХЛ1":
