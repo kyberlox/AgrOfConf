@@ -276,7 +276,7 @@ class CodeParametr:
 
             # env_name_colunm = env_keys["name"]
             env_name_colunm = "nazvanie_rabochej_sredy"
-            if isinstance(envs, list)
+            if isinstance(envs, list):
                 for env in envs:
                     env_name = list(env.keys())[0]
                     r = env[env_name] / 100
