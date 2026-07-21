@@ -695,6 +695,7 @@ class CodeParametr:
                 # last_sort += 1
                 counter_for_id += 1
                 counter_for_sort += 1
+                print(counter_for_id, counter_for_sort, 'После выбора Мембранно')
                 res = self._set_params(res, counter_for_id, param_name, param_description="", all_values=["Да", "Нет"], response_value=value, sort=counter_for_sort)
             elif param_name == "Противодавление статическое" and Pn:
                 if not value:
@@ -747,6 +748,7 @@ class CodeParametr:
             # last_sort += 1
             counter_for_id += 1
             counter_for_sort += 1
+            print(counter_for_id, counter_for_sort, 'До выбора Мембранно')
             res = self._set_params(res, counter_for_id, "Мембранно-предохранительное устройство", param_description="", all_values=["Да", "Нет"], sort=counter_for_sort)
         #Формируем Противодавление статическое
         if not Pp and Pn:
