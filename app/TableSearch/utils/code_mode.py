@@ -225,15 +225,15 @@ class CodeParametr:
             #если нет
             if T is None:
                 res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, sort=counter_for_sort, param_type=required_type) #all_values=all_type_names, 
-            
-            #валидировать:
-            elif (type_val == "Пружинный (В)" and (T < -60 or T > 600) ) or (type_val == "Пилотный (П)" and (T < -60 or T > 250) ):
-                error = "Температура должна быть в диапазоне от -60°С до 600°С для пружинных и от -60°С до 250°С для пилотных клапанов"
-                res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, sort=counter_for_sort, param_type=required_type, response_value=response_value, error=error) #all_values=all_type_names, 
-            
-            else:
-                res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, sort=counter_for_sort, param_type=required_type, response_value=response_value) #all_values=all_type_names, 
-                got_T = True
+            if type_val:
+                #валидировать:
+                if (type_val == "Пружинный (В)" and (T < -60 or T > 600) ) or (type_val == "Пилотный (П)" and (T < -60 or T > 250) ):
+                    error = "Температура должна быть в диапазоне от -60°С до 600°С для пружинных и от -60°С до 250°С для пилотных клапанов"
+                    res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, sort=counter_for_sort, param_type=required_type, response_value=response_value, error=error) #all_values=all_type_names, 
+                
+                else:
+                    res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, sort=counter_for_sort, param_type=required_type, response_value=response_value) #all_values=all_type_names, 
+                    got_T = True
 
         ################# РАСЧЕТ #################
         if got_T:
