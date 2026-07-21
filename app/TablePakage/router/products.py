@@ -285,7 +285,7 @@ async def upload_product_drawing(
         await db.rollback()
         return {'error': f"Ошибка добавления чертежа к продукту: {e}"}
 
-@router.post("/delete_product_drawing", description="Загрузка чертежей для продукта", status_code=201)
+@router.delete("/delete_product_drawing", description="Загрузка чертежей для продукта", status_code=201)
 async def delete_product_drawing(
     id: int,
     db: AsyncSession = Depends(get_db)
