@@ -159,7 +159,8 @@ class CodeParametr:
         elif naydeno and is_mixture is False:
             envs = select_formula_params.get("Название рабочей среды")
             if envs:
-                got_envs = True
+                # got_envs = True
+                got_type = True
         #климатика
         if got_envs:
             counter_for_id += 1
