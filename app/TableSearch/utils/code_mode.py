@@ -125,7 +125,7 @@ class CodeParametr:
             #список ВСЕХ сред
             param = self._get_param_by_name("Название рабочей среды", selection_result)
             all_values = param["all_values"]
-            envs_param = [value for param_name, value in select_formula_params.items() if param_name == "Состав смеси"]
+            envs_param = select_formula_params.get("Состав смеси")
             
             if not envs_param:
                 description = "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)"
@@ -133,7 +133,7 @@ class CodeParametr:
 
             elif envs_param:
                 #проверить правильность
-                envs = envs_param[0]
+                envs = envs_param
                 #сумма мольных долей
                 r_sum = sum(list(env.values())[0] for env in envs)
                 
@@ -155,6 +155,11 @@ class CodeParametr:
                     res = self._set_params(res, counter_for_id, "Состав смеси", param_description=description, all_values=all_values, sort=counter_for_sort, param_type="select-input", response_value=envs)
                     got_envs = True
 
+        #Если это не смесь
+        elif naydeno and is_mixture is False:
+            envs = select_formula_params.get("Название рабочей среды")
+            if envs:
+                got_envs = True
         #климатика
         if got_envs:
             counter_for_id += 1
@@ -167,9 +172,9 @@ class CodeParametr:
                 error_climate = "Невозможно подобрать климатическое исполнение для таких сред"
             else:
                 climate = is_climate['all_values']
-            type_param = [value for param_name, value in select_formula_params.items() if param_name == "Климатическое исполнение по ГОСТ 15150-69"]
+            type_param = select_formula_params.get("Климатическое исполнение по ГОСТ 15150-69")
             
-            climate_values = type_param[0] if type_param else None # is not None
+            climate_values = type_param
             #если нет
             if climate_values is None and climate:
                 res = self._set_params(res, counter_for_id, "Климатическое исполнение по ГОСТ 15150-69", all_values=climate, sort=counter_for_sort)
@@ -227,7 +232,6 @@ class CodeParametr:
             
             else:
                 res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=counter_for_sort, param_type=required_type, response_value=response_value)
-
                 got_T = True
 
         ################# РАСЧЕТ #################
