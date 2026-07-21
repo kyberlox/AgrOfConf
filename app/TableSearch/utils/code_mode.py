@@ -236,7 +236,10 @@ class CodeParametr:
                 else:
                     res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, sort=counter_for_sort, param_type=required_type, response_value=response_value) #all_values=all_type_names, 
                     got_T = True
-
+            else:
+                error = "Заполните Тип клапана"
+                res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, sort=counter_for_sort, param_type=required_type, response_value=response_value, error=error) #all_values=all_type_names, 
+                
         ################# РАСЧЕТ #################
         if got_T:
             counter_for_id += 1
