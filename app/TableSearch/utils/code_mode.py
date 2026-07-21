@@ -1235,6 +1235,9 @@ class CodeParametr:
 
         return {"total_change" : new_list}
 
+    async def _find_param_print(self, mark, db, product_id):
+        pass 
+
     async def mark_params(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
         """
         Параметры которые нужны для расчета:
