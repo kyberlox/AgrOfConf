@@ -1237,6 +1237,7 @@ class CodeParametr:
 
     async def _find_param_print(self, mark, db, product_id):
         from app.TablePakage.model.product_drawing import ProductDrawing
+        from sqlalchemy import select
         # query = """
         #     SELECT file_url FROM product_drawing 
         #     WHERE product_id = :product_id 
