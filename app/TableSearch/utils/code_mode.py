@@ -1236,7 +1236,17 @@ class CodeParametr:
         return {"total_change" : new_list}
 
     async def _find_param_print(self, mark, db, product_id):
-        pass 
+        query = """
+            SELECT file_url FROM product_drawing 
+            WHERE product_id >= :product_id 
+            AND name >= :name
+        """
+        params = {"product_id": product_id, "name": mark}
+        stmt = await db.execute(text(query), params) 
+        request = stmt.scalar_one_or_none()
+        if not request:
+            return ""
+        return request
 
     async def mark_params(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
         """
@@ -1512,10 +1522,12 @@ class CodeParametr:
         # mark = select_formula_params.get("Маркировка")
         if mark:
             weight, painting_area = await self._get_by_mark(db, mark, DN, PN)
+            product_drawing = await self._find_param_print(mark, db, 10)
         else:
             weight = None # "Маccа"
             painting_area = None # "Площадь под покраску"
-
+            product_drawing = None 
+        print(product_drawing, 'Получили изображение')
         packaging = [
             "Упаковка на европаллет (1200х800)",
             "Упаковка груза в ящики из OSB по ТУ “АО НПО Регулятор”",
