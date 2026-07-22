@@ -1254,6 +1254,7 @@ class CodeParametr:
         for drawing in request:
             print(repr(drawing.name), 'ЧЕ ПОЛУЧАЕМ', repr(mark))
             if drawing.name == mark:
+                print('НЕ ДОХОДИТ ДА')
                 return drawing.file_url
         
         return None
