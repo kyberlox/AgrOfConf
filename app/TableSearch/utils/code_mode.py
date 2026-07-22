@@ -1733,8 +1733,12 @@ class CodeParametr:
         - Email агента (agent_email)
         - Организация агента (agent_organization)
         """
-        param = self._get_param_by_name("Цена /шт. руб с НДС 22%", selection_result)
-        counter = param['sort'] + 1
+        sorted_params = sorted([item for item in selection_result if 'sort' in item], key=lambda x: x['sort'])
+        last_param = sorted_params[-1]
+        counter_for_id = last_param['id']
+        counter_for_sort = last_param['sort']
+        # param = self._get_param_by_name("Цена /шт. руб с НДС 22%", selection_result)
+        counter = counter_for_sort
         res = []
         contact_info = ["ФИО Заказчика", "Телефон Заказчика", "Email Заказчика", "Организация Заказчика"]
         
