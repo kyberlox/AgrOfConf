@@ -1234,7 +1234,8 @@ class CodeParametr:
         counter_for_sort += 1
         res = self._set_params(res, counter_for_id, "Маркировка", response_value=total_mark, sort=counter_for_sort, param_type='raschet')
         
-        product_drawing = await self._find_param_print(mark, db, param_info['product_id']) 
+        print(param_info, 'ЧТО ТЫ ТАКОЕ')
+        product_drawing = await self._find_param_print(mark, db, 10) 
 
         counter_for_id += 1
         counter_for_sort += 1
