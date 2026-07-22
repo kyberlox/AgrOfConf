@@ -1212,7 +1212,7 @@ class CodeParametr:
         counter_for_sort += 1
         res = self._set_params(res, counter_for_id, "Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ", all_values=["Да", "Нет"], response_value=need_bellows, sort=counter_for_sort)
         # counter += 1
-        # ТУТ УЖЕ МОЖНО ПОДОБРАТЬ МАРКИРОВКУ И ФАЙЛ
+        
         #Собираем маркировку
         if valve_type == 'В':
             if force_open == "Да" and need_bellows == "Да":
@@ -1301,7 +1301,7 @@ class CodeParametr:
         counter_for_sort = last_param['sort']
 
         # Переменная длоя сбора аргументов маркировки
-        MARK_ARR = ['X', "X", "X", "X", "X", "X", "X", ""]
+        # MARK_ARR = ['X', "X", "X", "X", "X", "X", "X", ""]
         if not select_formula_params:
             return {"total_change" : selection_result}
         valve_type_full = select_formula_params.get("Тип клапана")
@@ -1428,7 +1428,7 @@ class CodeParametr:
                 outlet_flange = ['K', 'D']
 
         else:
-            inlet_flange = None
+            inlet_flange = []
             outlet_flange = inlet_flange
 
         #Фланцы
