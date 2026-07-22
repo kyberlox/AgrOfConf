@@ -4,6 +4,10 @@ from math import sqrt
 from app.TablePakage.utils.router_utils import to_sql_name_lat, to_sql_name_kir
 from math import sqrt, log, exp, pi, log10
 import math
+import os 
+from dotenv import load_dotenv
+load_dotenv()
+HOST = os.getenv("HOST")
 #функция выводит значение параметра по названию
 # def get_param_by_name(param_name, selection_result):
 #     #найти параметр
@@ -125,7 +129,7 @@ class CodeParametr:
             #список ВСЕХ сред
             param = self._get_param_by_name("Название рабочей среды", selection_result)
             all_values = param["all_values"]
-            envs_param = [value for param_name, value in select_formula_params.items() if param_name == "Состав смеси"]
+            envs_param = select_formula_params.get("Состав смеси")
             
             if not envs_param:
                 description = "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)"
@@ -133,7 +137,7 @@ class CodeParametr:
 
             elif envs_param:
                 #проверить правильность
-                envs = envs_param[0]
+                envs = envs_param
                 #сумма мольных долей
                 r_sum = sum(list(env.values())[0] for env in envs)
                 
@@ -155,6 +159,13 @@ class CodeParametr:
                     res = self._set_params(res, counter_for_id, "Состав смеси", param_description=description, all_values=all_values, sort=counter_for_sort, param_type="select-input", response_value=envs)
                     got_envs = True
 
+        #Если это не смесь
+        elif naydeno and is_mixture is False:
+            envs = select_formula_params.get("Название рабочей среды")
+            if envs:
+                # got_envs = True
+                got_type = True
+                # got_climate = True
         #климатика
         if got_envs:
             counter_for_id += 1
@@ -167,9 +178,9 @@ class CodeParametr:
                 error_climate = "Невозможно подобрать климатическое исполнение для таких сред"
             else:
                 climate = is_climate['all_values']
-            type_param = [value for param_name, value in select_formula_params.items() if param_name == "Климатическое исполнение по ГОСТ 15150-69"]
+            type_param = select_formula_params.get("Климатическое исполнение по ГОСТ 15150-69")
             
-            climate_values = type_param[0] if type_param else None # is not None
+            climate_values = type_param
             #если нет
             if climate_values is None and climate:
                 res = self._set_params(res, counter_for_id, "Климатическое исполнение по ГОСТ 15150-69", all_values=climate, sort=counter_for_sort)
@@ -178,17 +189,18 @@ class CodeParametr:
             else:
                 res = self._set_params(res, counter_for_id, "Климатическое исполнение по ГОСТ 15150-69", all_values=climate, sort=counter_for_sort, response_value=climate_values)
                 got_climate = True
-
+        
         #Тип клапана
+        # type_val = None
         if got_climate:
             counter_for_id += 1
             counter_for_sort += 1
             #список ВСЕХ климатик
             all_type_names = self._get_param_by_name("Тип клапана", selection_result)["all_values"]
             # type_param = self._get_param_by_name("Тип предохранительного клапана", select_formula_params)
-            type_param = [value for param_name, value in select_formula_params.items() if param_name == "Тип клапана"]
+            type_param = select_formula_params.get("Тип клапана")
             
-            type_val = type_param[0] if type_param else None # is not None
+            type_val = type_param # is not None
 
             #если нет
             if type_val is None:
@@ -215,21 +227,27 @@ class CodeParametr:
             description = "Ввведите значение температуры рабочей среды (°C)"
             required_type = "user_input"
             response_value = T
+
+            type_param = select_formula_params.get("Тип клапана")
             
+            type_val = type_param
             #если нет
             if T is None:
-                res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=counter_for_sort, param_type=required_type)
-            
-            #валидировать:
-            elif (type_val == "Пружинный (В)" and (T < -60 or T > 600) ) or (type_val == "Пилотный (П)" and (T < -60 or T > 250) ):
-                error = "Температура должна быть в диапазоне от -60°С до 600°С для пружинных и от -60°С до 250°С для пилотных клапанов"
-                res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=counter_for_sort, param_type=required_type, response_value=response_value, error=error)
-            
+                res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, sort=counter_for_sort, param_type=required_type) #all_values=all_type_names, 
             else:
-                res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=counter_for_sort, param_type=required_type, response_value=response_value)
-
-                got_T = True
-
+                if type_val:
+                    #валидировать:
+                    if (type_val == "Пружинный (В)" and (T < -60 or T > 600) ) or (type_val == "Пилотный (П)" and (T < -60 or T > 250) ):
+                        error = "Температура должна быть в диапазоне от -60°С до 600°С для пружинных и от -60°С до 250°С для пилотных клапанов"
+                        res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, sort=counter_for_sort, param_type=required_type, response_value=response_value, error=error) #all_values=all_type_names, 
+                    
+                    else:
+                        res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, sort=counter_for_sort, param_type=required_type, response_value=response_value) #all_values=all_type_names, 
+                        got_T = True
+                else:
+                    error = "Заполните Тип клапана"
+                    res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, sort=counter_for_sort, param_type=required_type, response_value=response_value, error=error) #all_values=all_type_names, 
+                    
         ################# РАСЧЕТ #################
         if got_T:
             counter_for_id += 1
@@ -272,10 +290,48 @@ class CodeParametr:
 
             # env_name_colunm = env_keys["name"]
             env_name_colunm = "nazvanie_rabochej_sredy"
+            if isinstance(envs, list):
+                for env in envs:
+                    env_name = list(env.keys())[0]
+                    r = env[env_name] / 100
+                    ###################### собрать sql запрос ##############################
+                    env_params_sql = "SELECT "
+                    # for keys in env_keys.keys():
+                    for colunm_name in env_keys:
+                        # colunm_name = env_keys[keys]
+                        env_params_sql += colunm_name + ", "
+                    env_params_sql = env_params_sql[:-2]
+                    env_params_sql += f" FROM {searching_table_name} WHERE {env_name_colunm} = \'{env_name}\';"
+                    # print(env_params_sql)
+                    sql_result = await db.execute( text(env_params_sql) )
+                    env_result = sql_result.mappings().first() 
+                    if not env_result:
+                        continue
+                    # print(env_result, "ЧЕ получили перед ошибкой")
+                    ###################### обработать его в json ###########################
+                    env_json = {
+                        "name" : env_result.nazvanie_rabochej_sredy,
+                        "r" : r,
+                        "environment" : env_result.agregatnoe_sostojanie,
+                        "molekuljarnaja_massa" : env_result.molekuljarnaja_massa,
+                        "plotnost_zhidkosti" : env_result.plotnost_zhidkosti,
+                        "material" : env_result.material,
+                        "vjazkost_pa_s" : env_result.vjazkost_pa_s,
+                        "isobaric_capacity" : env_result.udel_naja_izobarnaja_teploemkost_kdzh_kg_k,
+                        "moljarnaja_massa" : env_result.moljarnaja_massa,
+                        "isochoric_capacity" : env_result.udel_naja_izohornaja_teploemkost_kdzh_kg_k,
+                        "pokazatel_adiabaty" : env_result.pokazatel_adiabaty,
+                        "compressibility_factor" : env_result.faktor_szhimaemosti,
+                    }
+                    #возможные типы состава сред
+                    env_type.add(env_json["environment"])
 
-            for env in envs:
-                env_name = list(env.keys())[0]
-                r = env[env_name] / 100
+                    #значения для ключей среды
+                    envs_json.append(env_json)
+            #Если это не смесь
+            elif isinstance(envs, str):
+                env_name = envs
+                r = 1
                 ###################### собрать sql запрос ##############################
                 env_params_sql = "SELECT "
                 # for keys in env_keys.keys():
@@ -288,8 +344,7 @@ class CodeParametr:
                 sql_result = await db.execute( text(env_params_sql) )
                 env_result = sql_result.mappings().first() 
                 if not env_result:
-                    continue
-                # print(env_result, "ЧЕ получили перед ошибкой")
+                    print(env_result, "ЧЕ получили перед ошибкой, строка 333")
                 ###################### обработать его в json ###########################
                 env_json = {
                     "name" : env_result.nazvanie_rabochej_sredy,
@@ -310,6 +365,7 @@ class CodeParametr:
 
                 #значения для ключей среды
                 envs_json.append(env_json)
+
 
             result = {
                 "nazvanie_rabochej_sredy" : "",
@@ -338,9 +394,9 @@ class CodeParametr:
                         r = env["r"]
                         result["nazvanie_rabochej_sredy"] += f"{env['name']}:{r}% " 
                         result["molekuljarnaja_massa"] += float(env["molekuljarnaja_massa"]) * r
-                        ch_den += float(env["density"]) * r
+                        ch_den += float(env["plotnost_zhidkosti"]) * r
                         zn_den += r
-                        pre_viscosity += log10(float(env["viscosity"])) * r
+                        pre_viscosity += log10(float(env["vjazkost_pa_s"])) * r
 
 
                     result["plotnost_zhidkosti"] = ch_den/zn_den
@@ -418,7 +474,8 @@ class CodeParametr:
                     result["material"] = mat
 
             #если климатика => то материал
-            if ((climate == "ХЛ1") or (climate == "УХЛ1")) and (result["material"] == "25Л"):
+            climate = select_formula_params.get('Климатическое исполнение по ГОСТ 15150-69')
+            if climate and ((climate == "ХЛ1") or (climate == "УХЛ1")) and (result["material"] == "25Л"):
                 if T < 350.0:
                     result["material"] = "20ГЛ"
                 elif T >= 350.0 and climate == "ХЛ1":
@@ -433,7 +490,7 @@ class CodeParametr:
                 if not param_info:
                     continue
                 param_info = param_info[0]
-                res = self._set_params(res, counter_for_id, kir_param_name, param_description=param["description"], response_value=value, sort=counter_for_sort, param_type='raschet') # all_values=param_info['all_values'], 
+                res = self._set_params(res, counter_for_id, kir_param_name, param_description=param_info["description"], response_value=value, sort=counter_for_sort, param_type='raschet') 
                 counter_for_id += 1
                 counter_for_sort += 1
             # Поскольку расчет смеси завершился, докидываем
@@ -769,8 +826,8 @@ class CodeParametr:
         #Все заполнено, можно выполнять расчет
         P_atm = 0.101320
         R = 8.31446261815324  # Газовая постоянная ( Па / (моль * K))
-        u_info = [param for param in res if param["name"] == 'Вязкость (Па*с)']
-        u = u_info[0]["response_value"]
+        u_info = select_formula_params.get("Вязкость (Па*с)")
+        u = float(u_info) if u_info else None
 
         "Климатическое исполнение по ГОСТ 15150-69"
         
@@ -821,8 +878,9 @@ class CodeParametr:
             #     Gab *= p1
         else:
             #Ищем плотность
-            density_inf = [param for param in selection_result if param["name"] == 'Плотность жидкости']
-            p1 = density_inf["response_value"]
+            # density_inf = [param for param in selection_result if param["name"] == 'Плотность жидкости']
+            density_inf = select_formula_params.get('Плотность жидкости')
+            p1 = int(density_inf) if density_inf else None
         
         #!!!!!!!!!!!!! ОБРАТИТЬ ВНИМАНИЕ
         # dt["density"] = #p1 !!!!!!!!!!!!! ОБРАТИТЬ ВНИМАНИЕ
@@ -1154,6 +1212,35 @@ class CodeParametr:
         counter_for_sort += 1
         res = self._set_params(res, counter_for_id, "Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ", all_values=["Да", "Нет"], response_value=need_bellows, sort=counter_for_sort)
         # counter += 1
+        
+        #Собираем маркировку
+        if valve_type == 'В':
+            if force_open == "Да" and need_bellows == "Да":
+                mark = "АМ211"
+                
+            elif force_open == "Нет" and need_bellows == "Да":
+                mark = "АМ212"
+            elif force_open == "Да" and need_bellows == "Нет":
+                mark = "АМ213"
+            else:
+                mark = "АМ214"
+        else:
+            if force_open == "Да":
+                mark = "АМ220"
+            else:
+                mark = "АМ219"
+        total_mark = f"{mark}.{int(example["DN"])}.{int(example["PN"])}.XXXX.X/X"
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Маркировка", response_value=total_mark, sort=counter_for_sort, param_type='raschet')
+        
+        # print(param_info, 'ЧТО ТЫ ТАКОЕ')
+        product_drawing = await self._find_param_print(mark, db, 10)  
+
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Чертеж", response_value=HOST + product_drawing, sort=counter_for_sort, param_type='raschet')
+
 
         counter_for_id += 1
         counter_for_sort += 1
@@ -1181,6 +1268,21 @@ class CodeParametr:
 
         return {"total_change" : new_list}
 
+    async def _find_param_print(self, mark, db, product_id):
+        query = """
+            SELECT file_url FROM product_drawing 
+            WHERE product_id = :product_id 
+            AND name = :name
+        """
+        params = {"product_id": product_id, "name": mark}
+        # Следить чтобы маркировка в БД и маркировка кодовая была одинаковой в плане кириллицы или латиницы
+        stmt = await db.execute(text(query), params) 
+        request = stmt.scalar_one_or_none()
+        if not request:
+            return ""
+        
+        return request
+
     async def mark_params(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
         """
         Параметры которые нужны для расчета:
@@ -1199,7 +1301,7 @@ class CodeParametr:
         counter_for_sort = last_param['sort']
 
         # Переменная длоя сбора аргументов маркировки
-        MARK_ARR = ['X', "X", "X", "X", "X", "X", "X", ""]
+        # MARK_ARR = ['X', "X", "X", "X", "X", "X", "X", ""]
         if not select_formula_params:
             return {"total_change" : selection_result}
         valve_type_full = select_formula_params.get("Тип клапана")
@@ -1295,7 +1397,8 @@ class CodeParametr:
 
         counter_for_id += 1
         counter_for_sort += 1
-        res = self._set_params(selection_result, counter_for_id, "Класс герметичности", response_value=tightness, sort=counter_for_sort, error=err_tightness, param_type="raschet")
+        user_tightness = select_formula_params.get("Класс герметичности")
+        res = self._set_params(selection_result, counter_for_id, "Класс герметичности", all_values=tightness, response_value=user_tightness, sort=counter_for_sort, error=err_tightness, param_type="list")
         # counter += 1
 
         #подбор фланцев
@@ -1326,7 +1429,7 @@ class CodeParametr:
                 outlet_flange = ['K', 'D']
 
         else:
-            inlet_flange = None
+            inlet_flange = []
             outlet_flange = inlet_flange
 
         #Фланцы
@@ -1438,27 +1541,29 @@ class CodeParametr:
         mark = None
         if valve_type == 'В':
             if force_open == "Да" and need_bellows == "Да":
-                mark = "AM211"
+                mark = "АМ211"
                 
             elif force_open == "Нет" and need_bellows == "Да":
-                mark = "AM212"
+                mark = "АМ212"
             elif force_open == "Да" and need_bellows == "Нет":
-                mark = "AM213"
+                mark = "АМ213"
             else:
-                mark = "AM214"
+                mark = "АМ214"
         else:
             if force_open == "Да":
-                mark = "AM220"
+                mark = "АМ220"
             else:
-                mark = "AM219"
+                mark = "АМ219"
         
         # mark = select_formula_params.get("Маркировка")
         if mark:
             weight, painting_area = await self._get_by_mark(db, mark, DN, PN)
+            product_drawing = await self._find_param_print(mark, db, 10)
         else:
             weight = None # "Маccа"
             painting_area = None # "Площадь под покраску"
-
+            product_drawing = None 
+        # print(product_drawing, 'Получили изображение')
         packaging = [
             "Упаковка на европаллет (1200х800)",
             "Упаковка груза в ящики из OSB по ТУ “АО НПО Регулятор”",
@@ -1520,9 +1625,10 @@ class CodeParametr:
         # counter += 1
 
         #Собираем маркировку
-        MARK_ARR[0] = mark
-        MARK_ARR[1] = str(int(DN))
-        MARK_ARR[2] = str(int(PN))
+        # MARK_ARR[0] = mark
+        # MARK_ARR[1] = str(int(DN))
+        # MARK_ARR[2] = str(int(PN))
+        MARK_ARR = f"{mark}.{int(DN)}.{int(PN)}."
         connection_params = {
             "В": {
                 "Фланцевое": "3",
@@ -1545,15 +1651,18 @@ class CodeParametr:
                 "Кламповое": "2"
             }
         }
-        MARK_ARR[3] = connection_params[valve_type].get(joining_type, "X")
+        # MARK_ARR[3] = connection_params[valve_type].get(joining_type, "X")
+        MARK_ARR += connection_params[valve_type].get(joining_type, "X")
         contact_params = {
             "металл-неметалл": "2",
             "металл-металл": "3",
         }
         if not contact_type:
-            MARK_ARR[4] = contact_params.get(user_choice_contact_type, "X")
+            # MARK_ARR[4] = contact_params.get(user_choice_contact_type, "X")
+            MARK_ARR += contact_params.get(user_choice_contact_type, "X")
         else:
-            MARK_ARR[4] = contact_params.get(contact_type, "X")
+            # MARK_ARR[4] = contact_params.get(contact_type, "X")
+            MARK_ARR += contact_params.get(contact_type, "X")
 
         material_params = {
             "25Л": "1",
@@ -1561,26 +1670,31 @@ class CodeParametr:
             "20ГЛ": "3",
             "12Х18Н12М3ТЛ": "4"
         }
-        MARK_ARR[5] = material_params.get(material, "X")
+        # MARK_ARR[5] = material_params.get(material, "X")
+        MARK_ARR += material_params.get(material, "X")
         open_close_type_dict = {
             "открытого типа": "1",
             "закрытого типа": "0"
         }
         open_close_type = self._get_param_by_name("Открытый / Закрытый тип", res)
         if open_close_type:
-            MARK_ARR[6] = open_close_type_dict.get(open_close_type['response_value'], "X")
+            # MARK_ARR[6] = open_close_type_dict.get(open_close_type['response_value'], "X")
+            MARK_ARR += open_close_type_dict.get(open_close_type['response_value'], "X")
         else:
-            MARK_ARR[6] = "X"
+            # MARK_ARR[6] = "X"
+            MARK_ARR += "X"
         if user_inlet_flange and user_outlet_flange and joining_type == "Фланцевое": 
-            MARK_ARR[7] = f'{user_inlet_flange}/{user_outlet_flange}'
+            # MARK_ARR[7] = f'{user_inlet_flange}/{user_outlet_flange}'
+            MARK_ARR += f'.{user_inlet_flange}/{user_outlet_flange}'
         else:
-            MARK_ARR[7] = ""
-        total_mark = ''
-        total_mark += '.'.join(MARK_ARR)
-
-        counter_for_id += 1
-        counter_for_sort += 1
-        res = self._set_params(res, counter_for_id, "Маркировка", response_value=total_mark, sort=counter_for_sort, param_type='raschet')
+            # MARK_ARR[7] = ""
+            MARK_ARR += ""
+        # total_mark = ''
+        # total_mark += '.'.join(MARK_ARR)
+        # ['X', "X", "X", "X", "X", "X", "X", ""]
+        # counter_for_id += 1
+        # counter_for_sort += 1
+        # res = self._set_params(res, counter_for_id, "Маркировка", response_value=total_mark, sort=counter_for_sort, param_type='raschet')
         # counter += 1
 
         #изменился Материал material
@@ -1591,7 +1705,9 @@ class CodeParametr:
                 continue
             if param['name'] == 'Материал':
                 param['response_value'] = material
-
+            if param['name'] == 'Маркировка':
+                # print(param['response_value'], 'ДО')
+                param['response_value'] = MARK_ARR
             # if 'response_value' not in param:
             #     print(param['name'], 123123)
 
@@ -1617,8 +1733,12 @@ class CodeParametr:
         - Email агента (agent_email)
         - Организация агента (agent_organization)
         """
-        param = self._get_param_by_name("Цена /шт. руб с НДС 22%", selection_result)
-        counter = param['sort'] + 1
+        sorted_params = sorted([item for item in selection_result if 'sort' in item], key=lambda x: x['sort'])
+        last_param = sorted_params[-1]
+        counter_for_id = last_param['id']
+        counter_for_sort = last_param['sort']
+        # param = self._get_param_by_name("Цена /шт. руб с НДС 22%", selection_result)
+        counter = counter_for_sort
         res = []
         contact_info = ["ФИО Заказчика", "Телефон Заказчика", "Email Заказчика", "Организация Заказчика"]
         

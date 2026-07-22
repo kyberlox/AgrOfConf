@@ -16,12 +16,16 @@ import imghdr
 
 from ..model.database import get_db
 from ..model.product import Product
+from ..model.product_drawing import ProductDrawing
 from ..schema.product import ProductUpdate, ProductResponse
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
 UPLOAD_DIR = "./static/images"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+DRAWING_DIR = "./static/product_drawings"
+os.makedirs(DRAWING_DIR, exist_ok=True)
 
 # Настройки
 MAX_FILE_SIZE = 35 * 1024 * 1024  # 35 МБ
@@ -245,3 +249,59 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
         os.remove(image_path)
 
     return product
+
+#Загрузка чертежей для продукта
+@router.post("/upload_product_drawing", description="Загрузка чертежей для продукта", status_code=201)
+async def upload_product_drawing(
+    product_id: int,
+    name: str, 
+    image: UploadFile = File(None),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        original_filename = image.filename
+        file_type = Path(original_filename).suffix
+        new_filename = f"{name}{file_type}"
+        
+        file_path = os.path.join(DRAWING_DIR, new_filename)
+        with open(file_path, "wb") as f:
+            f.write(await image.read())
+
+        file_url = f"/api/files/product_drawings/{new_filename}"
+
+        new_product_drawing = ProductDrawing(
+            product_id=product_id,
+            name=name,
+            file_path=file_path,
+            file_url=file_url
+        )
+        db.add(new_product_drawing)
+        await db.commit()
+        await db.refresh(new_product_drawing)
+
+        return new_product_drawing
+
+    except Exception as e:
+        await db.rollback()
+        return {'error': f"Ошибка добавления чертежа к продукту: {e}"}
+
+@router.delete("/delete_product_drawing/{id}", description="Удаление чертежей для продукта", status_code=201)
+async def delete_product_drawing(
+    id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        stmt = await db.execute(select(ProductDrawing).where(ProductDrawing.id == id))
+        node = stmt.scalar_one_or_none()
+        if not node:
+            raise HTTPException(status_code=404, detail=f"Не найден чертеж с id = {id}")
+
+        await db.delete(node)
+        await db.commit()
+
+        if node.file_path and os.path.exists(node.file_path):
+            os.remove(node.file_path)
+        return True
+    except Exception as e:
+        await db.rollback()
+        return {'error': f"Ошибка добавления чертежа к продукту: {e}"}
