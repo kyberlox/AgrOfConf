@@ -1239,7 +1239,7 @@ class CodeParametr:
         query = """
             SELECT file_url FROM product_drawing 
             WHERE product_id = :product_id 
-            AND name::text = :name
+            AND name = :name
         """
         params = {"product_id": product_id, "name": mark}
         stmt = await db.execute(text(query), params) 
