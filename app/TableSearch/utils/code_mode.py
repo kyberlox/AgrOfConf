@@ -1624,9 +1624,10 @@ class CodeParametr:
         # counter += 1
 
         #Собираем маркировку
-        MARK_ARR[0] = mark
-        MARK_ARR[1] = str(int(DN))
-        MARK_ARR[2] = str(int(PN))
+        # MARK_ARR[0] = mark
+        # MARK_ARR[1] = str(int(DN))
+        # MARK_ARR[2] = str(int(PN))
+        MARK_ARR = f"{mark}.{int(DN)}.{int(PN)}."
         connection_params = {
             "В": {
                 "Фланцевое": "3",
@@ -1649,15 +1650,18 @@ class CodeParametr:
                 "Кламповое": "2"
             }
         }
-        MARK_ARR[3] = connection_params[valve_type].get(joining_type, "X")
+        # MARK_ARR[3] = connection_params[valve_type].get(joining_type, "X")
+        MARK_ARR += connection_params[valve_type].get(joining_type, "X")
         contact_params = {
             "металл-неметалл": "2",
             "металл-металл": "3",
         }
         if not contact_type:
-            MARK_ARR[4] = contact_params.get(user_choice_contact_type, "X")
+            # MARK_ARR[4] = contact_params.get(user_choice_contact_type, "X")
+            MARK_ARR += contact_params.get(user_choice_contact_type, "X")
         else:
-            MARK_ARR[4] = contact_params.get(contact_type, "X")
+            # MARK_ARR[4] = contact_params.get(contact_type, "X")
+            MARK_ARR += contact_params.get(contact_type, "X")
 
         material_params = {
             "25Л": "1",
@@ -1665,23 +1669,28 @@ class CodeParametr:
             "20ГЛ": "3",
             "12Х18Н12М3ТЛ": "4"
         }
-        MARK_ARR[5] = material_params.get(material, "X")
+        # MARK_ARR[5] = material_params.get(material, "X")
+        MARK_ARR += material_params.get(material, "X")
         open_close_type_dict = {
             "открытого типа": "1",
             "закрытого типа": "0"
         }
         open_close_type = self._get_param_by_name("Открытый / Закрытый тип", res)
         if open_close_type:
-            MARK_ARR[6] = open_close_type_dict.get(open_close_type['response_value'], "X")
+            # MARK_ARR[6] = open_close_type_dict.get(open_close_type['response_value'], "X")
+            MARK_ARR += open_close_type_dict.get(open_close_type['response_value'], "X")
         else:
-            MARK_ARR[6] = "X"
+            # MARK_ARR[6] = "X"
+            MARK_ARR += "X"
         if user_inlet_flange and user_outlet_flange and joining_type == "Фланцевое": 
-            MARK_ARR[7] = f'{user_inlet_flange}/{user_outlet_flange}'
+            # MARK_ARR[7] = f'{user_inlet_flange}/{user_outlet_flange}'
+            MARK_ARR += f'.{user_inlet_flange}/{user_outlet_flange}'
         else:
-            MARK_ARR[7] = ""
-        total_mark = ''
-        total_mark += '.'.join(MARK_ARR)
-
+            # MARK_ARR[7] = ""
+            MARK_ARR += ""
+        # total_mark = ''
+        # total_mark += '.'.join(MARK_ARR)
+        # ['X', "X", "X", "X", "X", "X", "X", ""]
         # counter_for_id += 1
         # counter_for_sort += 1
         # res = self._set_params(res, counter_for_id, "Маркировка", response_value=total_mark, sort=counter_for_sort, param_type='raschet')
@@ -1697,7 +1706,7 @@ class CodeParametr:
                 param['response_value'] = material
             if param['name'] == 'Маркировка':
                 print(param['response_value'], 'ДО')
-                param['response_value'] = total_mark
+                param['response_value'] = MARK_ARR
             # if 'response_value' not in param:
             #     print(param['name'], 123123)
 
