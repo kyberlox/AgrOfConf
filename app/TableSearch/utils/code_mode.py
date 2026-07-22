@@ -1521,19 +1521,19 @@ class CodeParametr:
         mark = None
         if valve_type == 'В':
             if force_open == "Да" and need_bellows == "Да":
-                mark = "АM211"
+                mark = "АМ211"
                 
             elif force_open == "Нет" and need_bellows == "Да":
-                mark = "АM212"
+                mark = "АМ212"
             elif force_open == "Да" and need_bellows == "Нет":
-                mark = "АM213"
+                mark = "АМ213"
             else:
-                mark = "АM214"
+                mark = "АМ214"
         else:
             if force_open == "Да":
-                mark = "АM220"
+                mark = "АМ220"
             else:
-                mark = "АM219"
+                mark = "АМ219"
         
         # mark = select_formula_params.get("Маркировка")
         if mark:
