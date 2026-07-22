@@ -267,7 +267,7 @@ async def upload_product_drawing(
         with open(file_path, "wb") as f:
             f.write(await image.read())
 
-        file_url = f"/api/files/images/{new_filename}"
+        file_url = f"/api/files/product_drawings/{new_filename}"
 
         new_product_drawing = ProductDrawing(
             product_id=product_id,
