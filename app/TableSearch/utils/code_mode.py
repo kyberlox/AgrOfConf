@@ -1229,7 +1229,7 @@ class CodeParametr:
                 mark = "АМ220"
             else:
                 mark = "АМ219"
-        total_mark = f"{mark}.{int(example["DN"])}.{int(example["PN"])}.XXXX.X/X" АМ213.25.160.3340.J/C
+        total_mark = f"{mark}.{int(example["DN"])}.{int(example["PN"])}.XXXX.X/X"
         counter_for_id += 1
         counter_for_sort += 1
         res = self._set_params(res, counter_for_id, "Маркировка", response_value=total_mark, sort=counter_for_sort, param_type='raschet')
