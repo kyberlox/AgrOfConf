@@ -64,7 +64,7 @@ export const useConfiguratorStore = defineStore('configuratorStore', {
                 this.setSketch({ title: sketchKey, img: targetSketch.response_value });
             }
             this.calcParams = params.filter(e => e.name !== markKey && e.name !== sketchKey);
-        }
+        },
     },
     getters: {
         getError: (state) => state.error,

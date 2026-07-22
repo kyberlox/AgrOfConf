@@ -75,7 +75,7 @@
 </div>
 </template>
 <script lang='ts'>
-import { defineComponent, onMounted, ref, computed, watch } from 'vue';
+import { defineComponent, onMounted, ref, computed, watch, onUnmounted } from 'vue';
 import { BaseButton } from 'beans-ui-kit';
 import Ellipse from '@/assets/icons/Ellipse.svg?component';
 import ArrowLeft from '@/assets/icons/ArrowLeft.svg?component';
@@ -175,6 +175,10 @@ export default defineComponent({
             tkpVariants.value = await getTkpVariants(props.id);
             if (!Object.keys(neuroOlData.value).length)
                 paramsUpdate(null)
+        })
+
+        onUnmounted(() => {
+            configuratorStore.$reset();
         })
 
         watch(neuroOlData, () => {
