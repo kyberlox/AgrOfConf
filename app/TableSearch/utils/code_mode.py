@@ -1229,13 +1229,13 @@ class CodeParametr:
                 mark = "АМ220"
             else:
                 mark = "АМ219"
-        total_mark = mark
+        total_mark = f"{mark}.{int(example["DN"])}.{int(example["PN"])}.X.XXXX"
         counter_for_id += 1
         counter_for_sort += 1
         res = self._set_params(res, counter_for_id, "Маркировка", response_value=total_mark, sort=counter_for_sort, param_type='raschet')
         
-        print(param_info, 'ЧТО ТЫ ТАКОЕ')
-        product_drawing = await self._find_param_print(mark, db, 10) 
+        # print(param_info, 'ЧТО ТЫ ТАКОЕ')
+        product_drawing = await self._find_param_print(mark, db, 10)  
 
         counter_for_id += 1
         counter_for_sort += 1
@@ -1562,7 +1562,7 @@ class CodeParametr:
             weight = None # "Маccа"
             painting_area = None # "Площадь под покраску"
             product_drawing = None 
-        print(product_drawing, 'Получили изображение')
+        # print(product_drawing, 'Получили изображение')
         packaging = [
             "Упаковка на европаллет (1200х800)",
             "Упаковка груза в ящики из OSB по ТУ “АО НПО Регулятор”",
