@@ -1397,7 +1397,8 @@ class CodeParametr:
 
         counter_for_id += 1
         counter_for_sort += 1
-        res = self._set_params(selection_result, counter_for_id, "Класс герметичности", response_value=tightness, sort=counter_for_sort, error=err_tightness, param_type="raschet")
+        user_tightness = select_formula_params.get("Класс герметичности")
+        res = self._set_params(selection_result, counter_for_id, "Класс герметичности", all_values=tightness, response_value=user_tightness, sort=counter_for_sort, error=err_tightness, param_type="list")
         # counter += 1
 
         #подбор фланцев
