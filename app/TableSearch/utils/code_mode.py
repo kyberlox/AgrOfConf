@@ -1236,14 +1236,17 @@ class CodeParametr:
         return {"total_change" : new_list}
 
     async def _find_param_print(self, mark, db, product_id):
-        query = """
-            SELECT file_url FROM product_drawing 
-            WHERE product_id = :product_id 
-            AND name = :name
-        """
-        params = {"product_id": product_id, "name": mark}
-        stmt = await db.execute(text(query), params) 
-        request = stmt.scalar_one_or_none()
+        from app.TablePakage.model.product_drawing import ProductDrawing
+        # query = """
+        #     SELECT file_url FROM product_drawing 
+        #     WHERE product_id = :product_id 
+        #     AND name = :name
+        # """
+        # params = {"product_id": product_id, "name": mark}
+        # stmt = await db.execute(text(query), params) 
+        stmt = select(ProductDrawing.file_url).where(ProductDrawing.product_id = product_id, ProductDrawing.name = mark)
+        res = await db.execute(stmt)
+        request = res.scalar_one_or_none()
         if not request:
             return ""
         return request
