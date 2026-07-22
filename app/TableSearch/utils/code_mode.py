@@ -4,6 +4,10 @@ from math import sqrt
 from app.TablePakage.utils.router_utils import to_sql_name_lat, to_sql_name_kir
 from math import sqrt, log, exp, pi, log10
 import math
+import os 
+from dotenv import loadenv
+loadenv()
+HOST = os.getenv("HOST")
 #функция выводит значение параметра по названию
 # def get_param_by_name(param_name, selection_result):
 #     #найти параметр
@@ -1208,6 +1212,34 @@ class CodeParametr:
         counter_for_sort += 1
         res = self._set_params(res, counter_for_id, "Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ", all_values=["Да", "Нет"], response_value=need_bellows, sort=counter_for_sort)
         # counter += 1
+        # ТУТ УЖЕ МОЖНО ПОДОБРАТЬ МАРКИРОВКУ И ФАЙЛ
+        #Собираем маркировку
+        if valve_type == 'В':
+            if force_open == "Да" and need_bellows == "Да":
+                mark = "АМ211"
+                
+            elif force_open == "Нет" and need_bellows == "Да":
+                mark = "АМ212"
+            elif force_open == "Да" and need_bellows == "Нет":
+                mark = "АМ213"
+            else:
+                mark = "АМ214"
+        else:
+            if force_open == "Да":
+                mark = "АМ220"
+            else:
+                mark = "АМ219"
+        total_mark = mark
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Маркировка", response_value=total_mark, sort=counter_for_sort, param_type='raschet')
+        
+        product_drawing = await self._find_param_print(mark, db, param_info['product_id']) 
+
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Чертеж", response_value=HOST + product_drawing, sort=counter_for_sort, param_type='raschet')
+
 
         counter_for_id += 1
         counter_for_sort += 1
@@ -1236,31 +1268,17 @@ class CodeParametr:
         return {"total_change" : new_list}
 
     async def _find_param_print(self, mark, db, product_id):
-        from app.TablePakage.model.product_drawing import ProductDrawing
-        from sqlalchemy import select
         query = """
             SELECT file_url FROM product_drawing 
             WHERE product_id = :product_id 
             AND name = :name
         """
         params = {"product_id": product_id, "name": mark}
+        # Следить чтобы маркировка в БД и маркировка кодовая была одинаковой в плане кириллицы или латиницы
         stmt = await db.execute(text(query), params) 
-        # stmt = select(ProductDrawing).where(ProductDrawing.product_id == product_id) #, ProductDrawing.name.ilike(f'%{mark}%')
-        # res = await db.execute(stmt)
-        # request = res.scalars().all()
         request = stmt.scalar_one_or_none()
-        # print(request, 'че получили')
         if not request:
             return ""
-        # for drawing in request:
-        #     print(repr(drawing.name), 'ЧЕ ПОЛУЧАЕМ', repr(mark))
-        #     first_ord_name = drawing.name[0]
-        #     first_ord_mark = mark[0]
-        #     print(ord(first_ord_name), ord(first_ord_mark))
-        #     # print(type(first_ord_name), first_ord_name)
-        #     if drawing.name == mark:
-        #         print('НЕ ДОХОДИТ ДА')
-        #         return drawing.file_url
         
         return request
 
