@@ -1682,9 +1682,9 @@ class CodeParametr:
         total_mark = ''
         total_mark += '.'.join(MARK_ARR)
 
-        counter_for_id += 1
-        counter_for_sort += 1
-        res = self._set_params(res, counter_for_id, "Маркировка", response_value=total_mark, sort=counter_for_sort, param_type='raschet')
+        # counter_for_id += 1
+        # counter_for_sort += 1
+        # res = self._set_params(res, counter_for_id, "Маркировка", response_value=total_mark, sort=counter_for_sort, param_type='raschet')
         # counter += 1
 
         #изменился Материал material
@@ -1695,7 +1695,9 @@ class CodeParametr:
                 continue
             if param['name'] == 'Материал':
                 param['response_value'] = material
-
+            if param['name'] == 'Маркировка':
+                print(param['response_value'], 'ДО')
+                param['response_value'] = total_mark
             # if 'response_value' not in param:
             #     print(param['name'], 123123)
 
