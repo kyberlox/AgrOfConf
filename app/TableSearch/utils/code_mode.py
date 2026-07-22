@@ -1248,10 +1248,11 @@ class CodeParametr:
         stmt = select(ProductDrawing).where(ProductDrawing.product_id == product_id) #, ProductDrawing.name.ilike(f'%{mark}%')
         res = await db.execute(stmt)
         request = res.scalars().all()
-        print(request, 'че получили')
+        # print(request, 'че получили')
         if not request:
             return ""
         for drawing in request:
+            print(drawing.name, 'ЧЕ ПОЛУЧАЕМ')
             if drawing.name == mark:
                 return drawing.file_url
         
