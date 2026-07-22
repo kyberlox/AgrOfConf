@@ -1245,7 +1245,7 @@ class CodeParametr:
         # """
         # params = {"product_id": product_id, "name": mark}
         # stmt = await db.execute(text(query), params) 
-        stmt = select(ProductDrawing.file_url).where(ProductDrawing.product_id == product_id, ProductDrawing.name == mark)
+        stmt = select(ProductDrawing.file_url).where(ProductDrawing.product_id == product_id, ProductDrawing.name.ilike(f'%{mark}%'))
         res = await db.execute(stmt)
         request = res.scalar_one_or_none()
         print(request, 'че получили')
