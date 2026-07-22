@@ -1245,13 +1245,17 @@ class CodeParametr:
         # """
         # params = {"product_id": product_id, "name": mark}
         # stmt = await db.execute(text(query), params) 
-        stmt = select(ProductDrawing.file_url).where(ProductDrawing.product_id == product_id, ProductDrawing.name.ilike(f'%{mark}%'))
+        stmt = select(ProductDrawing).where(ProductDrawing.product_id == product_id) #, ProductDrawing.name.ilike(f'%{mark}%')
         res = await db.execute(stmt)
-        request = res.scalar_one_or_none()
+        request = res.scalars().all()
         print(request, 'че получили')
         if not request:
             return ""
-        return request
+        for drawing in request:
+            if drawing.name == mark:
+                return drawing.file_url
+        
+        return None
 
     async def mark_params(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
         """
