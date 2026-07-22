@@ -1238,8 +1238,8 @@ class CodeParametr:
     async def _find_param_print(self, mark, db, product_id):
         query = """
             SELECT file_url FROM product_drawing 
-            WHERE product_id >= :product_id 
-            AND name >= :name
+            WHERE product_id = :product_id 
+            AND name::text = :name
         """
         params = {"product_id": product_id, "name": mark}
         stmt = await db.execute(text(query), params) 
