@@ -5,8 +5,8 @@ from app.TablePakage.utils.router_utils import to_sql_name_lat, to_sql_name_kir
 from math import sqrt, log, exp, pi, log10
 import math
 import os 
-from dotenv import loadenv
-loadenv()
+from dotenv import load_dotenv
+load_dotenv()
 HOST = os.getenv("HOST")
 #функция выводит значение параметра по названию
 # def get_param_by_name(param_name, selection_result):
