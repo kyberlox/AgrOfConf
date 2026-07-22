@@ -1236,32 +1236,33 @@ class CodeParametr:
         return {"total_change" : new_list}
 
     async def _find_param_print(self, mark, db, product_id):
-        from app.TablePakage.model.product_drawing import ProductDrawing
-        from sqlalchemy import select
-        # query = """
-        #     SELECT file_url FROM product_drawing 
-        #     WHERE product_id = :product_id 
-        #     AND name = :name
-        # """
-        # params = {"product_id": product_id, "name": mark}
-        # stmt = await db.execute(text(query), params) 
-        stmt = select(ProductDrawing).where(ProductDrawing.product_id == product_id) #, ProductDrawing.name.ilike(f'%{mark}%')
-        res = await db.execute(stmt)
-        request = res.scalars().all()
+        # from app.TablePakage.model.product_drawing import ProductDrawing
+        # from sqlalchemy import select
+        query = """
+            SELECT file_url FROM product_drawing 
+            WHERE product_id = :product_id 
+            AND name = :name
+        """
+        params = {"product_id": product_id, "name": mark}
+        stmt = await db.execute(text(query), params) 
+        # stmt = select(ProductDrawing).where(ProductDrawing.product_id == product_id) #, ProductDrawing.name.ilike(f'%{mark}%')
+        # res = await db.execute(stmt)
+        # request = res.scalars().all()
+        request = stmt.scalar_one_or_none()
         # print(request, 'че получили')
         if not request:
             return ""
-        for drawing in request:
-            print(repr(drawing.name), 'ЧЕ ПОЛУЧАЕМ', repr(mark))
-            first_ord_name = drawing.name[0]
-            first_ord_mark = mark[0]
-            print(ord(first_ord_name), ord(first_ord_mark))
-            # print(type(first_ord_name), first_ord_name)
-            if drawing.name == mark:
-                print('НЕ ДОХОДИТ ДА')
-                return drawing.file_url
+        # for drawing in request:
+        #     print(repr(drawing.name), 'ЧЕ ПОЛУЧАЕМ', repr(mark))
+        #     first_ord_name = drawing.name[0]
+        #     first_ord_mark = mark[0]
+        #     print(ord(first_ord_name), ord(first_ord_mark))
+        #     # print(type(first_ord_name), first_ord_name)
+        #     if drawing.name == mark:
+        #         print('НЕ ДОХОДИТ ДА')
+        #         return drawing.file_url
         
-        return None
+        return request
 
     async def mark_params(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
         """
@@ -1520,19 +1521,19 @@ class CodeParametr:
         mark = None
         if valve_type == 'В':
             if force_open == "Да" and need_bellows == "Да":
-                mark = "AM211"
+                mark = "АM211"
                 
             elif force_open == "Нет" and need_bellows == "Да":
-                mark = "AM212"
+                mark = "АM212"
             elif force_open == "Да" and need_bellows == "Нет":
-                mark = "AM213"
+                mark = "АM213"
             else:
-                mark = "AM214"
+                mark = "АM214"
         else:
             if force_open == "Да":
-                mark = "AM220"
+                mark = "АM220"
             else:
-                mark = "AM219"
+                mark = "АM219"
         
         # mark = select_formula_params.get("Маркировка")
         if mark:
