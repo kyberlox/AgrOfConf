@@ -1253,6 +1253,9 @@ class CodeParametr:
             return ""
         for drawing in request:
             print(repr(drawing.name), 'ЧЕ ПОЛУЧАЕМ', repr(mark))
+            first_ord_name = drawing.name.split()[0]
+            first_ord_mark = mark.split()[0]
+            print(ord(first_ord_name), ord(first_ord_mark))
             if drawing.name == mark:
                 print('НЕ ДОХОДИТ ДА')
                 return drawing.file_url
