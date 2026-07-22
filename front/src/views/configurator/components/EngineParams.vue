@@ -11,7 +11,7 @@
 <div class="border border-[#EAECEF] w-full h-[1px] col-span-full"></div>
 <div class="grid gap-[25px] items-end"
      :class="`grid-cols-${gridCols}`">
-    <template v-for="(param, index) in renderData.filter(e => (e as IFormattedData).visibility && (e as IFormattedData).required_type !== 'raschet')"
+    <template v-for="(param, index) in renderData.filter(e => (e as IFormattedData).visibility && (e as IFormattedData).required_type !== 'raschet' && ((e as IFormattedData).required_type == 'select-input' ? (e as IFormattedData).all_values : true))"
               :key="'formParam' + param.name">
         <div v-if="param.name == 'sep' && index !== 0"
              class="divider">
@@ -29,14 +29,6 @@
                    :props-label="param.name"
                    :error="'error' in param ? param.error : ''"
                    @valueChanged="(value: string | null) => $emit('valueChanged', value ?? '', param.name)" />
-
-        <!-- Для параметров которые нужно просто отобразить -->
-        <!-- <BaseInput v-else-if="(param as IFormattedData).required_type == 'raschet'"
-                   :propsClass="'input-param'"
-                   :propsName="param.name + (index + 1)"
-                   :props-label="param.name"
-                   :disabled="true"
-                   :propsValue="(param as IFormattedData).response_value!" /> -->
 
         <!-- выпадающий список -->
         <BaseSelect v-else-if="(param.name !== 'sep')"

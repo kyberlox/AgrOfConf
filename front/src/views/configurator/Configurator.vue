@@ -143,43 +143,38 @@ export default defineComponent({
             }
             abortController = new AbortController();
             const signal = abortController.signal;
-            try {
-                const data = await Api.post(`/module_search/process_table_data?product_id=${props.id}`, body, {}, signal)
-                const errors: string[] = [];
-                let answeredCounter = 0;
-                let questionCounter = 0;
-                if (!data || !('parameters' in data) || !data.parameters.length) return
-                data.parameters.forEach((e: IFormattedData) => {
-                    if ('error' in e && e.error) {
-                        errors.push(e.error)
-                    }
-                    if ('response_value' in e && e.response_value) {
-                        userInputs.value[e.name] = e.response_value
-                        answeredCounter++
-                    }
-                    questionCounter++
-                })
-                configuratorStore.setCalcParams(data.parameters.filter((e: IFormattedData) => e.required_type == 'raschet' && e.response_value));
-                configuratorStore.setCovered(Number(answeredCounter));
-                configuratorStore.setAllQuestions(Number(questionCounter));
-                if (errors.length) {
-                    configuratorStore.setError(errors)
+            const data = await Api.post(`/module_search/process_table_data?product_id=${props.id}`, body, {}, signal)
+            const errors: string[] = [];
+            let answeredCounter = 0;
+            let questionCounter = 0;
+            if (!data || !('parameters' in data) || !data.parameters.length) return
+            data.parameters.forEach((e: IFormattedData) => {
+                if ('error' in e && e.error) {
+                    errors.push(e.error)
                 }
-                else configuratorStore.setDefaultError()
-                if (!(data && 'parameters' in data)) return
-                form.value = data.parameters
-                productName.value = data.product_name
+                if ('response_value' in e && e.response_value) {
+                    userInputs.value[e.name] = e.response_value
+                    answeredCounter++
+                }
+                questionCounter++
+            })
+            configuratorStore.setCalcParams(data.parameters.filter((e: IFormattedData) => e.required_type == 'raschet' && e.response_value));
+            configuratorStore.setCovered(Number(answeredCounter));
+            configuratorStore.setAllQuestions(Number(questionCounter));
+            if (errors.length) {
+                configuratorStore.setError(errors)
             }
-            catch (error) {
-                // console.error(error)
-            }
+            else configuratorStore.setDefaultError()
+
+            if (!(data && 'parameters' in data)) return
+            form.value = data.parameters
+            productName.value = data.product_name
         }
 
         onMounted(async () => {
             tkpVariants.value = await getTkpVariants(props.id);
             if (!Object.keys(neuroOlData.value).length)
                 paramsUpdate(null)
-
         })
 
         watch(neuroOlData, () => {
@@ -194,7 +189,6 @@ export default defineComponent({
                 configuratorStore.setMark(value)
             }
             if (value || value == '') {
-                console.log({ 'val': value, 'key': key })
                 userInputs.value[key] = value;
                 paramsUpdate(userInputs.value)
             }

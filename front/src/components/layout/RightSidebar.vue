@@ -45,16 +45,26 @@
     </div>
     <!-- Блок расчетных параметров -->
     <div v-if="featuresFlags.rightSidebar.calcParams && calcParams.length"
-         class="sidebar-block">
+         class="sidebar-block p-[24px] max-w-[505px]">
         <div class="text-[13px]">Расчетные параметры</div>
         <div class="divider mt-[10px]!"></div>
-        <div class="flex flex-col">
-            <div class="mt-[10px] text-[13px] flex flex-row justify-between"
-                 v-for="(item, index) in calcParams"
-                 :key='index'>
-                <div class="text-(--text-secondary) text-left w-[50%]">{{ item.name }}</div>
-                <div class="text-(--text-primary) text-left">{{ item.response_value }}</div>
+        <div class="flex max-w-full w-full flex-nowrap gap-[10px] overflow-x-auto">
+            <div v-for="(group, index) in formatCalcParams(calcParams)"
+                 :key="index"
+                 class="text-center w-full text-(--color-information-gray-400) min-w-[74px] cursor-pointer duration-300 transition-all hover:text-(--color-information-gray-800) py-[10px] text-[14px]"
+                 :class="{ 'text-(--color-information-gray-800)': activeGroupBlock == index }"
+                 @click="activeGroupBlock = index">
+                <span>{{ 'Группа ' + index }}</span>
+                <div :class="{ 'invisible': activeGroupBlock !== index }"
+                     class="mt-[8px] rounded-t-[4px] border border-b border-(--color-information-orange-500) border-[3px]">
+                </div>
             </div>
+        </div>
+        <div class="mt-[15px] text-[13px] flex flex-row justify-between"
+             v-for="(item, index) in formatCalcParams(calcParams)[activeGroupBlock]"
+             :key='index'>
+            <div class="text-(--text-secondary) text-left w-[50%]">{{ item.name }}</div>
+            <div class="text-(--text-primary) text-left">{{ item.response_value }}</div>
         </div>
     </div>
     <!-- Блок подсказки и ошибка -->
@@ -71,21 +81,23 @@
         </ul>
     </div>
     <!-- Блок с картинокй -->
-    <div v-if="featuresFlags.rightSidebar.img"
+    <div v-if="featuresFlags.rightSidebar.img && images.length"
          class="sidebar-block p-[24px] max-w-[505px]">
         <div class="flex max-w-full w-full flex-nowrap gap-[10px] overflow-x-auto">
-            <div v-for="i in 10"
-                 :key="i"
+            <div v-for="(image, index) in images"
+                 :key="index"
                  class="text-center w-full text-(--color-information-gray-400) min-w-[74px] cursor-pointer duration-300 transition-all hover:text-(--color-information-gray-800)"
-                 :class="{ 'text-(--color-information-gray-800)': activeImgBlock == i }"
-                 @click="activeImgBlock = i">
-                <span>{{ i }}</span>
-                <div :class="{ 'invisible': activeImgBlock !== i }"
+                 :class="{ 'text-(--color-information-gray-800)': activeImgBlock == index }"
+                 @click="activeImgBlock = index">
+                <span>{{ image.title }}</span>
+                <div :class="{ 'invisible': activeImgBlock !== index }"
                      class="mt-[8px] rounded-t-[4px] border border-b border-(--color-information-orange-500) border-[3px]">
                 </div>
             </div>
         </div>
-        <div class="mt-[16px] bg-black w-[294px] h-[120px]"></div>
+        <div class="mt-[16px] bg-gray-100 bg-contain bg-no-repeat bg-center w-[294px] h-[120px]"
+             :style="{ 'background-image': `url(${images[activeImgBlock]?.img})` }">
+        </div>
     </div>
     <!-- Блок с документами -->
     <div v-if="featuresFlags.rightSidebar.docs"
@@ -114,12 +126,13 @@
 </template>
 <script lang='ts'>
 import { BaseButton } from 'beans-ui-kit';
-import { defineComponent, ref, computed } from 'vue';
+import { defineComponent, ref, computed, watch } from 'vue';
 import DownloadIcon from '@/assets/icons/DownloadIcon.svg?component';
 import FileIcon from '@/assets/icons/FileIcon.svg?component';
 import { useConfiguratorStore } from '@/stores/configurator';
 import { featuresFlags } from '@/assets/static/featuresFlags.ts';
 import UploadDocButton from '@/views/homeView/components/recognition/UploadDocButton.vue';
+import type { IFormattedData } from '@/assets/interfaces/IForm';
 
 export default defineComponent({
     components: {
@@ -130,11 +143,25 @@ export default defineComponent({
     },
     props: {},
     setup(_, { emit }) {
-        const activeImgBlock = ref<number | null>(null);
+        const activeImgBlock = ref<number>(0);
+        const activeGroupBlock = ref<number>(0);
         const configuratorStore = useConfiguratorStore();
+        const calcParams = computed(() => configuratorStore.getCalcParams);
 
         const handleFileUpload = (file: FormData, fileName: string) => {
             emit('readyToUploadFile', file, fileName);
+        }
+
+        const formatCalcParams = (calcParams: IFormattedData[]) => {
+            const splitNum = 5;
+            const formattedParams = [[]] as IFormattedData[][];
+            let iteration = 0;
+            for (let index = 0; index < calcParams.length; index += splitNum) {
+                formattedParams[iteration] = calcParams.slice(index, index + splitNum)
+                ++iteration;
+                if (calcParams.slice(index, index + splitNum).length < splitNum) break;
+            }
+            return formattedParams;
         }
 
         return {
@@ -145,12 +172,15 @@ export default defineComponent({
                 { name: 'Шифр ОЛ', value: 'BAB-15488-TX' },
             ],
             activeImgBlock,
+            calcParams,
+            featuresFlags,
+            activeGroupBlock,
             error: computed(() => configuratorStore.getError),
             errorStatus: computed(() => configuratorStore.getErrorStatus),
-            featuresFlags,
             status: computed(() => configuratorStore.getStatus),
-            calcParams: computed(() => configuratorStore.getCalcParams),
-            handleFileUpload
+            images: computed(() => configuratorStore.getImages),
+            handleFileUpload,
+            formatCalcParams
         }
     }
 });
