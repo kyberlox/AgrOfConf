@@ -1705,7 +1705,7 @@ class CodeParametr:
             if param['name'] == 'Материал':
                 param['response_value'] = material
             if param['name'] == 'Маркировка':
-                print(param['response_value'], 'ДО')
+                # print(param['response_value'], 'ДО')
                 param['response_value'] = MARK_ARR
             # if 'response_value' not in param:
             #     print(param['name'], 123123)
