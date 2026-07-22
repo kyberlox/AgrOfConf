@@ -22,6 +22,9 @@ from app.StatisticsService.utils.deps import build_statistic_data
 from app.UserService.utils.auth_utils import get_user_id_by_session_id
 from app.StatisticsService.router.selection_router import get_selection_router
 
+import requests
+from openpyxl.drawing.image import Image as XLImage
+
 router = APIRouter(prefix="/tkp_generation", tags=["TKP"])
 
 UPLOAD_DIR = "./static/tkp_files"
@@ -127,6 +130,26 @@ async def tkp_generation(
                             
                             # Заменяем все плейсхолдеры
                             cell.value = pattern.sub(replace_match, cell.value)
+
+             # Вставка изображения "Чертеж" на второй лист
+            drawing_url = user_dict.get("Чертеж")
+            if drawing_url and len(workbook.worksheets) > 1:
+                try:
+                    response = requests.get(drawing_url, timeout=10)
+                    response.raise_for_status()
+                    img = XLImage(BytesIO(response.content))
+                    
+                    # Якорь на ячейку A1 (или любую другую) второго листа
+                    img.anchor = 'A1'
+                    # Масштабируем, если нужно
+                    # img.width = 400
+                    # img.height = 300
+                    
+                    second_sheet = workbook.worksheets[1]
+                    second_sheet.add_image(img)
+                except Exception as img_err:
+                    # Если не удалось загрузить изображение — просто пропускаем
+                    print(f"Не удалось вставить изображение: {img_err}")
 
             result_stream = BytesIO()
             workbook.save(result_stream)
