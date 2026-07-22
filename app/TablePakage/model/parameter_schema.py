@@ -19,10 +19,12 @@ class ParameterSchema(Base):
     table_name = Column(String(255))  #s Имя таблицы для типа "Table"
     field_of_view = Column(JSON, default=dict)  # Хранение JSON: {"admin": true, "user": false}
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)  # Связь через внешний ключ
+    product_table_id = Column( Integer, ForeignKey("product_tables.id", ondelete="CASCADE"), nullable=True, index=True)
     sort = Column(Float, nullable=True)
 
     # ORM-связь
     product = relationship("Product", back_populates="parameters")
+    product_table = relationship("ProductTable")
 
     __table_args__ = (
         Index("idx_parameter_product_id", "product_id"),

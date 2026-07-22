@@ -25,3 +25,6 @@ class Product(Base):
     tkp_templates = relationship("TKP", back_populates="product", cascade="all, delete-orphan", passive_deletes=True)
 
     product_drawing = relationship("ProductDrawing", back_populates="product", cascade="all, delete-orphan")
+
+    product_tables = relationship("ProductTable", back_populates="product", cascade="all, delete-orphan",
+    passive_deletes=True)
