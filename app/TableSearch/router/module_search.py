@@ -688,7 +688,7 @@ async def process_table_data(
         key=lambda param: param.get("sort") or param["id"]
     )
     time_after_formula = time.perf_counter() - time_before_fromula
-    print(f'Время формульного подбора {time_after_formula}, Время табличного подбора: {time_before_fromula}')
+    print(f'Время формульного подбора {time_after_formula}, Время табличного подбора: {time_before_fromula - start_time}')
     # total_res = [param for param in response_params if ]
     return {
         "product_id": product_id,
