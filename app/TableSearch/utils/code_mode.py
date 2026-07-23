@@ -1739,7 +1739,7 @@ class CodeParametr:
         params = {"product_id": product_id} #, "name": search_mark
         # Следить чтобы маркировка в БД и маркировка кодовая была одинаковой в плане кириллицы или латиницы
         stmt = await db.execute(text(query), params) 
-        request = stmt.scalars().all()
+        request = stmt.fetchall()
         if not request:
             print("Ничо не получили?")
             return {"total_change" : selection_result} 
