@@ -148,19 +148,22 @@ async def tkp_generation(
                 request = stmt.scalar_one_or_none()
                 if request:
                     try:
+                        # with open(request, 'rb') as file:
+                         # Читаем файл в память ДО создания XLImage
                         with open(request, 'rb') as file:
-                        # response = requests.get(drawing_url, timeout=10)
-                        # response.raise_for_status()
-                            img = XLImage(file)
-                            
-                            # Якорь на ячейку A1 (или любую другую) второго листа
-                            img.anchor = 'A1'
-                            # Масштабируем, если нужно
-                            # img.width = 400
-                            # img.height = 300
-                            
-                            second_sheet = workbook.worksheets[1]
-                            second_sheet.add_image(img)
+                            image_data = BytesIO(file.read())
+                        
+                        # Теперь файл закрыт, но данные сохранены в BytesIO
+                        img = XLImage(image_data)
+                        
+                        # Якорь на ячейку A1 второго листа
+                        img.anchor = 'A1'
+                        # Масштабируем, если нужно
+                        # img.width = 400
+                        # img.height = 300
+                        
+                        second_sheet = workbook.worksheets[1]
+                        second_sheet.add_image(img)
                     except Exception as img_err:
                         # Если не удалось загрузить изображение — просто пропускаем
                         print(f"Не удалось вставить изображение: {img_err}")
