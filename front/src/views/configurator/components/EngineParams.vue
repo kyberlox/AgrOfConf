@@ -121,10 +121,9 @@ export default defineComponent({
             }
         }
 
-        const testParamsWithGroups = {
-            'Группа 1': ['Устройство принудительного открытия', 'Тип уплотнения'],
-            'Группа 2': ['Тип конструкции', 'Номинальный диаметр входной, мм'],
-        }
+        // const testParamsWithGroups = {
+        //     'Паспорт': ['ФИО Заказчика', 'Телефон Заказчика', 'Email Заказчика', 'Организация Заказчика', 'Проектная организация', 'Комментарий', 'Должность Заказчика', 'Адрес Заказчика'],
+        // }
 
         // Object.keys(testParamsWithGroups).forEach(groupKey => {
         //     testParamsWithGroups[groupKey as keyof typeof testParamsWithGroups].forEach(e => {

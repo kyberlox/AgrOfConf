@@ -96,6 +96,7 @@
             </div>
         </div>
         <div class="mt-[16px] bg-gray-100 bg-contain bg-no-repeat bg-center w-[294px] h-[120px]"
+             @click="{ activeImageInModal = images[activeImgBlock]?.img; showImageModal = true }"
              :style="{ 'background-image': `url(${images[activeImgBlock]?.img})` }">
         </div>
     </div>
@@ -122,6 +123,10 @@
             <span>Скачать все</span>
         </BaseButton>
     </div>
+    <!-- Модальное окно с изображением -->
+    <ImageViewerModal v-if="showImageModal && activeImageInModal"
+                      :imageSrc="activeImageInModal"
+                      @closeModal="showImageModal = false" />
 </div>
 </template>
 <script lang='ts'>
@@ -133,13 +138,15 @@ import { useConfiguratorStore } from '@/stores/configurator';
 import { featuresFlags } from '@/assets/static/featuresFlags.ts';
 import UploadDocButton from '@/views/homeView/components/recognition/UploadDocButton.vue';
 import type { IFormattedData } from '@/assets/interfaces/IForm';
+import ImageViewerModal from './ImageViewerModal.vue';
 
 export default defineComponent({
     components: {
         BaseButton,
         DownloadIcon,
         FileIcon,
-        UploadDocButton
+        UploadDocButton,
+        ImageViewerModal
     },
     props: {},
     setup(_, { emit }) {
@@ -147,6 +154,13 @@ export default defineComponent({
         const activeGroupBlock = ref<number>(0);
         const configuratorStore = useConfiguratorStore();
         const calcParams = computed(() => configuratorStore.getCalcParams);
+        const activeImageInModal = ref<string>();
+        const showImageModal = ref(false);
+
+        const handleImageClick = (image: string) => {
+            showImageModal.value = true;
+            activeImageInModal.value = image
+        }
 
         const handleFileUpload = (file: FormData, fileName: string) => {
             emit('readyToUploadFile', file, fileName);
@@ -175,12 +189,15 @@ export default defineComponent({
             calcParams,
             featuresFlags,
             activeGroupBlock,
+            activeImageInModal,
+            showImageModal,
             error: computed(() => configuratorStore.getError),
             errorStatus: computed(() => configuratorStore.getErrorStatus),
             status: computed(() => configuratorStore.getStatus),
             images: computed(() => configuratorStore.getImages),
             handleFileUpload,
-            formatCalcParams
+            formatCalcParams,
+            handleImageClick
         }
     }
 });
