@@ -1731,7 +1731,6 @@ class CodeParametr:
             return {"total_change" : selection_result} 
         mark = mark_info['response_value']
         search_mark = mark[0:6]
-        print(search_mark, 'че получили', ord(search_mark[0]))
         query = """
             SELECT file_url FROM product_drawing 
             WHERE product_id = :product_id 
@@ -1742,6 +1741,7 @@ class CodeParametr:
         stmt = await db.execute(text(query), params) 
         request = stmt.scalar_one_or_none()
         if not request:
+            print("Ничо не получили?")
             return ""
         sorted_params = sorted([item for item in selection_result if 'sort' in item], key=lambda x: x['sort'])
         last_param = sorted_params[-1]
