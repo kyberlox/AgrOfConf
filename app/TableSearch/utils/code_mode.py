@@ -1744,7 +1744,7 @@ class CodeParametr:
             print("Ничо не получили?")
             return {"total_change" : selection_result} 
         for drawing in request:
-            print(ord(drawing.name[0]), ord(search_mark[0]), 'какие символы')
+            print(ord(drawing.name[1]), ord(search_mark[1]), 'какие символы')
         # sorted_params = sorted([item for item in selection_result if 'sort' in item], key=lambda x: x['sort'])
         # last_param = sorted_params[-1]
         # counter_for_id = last_param['id']
