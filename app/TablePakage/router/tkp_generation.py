@@ -120,7 +120,7 @@ async def tkp_generation(
             
             #Рендерим изображение
             if drawing_path:
-                user_dict["Чертеж"] = InlineImage(doc, drawing_path, width=Mm(80)) 
+                user_dict["Чертеж"] = InlineImage(doc, drawing_path, width=Mm(120)) 
             
             #Переводит на латиницу
             new_user_dict = {KEY_MAPPING[param]: value for param, value in user_dict.items()}
