@@ -85,20 +85,21 @@ async def tkp_generation(
 
         # Сохраняем статистику
         stat_info = await build_statistic_data(db, user_id, product_id)
-        print(123)
+
         stat_info['parameters'] = user_dict
-        print(123)
+
         document_number = await statistic_router.get_number_document(user_id)
-        print(123)
+
         stat_info['document_number'] = document_number + 1
-        print(123)
+
         is_dump = await statistic_router.save_selection(stat_info)
-        print(123)
+
         user_dict['id'] = is_dump.data['elastic_response'].get("_id")
-        print(123, user_dict['id'])
+
         user_dict = await convert_data(user_dict, stat_info)
-        print(123)
+        
         mark = user_dict.get("Маркировка")
+        print(123)
         if mark:
             search_mark = mark[0:5]
             query = """
@@ -112,14 +113,15 @@ async def tkp_generation(
             drawing_path = stmt.scalar_one_or_none()
         else:
             drawing_path = None
-
+        print(123)
         if template_path.endswith(".docx"):
+            print(123)
             doc = DocxTemplate(template_path)
-
+            print(123)
             #Рендерим изображение
             if drawing_path:
                 user_dict["Чертеж"] = InlineImage(doc, drawing_path, width=Mm(80)) 
-            
+            print(123)
             #Переводит на латиницу
             new_user_dict = {KEY_MAPPING[param]: value for param, value in user_dict.items()}
             print(new_user_dict)
