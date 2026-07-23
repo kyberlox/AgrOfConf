@@ -85,8 +85,8 @@ async def tkp_generation(
         stat_info['parameters'] = user_dict
         document_number = await statistic_router.get_number_document(user_id)
         stat_info['document_number'] = document_number + 1
-        # is_dump = await statistic_router.save_selection(stat_info)
-        # user_dict['id'] = is_dump.data['elastic_response'].get("_id")
+        is_dump = await statistic_router.save_selection(stat_info)
+        user_dict['id'] = is_dump.data['elastic_response'].get("_id")
 
         user_dict = await convert_data(user_dict, stat_info)
         
