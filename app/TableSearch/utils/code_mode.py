@@ -1732,26 +1732,27 @@ class CodeParametr:
         mark = mark_info['response_value']
         search_mark = mark[0:6]
         query = """
-            SELECT * FROM product_drawing 
+            SELECT file_url FROM product_drawing 
             WHERE product_id = :product_id 
+            AND name = :name
         """ 
             # AND name = :name
-        params = {"product_id": product_id} #, "name": search_mark
+        params = {"product_id": product_id, "name": search_mark} 
         # Следить чтобы маркировка в БД и маркировка кодовая была одинаковой в плане кириллицы или латиницы
         stmt = await db.execute(text(query), params) 
         request = stmt.fetchall()
         if not request:
             print("Ничо не получили?")
             return {"total_change" : selection_result} 
-        for drawing in request:
-            print(ord(drawing.name[1]), ord(search_mark[1]), 'какие символы')
-        # sorted_params = sorted([item for item in selection_result if 'sort' in item], key=lambda x: x['sort'])
-        # last_param = sorted_params[-1]
-        # counter_for_id = last_param['id']
-        # counter_for_sort = last_param['sort']
-        # res = self._set_params(selection_result, counter_for_id, "Чертеж", response_value=HOST + request, sort=counter_for_sort, param_type='raschet')
-        # return {"total_change" : res}
-        return {"total_change" : selection_result} 
+        # for drawing in request:
+        #     print(ord(drawing.name[1]), ord(search_mark[1]), 'какие символы')
+        sorted_params = sorted([item for item in selection_result if 'sort' in item], key=lambda x: x['sort'])
+        last_param = sorted_params[-1]
+        counter_for_id = last_param['id']
+        counter_for_sort = last_param['sort']
+        res = self._set_params(selection_result, counter_for_id, "Чертеж", response_value=HOST + request, sort=counter_for_sort, param_type='raschet')
+        return {"total_change" : res}
+        # return {"total_change" : selection_result} 
 
     async def agent_contacts(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         """
