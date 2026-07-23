@@ -1730,7 +1730,7 @@ class CodeParametr:
         if not mark_info or not mark_info['response_value']:
             return {"total_change" : selection_result} 
         mark = mark_info['response_value']
-        search_mark = mark[0:6]
+        search_mark = mark[0:5]
         query = """
             SELECT file_url FROM product_drawing 
             WHERE product_id = :product_id 
@@ -1741,7 +1741,7 @@ class CodeParametr:
         params = {"product_id": product_id, "name": search_mark} 
         # Следить чтобы маркировка в БД и маркировка кодовая была одинаковой в плане кириллицы или латиницы
         stmt = await db.execute(text(query), params) 
-        request = stmt.fetchall()
+        request = stmt.scalar_one_or_none()
         if not request:
             print("Ничо не получили?")
             return {"total_change" : selection_result} 
