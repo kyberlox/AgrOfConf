@@ -2,242 +2,644 @@
 import os
 import tempfile
 
+from pathlib import Path
+
 from fastapi.responses import FileResponse
 from fastapi import APIRouter, Depends, File, HTTPException
 from fastapi import UploadFile
 
-from sqlalchemy import text
+from sqlalchemy import text, select, update, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import pandas as pd
 
 from ..model.database import get_db
-from ..utils.db_utils import create_table
-from ..utils.router_utils import to_sql_name_kir, to_sql_name_lat
+from ..model.product import Product
+from ..model.product_table import ProductTable
+from ..model.product_table_ver import ProductTableVersion
+from ..model.parameter_schema import ParameterSchema
+from ..schema.product_table import (
+    ProductTableCreate,
+    ProductTableResponse,
+    ProductTableUpdate,
+    ProductTableVersionResponse,
+)
+from ..utils.router_utils import to_sql_name_lat
 from .parameter_values import mark_datamart_dirty
 
 import io
 
-import re
-
 router = APIRouter(prefix="/tables", tags=["Tables"])
+
+VERSIONS_DIRECTORY = Path("./static/product_table_versions")
+MAX_VERSIONS = 5
 
 
 def normalize_column_name(value):
     return str(value).replace("\xa0", " ").strip()
 
 
-# === Table Schema Endpoints ===
+def normalize_excel_value(value):
+    if value is None or pd.isna(value):
+        return None
+
+    normalized = " ".join(str(value).split())
+    return normalized or None
 
 
-@router.post("/upload_xlsx", description="Импорт параметров из XLSX с авто-синхронизацией")
-async def upload_xlsx(
-        product_id: int,
-        file: UploadFile = File(...),
-        db: AsyncSession = Depends(get_db)
-):
-    # Получаем продукт
-    product_result = await db.execute(
-        text("SELECT name FROM products WHERE id = :id"),
-        {"id": product_id}
-    )
-    product_name = product_result.scalar_one_or_none()
-
-    if product_name is None:
-        raise HTTPException(status_code=404, detail="Продукция не найдена")
-
-    filename_without_ext = os.path.splitext(file.filename)[0]
-
-    table_name = f"{to_sql_name_lat(filename_without_ext)}"
-
-    # Создаём таблицу если нет
-    await create_table(db, table_name)
-
-    # Читаем Excel
-    print("Файл называется: ", file.filename)
-    print()
-
-    # Читаем Excel с обработкой ошибок
-    contents = await file.read()
-
-    try:
-        # Пробуем прочитать с openpyxl (основной движок)
-        df = pd.read_excel(io.BytesIO(contents), engine='openpyxl')
-    except ValueError as e:
-        if "Value must be one of" in str(e):
-            # Если проблема со стилями — пробуем xlrd (для старых .xls)
-            try:
-                df = pd.read_excel(io.BytesIO(contents), engine='xlrd')
-            except Exception as xlrd_error:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Файл содержит некорректные стили Excel. Не удалось прочитать ни openpyxl, ни xlrd: {xlrd_error}"
-                )
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Ошибка чтения Excel файла: {e}"
-            )
-    except Exception as e:
+def validate_sql_identifier(identifier: str) -> None:
+    if not identifier.replace("_", "").isalnum():
         raise HTTPException(
             status_code=400,
-            detail=f"Не удалось прочитать Excel файл: {e}"
+            detail="Некорректное физическое имя таблицы",
         )
+
+
+async def read_excel(upload: UploadFile) -> tuple[pd.DataFrame, bytes]:
+    contents = await upload.read()
+
+    if not contents:
+        raise HTTPException(
+            status_code=400,
+            detail="Загружен пустой файл",
+        )
+
+    try:
+        df = pd.read_excel(
+            io.BytesIO(contents),
+            engine="openpyxl",
+        )
+    except Exception as error:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Не удалось прочитать Excel: {error}",
+        )
+
+    df.columns = [
+        normalize_column_name(column)
+        for column in df.columns
+    ]
 
     df = df.where(pd.notnull(df), None)
 
-    # Убираем пробелы/переносы/табы по краям названий колонок и неразрывные пробелы из Excel
-    df.columns = [
-        normalize_column_name(col)
-        for col in df.columns
-    ]
+    return df, contents
 
-    if df.empty:
-        # Удаляем старую таблицу
-        await db.execute(text(f'DROP TABLE IF EXISTS "{table_name}"'))
 
-        # Создаём пустую таблицу заново
-        await create_table(db, table_name)
+# === Table Schema Endpoints ===
 
-        # Удаляем параметры из parameter_schemas этой таблицы
-        await db.execute(
-            text("""
-                DELETE FROM parameter_schemas
-                WHERE product_id = :product_id
-                  AND table_name = :table_name
-            """),
-            {
-                "product_id": product_id,
-                "table_name": table_name
-            }
+
+@router.post(
+    "",
+    response_model=ProductTableResponse,
+    status_code=201,
+    description="Создание табличной сущности продукта.",
+)
+async def create_product_table(
+        schema: ProductTableCreate,
+        db: AsyncSession = Depends(get_db),
+):
+    product_result = await db.execute(
+        select(Product.id).where(
+            Product.id == schema.product_id
+        )
+    )
+
+    if product_result.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Продукция не найдена",
         )
 
-        await mark_datamart_dirty(db, product_id)
+    clean_name = normalize_column_name(schema.name)
+
+    if not clean_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Название сущности не может быть пустым",
+        )
+
+    existing_result = await db.execute(
+        select(ProductTable.id).where(
+            ProductTable.product_id == schema.product_id,
+            ProductTable.name == clean_name,
+        )
+    )
+
+    if existing_result.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Сущность с таким названием уже существует",
+        )
+
+    try:
+        entity = ProductTable(
+            product_id=schema.product_id,
+            name=clean_name,
+            physical_table_name=None,
+        )
+
+        db.add(entity)
+
+        # Получаем ID новой сущности
+        await db.flush()
+
+        entity.physical_table_name = (
+            f"product_{schema.product_id}_table_{entity.id}"
+        )
+
+        await db.commit()
+        await db.refresh(entity)
+
+        return entity
+
+    except Exception as error:
+        await db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка создания табличной сущности: {error}",
+        )
+
+
+@router.get(
+    "",
+    description="Получение табличных сущностей продукта.",
+)
+async def get_product_tables(
+        product_id: int,
+        db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(
+            ProductTable.id,
+            ProductTable.product_id,
+            ProductTable.name,
+            ProductTable.physical_table_name,
+            ProductTable.created_at,
+            func.count(ProductTableVersion.id).label("versions_count"),
+            func.max(ProductTableVersion.version_number).label(
+                "current_version"
+            ),
+        )
+        .outerjoin(
+            ProductTableVersion,
+            ProductTableVersion.product_table_id == ProductTable.id,
+        )
+        .where(ProductTable.product_id == product_id)
+        .group_by(ProductTable.id)
+        .order_by(ProductTable.id)
+    )
+
+    return [dict(row) for row in result.mappings().all()]
+
+
+@router.put(
+    "/{product_table_id}",
+    response_model=ProductTableResponse,
+    description="Переименование табличной сущности продукта."
+)
+async def update_product_table(
+        product_table_id: int,
+        schema: ProductTableUpdate,
+        db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ProductTable).where(
+            ProductTable.id == product_table_id
+        )
+    )
+
+    entity = result.scalar_one_or_none()
+
+    if entity is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Табличная сущность не найдена",
+        )
+
+    clean_name = normalize_column_name(schema.name)
+
+    duplicate_result = await db.execute(
+        select(ProductTable.id).where(
+            ProductTable.product_id == entity.product_id,
+            ProductTable.name == clean_name,
+            ProductTable.id != entity.id,
+        )
+    )
+
+    if duplicate_result.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Сущность с таким названием уже существует",
+        )
+
+    entity.name = clean_name
+
+    await db.commit()
+    await db.refresh(entity)
+
+    return entity
+
+
+@router.post(
+    "/{product_table_id}/versions",
+    response_model=ProductTableVersionResponse,
+    status_code=201,
+    description="Загрузка новой версии Excel.",
+)
+async def upload_product_table_version(
+        product_table_id: int,
+        file: UploadFile = File(...),
+        db: AsyncSession = Depends(get_db),
+):
+    entity_result = await db.execute(
+        select(ProductTable).where(
+            ProductTable.id == product_table_id
+        )
+    )
+
+    entity = entity_result.scalar_one_or_none()
+
+    if entity is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Табличная сущность не найдена",
+        )
+
+    table_name = entity.physical_table_name
+
+    if not table_name:
+        raise HTTPException(
+            status_code=500,
+            detail="У сущности отсутствует физическое имя таблицы",
+        )
+
+    validate_sql_identifier(table_name)
+
+    df, contents = await read_excel(file)
+
+    excel_columns = [
+        column
+        for column in df.columns
+        if column.lower() != "id"
+    ]
+
+    if not excel_columns:
+        raise HTTPException(
+            status_code=400,
+            detail="В Excel отсутствуют пользовательские колонки",
+        )
+
+    excel_map = {
+        to_sql_name_lat(column): column
+        for column in excel_columns
+    }
+
+    sql_columns = list(excel_map.keys())
+
+    # Защита от одинаковой транслитерации
+    if len(sql_columns) != len(set(sql_columns)):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "После преобразования названий несколько колонок "
+                "получили одинаковое SQL-имя"
+            ),
+        )
+
+    version_result = await db.execute(
+        select(
+            func.coalesce(
+                func.max(ProductTableVersion.version_number),
+                0,
+            )
+        ).where(
+            ProductTableVersion.product_table_id == entity.id
+        )
+    )
+
+    next_version = version_result.scalar_one() + 1
+
+    version_directory = (
+            VERSIONS_DIRECTORY
+            / str(entity.product_id)
+            / str(entity.id)
+    )
+    version_directory.mkdir(parents=True, exist_ok=True)
+
+    safe_extension = (
+            os.path.splitext(file.filename or "")[1].lower() or ".xlsx"
+    )
+
+    stored_filename = f"version_{next_version}{safe_extension}"
+    file_path = version_directory / stored_filename
+
+    files_to_delete: list[str] = []
+
+    try:
+        # 1. Сохраняем исходный файл
+        with open(file_path, "wb") as destination:
+            destination.write(contents)
+
+        # 2. Пересоздаём физическую таблицу актуальной версии
+        await db.execute(
+            text(f'DROP TABLE IF EXISTS "{table_name}" CASCADE')
+        )
+
+        columns_sql = ", ".join(
+            f'"{column}" TEXT'
+            for column in sql_columns
+        )
+
+        await db.execute(
+            text(f"""
+                CREATE TABLE "{table_name}" (
+                    id SERIAL PRIMARY KEY,
+                    {columns_sql}
+                )
+            """)
+        )
+
+        # 3. Заполняем таблицу
+        rows = [
+            {
+                sql_column: normalize_excel_value(
+                    record[excel_map[sql_column]]
+                )
+                for sql_column in sql_columns
+            }
+            for record in df.to_dict(orient="records")
+        ]
+
+        if rows:
+            insert_columns = ", ".join(
+                f'"{column}"'
+                for column in sql_columns
+            )
+            placeholders = ", ".join(
+                f":{column}"
+                for column in sql_columns
+            )
+
+            await db.execute(
+                text(f"""
+                    INSERT INTO "{table_name}" ({insert_columns})
+                    VALUES ({placeholders})
+                """),
+                rows,
+            )
+
+        # 4. Пересоздаём параметры только этой сущности
+        await db.execute(
+            delete(ParameterSchema).where(
+                ParameterSchema.product_table_id == entity.id
+            )
+        )
+
+        for position, sql_column in enumerate(sql_columns, start=1):
+            db.add(
+                ParameterSchema(
+                    name=excel_map[sql_column],
+                    transliterated_name=sql_column,
+                    type="Table",
+                    table_name=table_name,
+                    product_id=entity.product_id,
+                    product_table_id=entity.id,
+                    sort=float(position),
+                )
+            )
+
+        # 5. Старая версия перестаёт быть текущей
+        await db.execute(
+            update(ProductTableVersion)
+            .where(
+                ProductTableVersion.product_table_id == entity.id
+            )
+            .values(is_current=False)
+        )
+
+        # 6. Создаём новую версию
+        version = ProductTableVersion(
+            product_table_id=entity.id,
+            version_number=next_version,
+            original_filename=file.filename or stored_filename,
+            file_path=str(file_path),
+            is_current=True,
+        )
+
+        db.add(version)
+        await db.flush()
+
+        # 7. Оставляем только пять последних версий
+        versions_result = await db.execute(
+            select(ProductTableVersion)
+            .where(
+                ProductTableVersion.product_table_id == entity.id
+            )
+            .order_by(
+                ProductTableVersion.version_number.desc(),
+                ProductTableVersion.id.desc(),
+            )
+        )
+
+        versions = list(versions_result.scalars().all())
+        old_versions = versions[MAX_VERSIONS:]
+
+        for old_version in old_versions:
+            if old_version.file_path:
+                files_to_delete.append(old_version.file_path)
+
+            await db.delete(old_version)
+
+        # 8. Помечаем datamart устаревшим
+        await mark_datamart_dirty(
+            db=db,
+            product_id=entity.product_id,
+        )
+
+        await db.commit()
+        await db.refresh(version)
+
+    except HTTPException:
+        await db.rollback()
+
+        if file_path.exists():
+            file_path.unlink()
+
+        raise
+
+    except Exception as error:
+        await db.rollback()
+
+        if file_path.exists():
+            file_path.unlink()
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка загрузки версии: {error}",
+        )
+
+    # Старые файлы удаляем после успешного commit
+    for old_file_path in files_to_delete:
+        try:
+            if os.path.exists(old_file_path):
+                os.remove(old_file_path)
+        except OSError:
+            pass
+
+    return version
+
+
+@router.get(
+    "/{product_table_id}/versions",
+    response_model=list[ProductTableVersionResponse],
+    description="История версий сущности."
+)
+async def get_product_table_versions(
+        product_table_id: int,
+        db: AsyncSession = Depends(get_db),
+):
+    entity_result = await db.execute(
+        select(ProductTable.id).where(
+            ProductTable.id == product_table_id
+        )
+    )
+
+    if entity_result.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Табличная сущность не найдена",
+        )
+
+    result = await db.execute(
+        select(ProductTableVersion)
+        .where(
+            ProductTableVersion.product_table_id == product_table_id
+        )
+        .order_by(
+            ProductTableVersion.version_number.desc()
+        )
+    )
+
+    return list(result.scalars().all())
+
+
+@router.get(
+    "/{product_table_id}/versions/{version_id}/download",
+    description="Скачивание выбранной версии."
+)
+async def download_product_table_version(
+        product_table_id: int,
+        version_id: int,
+        db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ProductTableVersion).where(
+            ProductTableVersion.id == version_id,
+            ProductTableVersion.product_table_id == product_table_id,
+        )
+    )
+
+    version = result.scalar_one_or_none()
+
+    if version is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Версия не найдена",
+        )
+
+    if not os.path.exists(version.file_path):
+        raise HTTPException(
+            status_code=404,
+            detail="Файл версии отсутствует на сервере",
+        )
+
+    return FileResponse(
+        path=version.file_path,
+        filename=version.original_filename,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        ),
+        headers={
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        },
+    )
+
+
+@router.delete(
+    "/{product_table_id}",
+    description="Удаление табличной сущности со всеми версиями.",
+)
+async def delete_product_table(
+        product_table_id: int,
+        db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ProductTable).where(
+            ProductTable.id == product_table_id
+        )
+    )
+
+    entity = result.scalar_one_or_none()
+
+    if entity is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Табличная сущность не найдена",
+        )
+
+    table_name = entity.physical_table_name
+    product_id = entity.product_id
+
+    versions_result = await db.execute(
+        select(ProductTableVersion.file_path).where(
+            ProductTableVersion.product_table_id == entity.id
+        )
+    )
+
+    files_to_delete = [
+        path
+        for path in versions_result.scalars().all()
+        if path
+    ]
+
+    try:
+        if table_name:
+            validate_sql_identifier(table_name)
+
+            await db.execute(
+                text(f'DROP TABLE IF EXISTS "{table_name}" CASCADE')
+            )
+
+        await db.delete(entity)
+
+        await mark_datamart_dirty(
+            db=db,
+            product_id=product_id,
+        )
 
         await db.commit()
 
-        return {
-            "table": table_name,
-            "rows": 0,
-            "columns": [],
-            "message": "Таблица очищена"
-        }
+    except Exception as error:
+        await db.rollback()
 
-    # Excel → SQL имена
-    excel_map = {
-        to_sql_name_lat(col): col
-        for col in df.columns
-        if col.lower() != "id"
-    }
-    excel_columns_ordered = [
-        to_sql_name_lat(col)
-        for col in df.columns
-        if col.lower() != "id"
-    ]
-
-    excel_columns_set = set(excel_columns_ordered)
-
-    # Получаем колонки БД
-    result = await db.execute(
-        text("""
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_name = :table_name
-              AND column_name != 'id'
-        """),
-        {"table_name": table_name}
-    )
-    db_columns = {row[0] for row in result.fetchall()}
-
-    # Удаляем старую таблицу файла
-    await db.execute(text(f'DROP TABLE IF EXISTS "{table_name}"'))
-
-    # Создаём таблицу заново
-    columns_sql = ", ".join(f'"{col}" TEXT' for col in excel_columns_ordered)
-
-    await db.execute(text(f"""
-        CREATE TABLE "{table_name}" (
-            id SERIAL PRIMARY KEY,
-            {columns_sql}
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка удаления сущности: {error}",
         )
-    """))
 
-    # Удаляем старые schema этого файла
-    await db.execute(
-        text("""
-            DELETE FROM parameter_schemas
-            WHERE product_id = :product_id
-              AND table_name = :table_name
-        """),
-        {
-            "product_id": product_id,
-            "table_name": table_name
-        }
-    )
-
-    # Добавляем заново в правильном порядке
-    for col in excel_columns_ordered:
-        await db.execute(
-            text("""
-                    INSERT INTO parameter_schemas (
-                        name,
-                        transliterated_name,
-                        type,
-                        table_name,
-                        product_id
-                    )
-                    VALUES (
-                        :name,
-                        :transliterated_name,
-                        'Table',
-                        :table_name,
-                        :product_id
-                    )
-                """),
-            {
-                "name": excel_map[col],
-                "transliterated_name": col,
-                "table_name": table_name,
-                "product_id": product_id
-            }
-        )
-    await db.execute(text("""
-            UPDATE parameter_schemas
-            SET sort = id
-            WHERE product_id = :product_id
-              AND sort IS NULL
-        """), {"product_id": product_id})
-
-    await db.commit()
-
-    # Делаем вставку в бд
-    columns_sql = ", ".join(f'"{col}"' for col in excel_columns_ordered)
-    values_sql = ", ".join(f":{col}" for col in excel_columns_ordered)
-
-    insert_sql = text(f"""
-            INSERT INTO "{table_name}" ({columns_sql})
-            VALUES ({values_sql})
-        """)
-
-    rows = [
-        {
-            col: str(record[excel_map[col]]) if record[excel_map[col]] is not None else None
-            for col in excel_columns_ordered
-        }
-        for record in df.to_dict(orient="records")
-    ]
-
-    await db.execute(insert_sql, rows)
-
-    # Обновляем витрину datamart
-    await mark_datamart_dirty(db, product_id)
-
-    await db.commit()
+    for file_path in files_to_delete:
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except OSError:
+            pass
 
     return {
-        "table": table_name,
-        "rows": len(df),
-        "columns": list(excel_columns_ordered)
+        "id": product_table_id,
+        "name": entity.name,
+        "message": "Табличная сущность удалена",
     }
 
 
@@ -259,14 +661,14 @@ async def download_xlsx(
     # Получаем все таблицы, которые относятся к этому продукту
     tables_result = await db.execute(
         text("""
-                SELECT DISTINCT table_name
-                FROM parameter_schemas
-                WHERE product_id = :product_id
-                  AND type = 'Table'
-                  AND table_name IS NOT NULL
-                ORDER BY table_name
-            """),
-        {"product_id": product_id}
+            SELECT
+                physical_table_name,
+                name
+            FROM product_tables
+            WHERE product_id = :product_id
+            ORDER BY id
+        """),
+        {"product_id": product_id},
     )
 
     table_names = [row[0] for row in tables_result.fetchall()]
@@ -368,117 +770,3 @@ async def download_xlsx(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Access-Control-Expose-Headers": "Content-Disposition"}
     )
-
-
-@router.delete(
-    "/{product_id}/{table_name}",
-    description="Удаление таблицы продукта из БД по названию."
-)
-async def delete_table(
-        product_id: int,
-        table_name: str,
-        db: AsyncSession = Depends(get_db)
-):
-    # Разрешаем только безопасные SQL-имена, создаваемые to_sql_name_lat
-    if not re.fullmatch(r"[a-zA-Z0-9_]+", table_name):
-        raise HTTPException(
-            status_code=400,
-            detail="Некорректное название таблицы"
-        )
-
-    # Проверяем существование продукта
-    product_result = await db.execute(
-        text("""
-            SELECT id
-            FROM products
-            WHERE id = :product_id
-        """),
-        {"product_id": product_id}
-    )
-
-    if product_result.scalar_one_or_none() is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Продукция не найдена"
-        )
-
-    # Проверяем, что таблица действительно относится к этому продукту
-    schema_result = await db.execute(
-        text("""
-            SELECT EXISTS (
-                SELECT 1
-                FROM parameter_schemas
-                WHERE product_id = :product_id
-                  AND table_name = :table_name
-                  AND type = 'Table'
-            )
-        """),
-        {
-            "product_id": product_id,
-            "table_name": table_name
-        }
-    )
-
-    if not schema_result.scalar():
-        raise HTTPException(
-            status_code=404,
-            detail="Таблица не найдена у выбранной продукции"
-        )
-
-    # Проверяем наличие самой физической SQL-таблицы
-    physical_table_result = await db.execute(
-        text("""
-            SELECT EXISTS (
-                SELECT 1
-                FROM information_schema.tables
-                WHERE table_schema = current_schema()
-                  AND table_name = :table_name
-            )
-        """),
-        {"table_name": table_name}
-    )
-
-    physical_table_exists = physical_table_result.scalar()
-
-    try:
-        # Удаляем физическую SQL-таблицу
-        if physical_table_exists:
-            await db.execute(
-                text(f'DROP TABLE "{table_name}" CASCADE')
-            )
-
-        # Удаляем описания всех колонок этой таблицы
-        await db.execute(
-            text("""
-                DELETE FROM parameter_schemas
-                WHERE product_id = :product_id
-                  AND table_name = :table_name
-            """),
-            {
-                "product_id": product_id,
-                "table_name": table_name
-            }
-        )
-
-        # Сообщаем, что витрину продукта нужно перестроить
-        await mark_datamart_dirty(
-            db=db,
-            product_id=product_id
-        )
-
-        await db.commit()
-
-    except Exception as error:
-        await db.rollback()
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"Ошибка удаления таблицы: {error}"
-        )
-
-    return {
-        "product_id": product_id,
-        "table_name": table_name,
-        "physical_table_deleted": bool(physical_table_exists),
-        "message": f"Таблица {table_name} удалена"
-    }
