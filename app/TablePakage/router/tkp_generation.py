@@ -81,7 +81,7 @@ async def tkp_generation(
         if not all(key in user_dict for key in contact_info):
             raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
 
-        filename = f"TKP_{to_sql_name_lat(user_dict['ФИО Заказчика'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
+        
 
         # Сохраняем статистику
         stat_info = await build_statistic_data(db, user_id, product_id)
@@ -130,7 +130,7 @@ async def tkp_generation(
             result_stream = BytesIO()
             doc.save(result_stream)
             result_stream.seek(0)
-
+            filename = f"TKP+TO_{to_sql_name_lat(user_dict['ФИО Заказчика'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
             return StreamingResponse(
                 result_stream,
                 media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -188,7 +188,7 @@ async def tkp_generation(
                     print(f"Не удалось вставить изображение: {img_err}")
             else:
                 print('Не найден файл по заданной маркировке')
-
+            filename = f"TKP_{to_sql_name_lat(user_dict['ФИО Заказчика'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
             result_stream = BytesIO()
             workbook.save(result_stream)
             result_stream.seek(0)
