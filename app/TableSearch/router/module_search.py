@@ -437,7 +437,7 @@ async def process_table_data(
                 "sort": item["sort"],
             })
         formula_params = await search_formula(db, response_params, table_name_params=list(tables_map.keys()),
-                                              column_to_param=all_column_to_param)
+                                              column_to_param=all_column_to_param, product_id=product_id)
 
         response_params = sorted(
             formula_params,
@@ -678,7 +678,8 @@ async def process_table_data(
         response_params,
         table_name_params=list(tables_map.keys()),
         select_formula_params=selected_params,
-        column_to_param=all_column_to_param
+        column_to_param=all_column_to_param, 
+        product_id=product_id
     )
     # print(formula_params, 'че получили')
     response_params = sorted(
