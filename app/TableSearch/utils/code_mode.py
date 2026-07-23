@@ -1727,7 +1727,7 @@ class CodeParametr:
         Для прайс-листа выводит чертеж
         """
         mark_info = self._get_param_by_name('Маркировка', selection_result)
-        if not mark_info:
+        if not mark_info or not mark_info['response_value']:
             return {"total_change" : selection_result} 
         mark = mark_info['response_value']
         search_mark = mark[0:6]
