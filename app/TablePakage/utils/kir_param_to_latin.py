@@ -37,4 +37,5 @@ KEY_MAPPING = {
     "email_исполнителя": "executor_email",
     "фио_исполнителя": "executor_fio",
     "должность_исполнителя": "executor_position",
+    "id": "id"
 }
