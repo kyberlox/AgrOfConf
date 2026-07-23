@@ -1,5 +1,5 @@
 <template>
-<div class="p-[32px] w-full bg-[#FDFDFD] max-w-full border border-gray-200 rounded-xl">
+<div class="p-[32px] w-full bg-[#FDFDFD] ml-auto border border-gray-200 rounded-xl min-h-[86vh]">
     <div class="flex flex-row gap-[24px] h-full flex-wrap md:flex-wrap lg:flex-nowrap">
         <div class="flex flex-col gap-[24px] w-full">
             <div
@@ -54,24 +54,18 @@
         </div>
         <RightSidebar @readyToUploadFile="handleFileUpload" />
     </div>
-    <!-- Модалка для description -->
-    <SlotModal v-if="modalVisible"
-               @closeModal="modalVisible = false">
-        <h1>dsa</h1>
-    </SlotModal>
+
     <!-- Модальное окно для TKP вариантов -->
-    <SlotModal v-if="tkpModalIsVisible"
-               @closeModal="tkpModalIsVisible = false">
-        <TkpVariants :tkpVariants="tkpVariants"
-                     @downloadTkp="(id: number) => handleDownloadTkp(id)" />
-    </SlotModal>
+    <TkpVariants :tkpVariants="tkpVariants"
+                 :tkpModalIsVisible="tkpModalIsVisible"
+                 @closeModal="tkpModalIsVisible = false"
+                 @downloadTkp="(id: number) => handleDownloadTkp(id)" />
+
     <!-- Модалка для промпта для распознавания -->
-    <SlotModal v-if="promptModalVisible"
-               @closeModal="promptModalVisible = false">
-        <PromptModal :formData="olFormData"
-                     :uploadedFileName="newFileName || ''"
-                     @closeModal="promptModalVisible = false" />
-    </SlotModal>
+    <PromptModal :promptModalVisible="promptModalVisible"
+                 :formData="olFormData"
+                 :uploadedFileName="newFileName || ''"
+                 @closeModal="promptModalVisible = false" />
 </div>
 </template>
 <script lang='ts'>

@@ -3,7 +3,9 @@
   <VHeader />
   <div class="p-[24px] bg-[#F6F7F9] flex flex-row gap-[32px]">
     <LeftSidebar />
-    <RouterView />
+    <div class="max-w-[calc(100%-114px)] ml-auto grow">
+      <RouterView />
+    </div>
   </div>
 </div>
 </template>

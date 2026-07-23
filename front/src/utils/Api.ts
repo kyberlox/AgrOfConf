@@ -41,8 +41,10 @@ export default class Api {
             const respData = await api.post(url, data, mergedConfig)
             return needRespInfo ? respData : respData.data
         } catch (e) {
-            console.error(e)
-            handleApiErrors(e as AxiosError)
+            if ((e as Error).name == 'CanceledError')
+                return
+            else
+                handleApiErrors(e as AxiosError)
         }
     }
 

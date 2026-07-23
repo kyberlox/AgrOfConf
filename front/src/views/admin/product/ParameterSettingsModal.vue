@@ -9,7 +9,8 @@
                    @value-changed="(value) => changeValue(value, (item.name as 'name' | 'description'))" />
         <div class="flex flex-row justify-end gap-[15px]">
             <div v-for="item in ['Назад', 'Принять']">
-                <BaseButton :propsClass="item == 'Назад' ? 'button-secondary' : 'button-primary'"
+                <BaseButton class="min-w-[200px]"
+                            :propsClass="item == 'Назад' ? 'button-secondary' : 'button-primary'"
                             :disabled="item == 'Назад' ? false : disabled"
                             @click="item == 'Назад' ? $emit('closeModal') : $emit('updateParameter', parameter?.id, newParameter)">
                     <span>{{ item }}</span>

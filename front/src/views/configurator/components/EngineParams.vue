@@ -88,7 +88,7 @@ export default defineComponent({
         const configurator = useConfiguratorStore();
         const freeConfigMode = computed(() => configurator.getFreeModeConfig);
 
-        const gridCols = computed(() => width.value < screenMixins.md ? 1 : width.value < screenMixins.lg ? 2 : 3);
+        const gridCols = computed(() => width.value < screenMixins.md ? 1 : width.value < screenMixins.lg ? 2 : 4);
         const renderData = computed(() => {
             const rows: Array<IFormattedData | { name: string }> = [];
             if (!props.form) return rows;
@@ -120,6 +120,17 @@ export default defineComponent({
                     return []
             }
         }
+
+        const testParamsWithGroups = {
+            'Группа 1': ['Устройство принудительного открытия', 'Тип уплотнения'],
+            'Группа 2': ['Тип конструкции', 'Номинальный диаметр входной, мм'],
+        }
+
+        // Object.keys(testParamsWithGroups).forEach(groupKey => {
+        //     testParamsWithGroups[groupKey as keyof typeof testParamsWithGroups].forEach(e => {
+        //         console.log(props?.form?.find(formEl => formEl.name == e))
+        //     })
+        // })
 
         return {
             AlertCircle,

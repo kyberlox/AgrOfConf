@@ -1,5 +1,5 @@
 <template>
-<div class="min-h-screen bg-white p-2 rounded-lg w-full p-[16px]">
+<div class="min-h-[86vh] bg-white p-2 rounded-lg w-full p-[16px]">
     <div class="flex flex-row justify-start gap-[25px]  flex-wrap ">
         <div class="max-w-full lg:max-w-[40%] p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
             <div class="text-lg text-blue-800 font-medium mb-2 grow">

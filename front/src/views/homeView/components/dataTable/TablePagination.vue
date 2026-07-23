@@ -1,5 +1,5 @@
 <template>
-<div class="flex flex-row items-center justify-between">
+<div class="flex flex-row items-center justify-between pb-[15px]">
     <div class="mt-[24px] pl-[24px] flex flex-row gap-[12px] items-center text-[12px]">
         <div>Строк на странице</div>
         <div

@@ -1,12 +1,12 @@
 <template>
 <div class="w-full grow">
-    <div v-if="section"
+    <!-- <div v-if="section"
          class="text-(--orange) text-[16px] font-semibold">
         {{ section }}
-    </div>
+    </div> -->
 
     <!-- Кнопки навигации и поиск-->
-    <div class="min-h-screen mt-[32px] flex flex-col gap-[24px] bg-[#FDFDFD] border  border-[#EAECEF] rounded-[16px]">
+    <div class="min-h-[86vh]  flex flex-col gap-[24px] bg-[#FDFDFD] border  border-[#EAECEF] rounded-[16px]">
         <div class="flex flex-row mt-[32px] gap-[24px] justify-between px-[24px] flex-wrap">
             <div class="flex flex-row gap-[24px] border-b-[1px] border-b-[#EAECEF] flex-grow flex-wrap">
                 <div v-for="item in tableNav"
@@ -61,10 +61,9 @@
                       @create-ol="showEngineModal = true" />
 
         <!-- Модалка для выбора изделия -->
-        <SlotModal v-if="showEngineModal"
-                   @closeModal="showEngineModal = false">
-            <EnginePick :items="engines" />
-        </SlotModal>
+        <EnginePickModal :items="engines"
+                         :showEngineModal="showEngineModal"
+                         @closeModal="showEngineModal = false" />
 
     </div>
 </div>
@@ -77,7 +76,7 @@ import SearchIcon from '@/assets/icons/SearchIcon.svg?component';
 import Blank from '@/assets/icons/Blank.svg?component';
 import SlotModal from '@/components/layout/SlotModal.vue';
 import Api from '@/utils/Api';
-import EnginePick from '@/views/homeView/components/EnginePickModal.vue'
+import EnginePickModal from '@/views/homeView/components/EnginePickModal.vue'
 import Configurator from '../configurator/Configurator.vue';
 import { useProductsData } from '@/stores/products';
 import { useNavStore } from '@/stores/navigation.ts';
@@ -95,7 +94,7 @@ export default defineComponent({
         Blank,
         SearchIcon,
         SlotModal,
-        EnginePick,
+        EnginePickModal,
         Configurator,
         HistoryTable,
         Statistics

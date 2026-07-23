@@ -1,13 +1,13 @@
 <template>
 <div class="grow"
      :class="{ 'border-r border-[#EAECEF] pr-[32px]': type == 'ol' }">
-    <div class="flex flex-row gap-[16px] items-center max-w-[560px]">
+    <div class="flex flex-row gap-[16px] items-center max-w-full">
         <div class="min-w-fit text-[16px] font-[700] leading-[120%] text-(--text-text-primary)">
             {{ pageTitle }}
         </div>
         <div class="divider"></div>
     </div>
-    <div class="mt-[16px] grid grid-cols-2 gap-[16px] max-w-[560px]">
+    <div class="mt-[16px] grid grid-cols-2 gap-[16px] max-w-full">
         <div v-for="(block, index) in statBlocks"
              :key="'olBlock' + index"
              class="h-[160px] rounded-[16px] p-[24px] border border-(--color-information-gray-200) min-w-fit sm:min-w-fit  3xl:min-w-[271px]"

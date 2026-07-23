@@ -1,5 +1,6 @@
 <template>
-<div class="rounded-[16px] p-[16px] gap-[8px] flex flex-col border border-[#EAECEF] bg-[#FDFDFD]">
+<div class="rounded-[16px] select-none  p-[16px] gap-[8px] flex flex-col z-10 border border-[#EAECEF] bg-[#FDFDFD] h-max-content fixed min-h-[446px] min-w-[100px] max-h-full"
+     :class="{ 'shadow-lg': !isSidebarRolled }">
     <div v-if="isLogin"
          class="rounded-[8px]  w-full p-[12px] flex flex-row justify-between items-center border border-[#EAECEF] hover:border-orange-500 transition duration-300 cursor-pointer w-fit"
          :class="isSidebarRolled ? 'w-fit' : 'min-w-[283px]'"
@@ -55,7 +56,8 @@
                             :link="link.route" />
     </div>
     <!-- Кнопка выйти -->
-    <BaseButton :propsClass="'button-secondary'"
+    <BaseButton class="mt-auto"
+                :propsClass="'button-secondary'"
                 @clicked="handleLoginClick">
         <div class="flex flex-row items-center justify-center "
              :class="{ 'min-w-[283px]': !isSidebarRolled }">
@@ -126,23 +128,23 @@ export default defineComponent({
         }
 
         return {
+            layoutStore,
             requestsData,
             sidebarLinks,
             activeTab,
             mouseTab,
             isLogin,
+            userId: computed(() => useUserStore().getId),
+            user: computed(() => useUserStore().getUser),
+            userFio: computed(() => useUserStore().getFio),
+            userAvatar: computed(() => useUserStore().getAvatar),
+            isSidebarRolled: computed(() => useLayoutStore().getIsSidebarRolled),
+            handleRoute,
+            handleLoginClick,
             tabsCheck: (link: { name: string }) => link.name == 'myRequests' ?
                 [{ title: 'Статус', name: 'status' }] :
                 [{ title: 'КО', name: 'ko' }, { title: 'Пользователь', name: 'user' }, { title: 'Статус', name: 'status' }],
             checkRights,
-            userId: computed(() => useUserStore().getId),
-            handleRoute,
-            user: computed(() => useUserStore().getUser),
-            userFio: computed(() => useUserStore().getFio),
-            userAvatar: computed(() => useUserStore().getAvatar),
-            layoutStore,
-            isSidebarRolled: computed(() => useLayoutStore().getIsSidebarRolled),
-            handleLoginClick
         }
     }
 });
