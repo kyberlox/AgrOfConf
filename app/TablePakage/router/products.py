@@ -309,5 +309,5 @@ async def delete_product_drawing(
 @router.get("/get_product_drawings/{product_id}")
 async def get_product_drawings(product_id: int, db: AsyncSession = Depends(get_db)):
     stmt = await db.execute(select(ProductDrawing).where(ProductDrawing.product_id == product_id))
-    nodes = stmt.fetchall()
+    nodes = stmt.scalars().all()
     return nodes
