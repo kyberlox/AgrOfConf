@@ -672,7 +672,7 @@ async def process_table_data(
             param_info["error"] = error_item["error"]
 
         response_params.append(param_info)
-    time_before_fromula = time.perf_counter() - start_time
+    time_before_fromula = time.perf_counter()
     
     formula_params = await search_formula(
         db,
