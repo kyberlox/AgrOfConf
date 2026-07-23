@@ -155,7 +155,12 @@ async def tkp_generation(
                         
                         # Теперь файл закрыт, но данные сохранены в BytesIO
                         img = XLImage(image_data)
-                        
+                        max_width = 400
+                        max_height = 300
+                        if img.width > max_width or img.height > max_height:
+                            ratio = min(max_width / img.width, max_height / img.height)
+                            img.width = int(img.width * ratio)
+                            img.height = int(img.height * ratio)
                         # Якорь на ячейку A1 второго листа
                         img.anchor = 'A1'
                         # Масштабируем, если нужно
