@@ -1736,7 +1736,7 @@ class CodeParametr:
 
         # Класс герметичности 123123
         return {"total_change": total_res}
-    
+    @timer
     async def get_price_drawing(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         """
         Для прайс-листа выводит чертеж
@@ -1764,7 +1764,7 @@ class CodeParametr:
         counter_for_sort = last_param['sort']
         res = self._set_params(selection_result, counter_for_id, "Чертеж", response_value=HOST + request, sort=counter_for_sort, param_type='raschet')
         return {"total_change" : res}
-
+    @timer
     async def agent_contacts(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         """
         Параметры для заполнения контактов агента:
