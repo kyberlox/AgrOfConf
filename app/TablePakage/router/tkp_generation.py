@@ -4,6 +4,7 @@ import re
 from io import BytesIO
 from typing import Optional, Union
 from uuid import uuid4
+from sqlalchemy import text
 
 from fastapi import APIRouter, HTTPException, UploadFile, Depends, File, Form
 from docxtpl import DocxTemplate
@@ -133,23 +134,38 @@ async def tkp_generation(
 
              # Вставка изображения "Чертеж" на второй лист
             drawing_url = user_dict.get("Чертеж")
-            if drawing_url and len(workbook.worksheets) > 1:
-                try:
-                    response = requests.get(drawing_url, timeout=10)
-                    response.raise_for_status()
-                    img = XLImage(BytesIO(response.content))
-                    
-                    # Якорь на ячейку A1 (или любую другую) второго листа
-                    img.anchor = 'A1'
-                    # Масштабируем, если нужно
-                    # img.width = 400
-                    # img.height = 300
-                    
-                    second_sheet = workbook.worksheets[1]
-                    second_sheet.add_image(img)
-                except Exception as img_err:
-                    # Если не удалось загрузить изображение — просто пропускаем
-                    print(f"Не удалось вставить изображение: {img_err}")
+            mark = user_dict.get("Маркировка")
+            if drawing_url and len(workbook.worksheets) > 1 and mark:
+                search_mark = mark[0:5]
+                query = """
+                    SELECT file_path FROM product_drawing 
+                    WHERE product_id = :product_id 
+                    AND name = :name
+                """ 
+                params = {"product_id": product_id, "name": search_mark} 
+                # Следить чтобы маркировка в БД и маркировка кодовая была одинаковой в плане кириллицы или латиницы
+                stmt = await db.execute(text(query), params) 
+                request = stmt.scalar_one_or_none()
+                if request:
+                    try:
+                        with open(request, 'rb') as file:
+                        # response = requests.get(drawing_url, timeout=10)
+                        # response.raise_for_status()
+                            img = XLImage(file)
+                            
+                            # Якорь на ячейку A1 (или любую другую) второго листа
+                            img.anchor = 'A1'
+                            # Масштабируем, если нужно
+                            # img.width = 400
+                            # img.height = 300
+                            
+                            second_sheet = workbook.worksheets[1]
+                            second_sheet.add_image(img)
+                    except Exception as img_err:
+                        # Если не удалось загрузить изображение — просто пропускаем
+                        print(f"Не удалось вставить изображение: {img_err}")
+                else:
+                    print('Не найден файл по заданной маркировке')
 
             result_stream = BytesIO()
             workbook.save(result_stream)
