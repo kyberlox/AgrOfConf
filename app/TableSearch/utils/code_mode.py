@@ -1731,7 +1731,7 @@ class CodeParametr:
             return {"total_change" : selection_result} 
         mark = mark_info['response_value']
         search_mark = mark[0:6]
-        print(search_mark, 'че получили')
+        print(search_mark, 'че получили', ord(search_mark[0]))
         query = """
             SELECT file_url FROM product_drawing 
             WHERE product_id = :product_id 
