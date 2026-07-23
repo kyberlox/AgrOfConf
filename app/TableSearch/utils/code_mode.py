@@ -1737,6 +1737,7 @@ class CodeParametr:
             AND name = :name
         """ 
             # AND name = :name
+        print(search_mark, ord(search_mark[0]), 'получили')
         params = {"product_id": product_id, "name": search_mark} 
         # Следить чтобы маркировка в БД и маркировка кодовая была одинаковой в плане кириллицы или латиницы
         stmt = await db.execute(text(query), params) 
