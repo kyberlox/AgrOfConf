@@ -7,7 +7,8 @@ from uuid import uuid4
 from sqlalchemy import text
 
 from fastapi import APIRouter, HTTPException, UploadFile, Depends, File, Form
-from docxtpl import DocxTemplate
+from docxtpl import DocxTemplate, InlineImage
+from docx.shared import Mm 
 from fastapi.responses import StreamingResponse
 from openpyxl import load_workbook
 from pathlib import Path
@@ -25,6 +26,8 @@ from app.StatisticsService.router.selection_router import get_selection_router
 
 import requests
 from openpyxl.drawing.image import Image as XLImage
+from ..utils.kir_param_to_latin import KEY_MAPPING
+
 
 router = APIRouter(prefix="/tkp_generation", tags=["TKP"])
 
@@ -33,6 +36,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Настройки
 ALLOWED_EXTENSIONS = {".docx", ".xlsx"}
+
 
 
 def validate_file(file: UploadFile) -> None:
@@ -90,10 +94,32 @@ async def tkp_generation(
 
         user_dict = await convert_data(user_dict, stat_info)
         
+        mark = user_dict.get("Маркировка")
+        if mark:
+            search_mark = mark[0:5]
+            query = """
+                SELECT file_path FROM product_drawing 
+                WHERE product_id = :product_id 
+                AND name = :name
+            """ 
+            params = {"product_id": product_id, "name": search_mark} 
+            # Следить чтобы маркировка в БД и маркировка кодовая была одинаковой в плане кириллицы или латиницы
+            stmt = await db.execute(text(query), params) 
+            drawing_path = stmt.scalar_one_or_none()
+        else:
+            drawing_path = None
+
         if template_path.endswith(".docx"):
             doc = DocxTemplate(template_path)
 
-            doc.render(user_dict)
+            #Рендерим изображение
+            if drawing_path:
+                user_dict["Чертеж"] = InlineImage(doc, drawing_path, width=Mm(80)) 
+            
+            #Переводит на латиницу
+            new_user_dict = {KEY_MAPPING[param]: value for param, value in user_dict.items()}
+            print(new_user_dict)
+            doc.render(new_user_dict)
 
             result_stream = BytesIO()
             doc.save(result_stream)
@@ -133,47 +159,29 @@ async def tkp_generation(
                             cell.value = pattern.sub(replace_match, cell.value)
 
              # Вставка изображения "Чертеж" на второй лист
-            drawing_url = user_dict.get("Чертеж")
-            mark = user_dict.get("Маркировка")
-            if drawing_url and len(workbook.worksheets) > 1 and mark:
-                search_mark = mark[0:5]
-                query = """
-                    SELECT file_path FROM product_drawing 
-                    WHERE product_id = :product_id 
-                    AND name = :name
-                """ 
-                params = {"product_id": product_id, "name": search_mark} 
-                # Следить чтобы маркировка в БД и маркировка кодовая была одинаковой в плане кириллицы или латиницы
-                stmt = await db.execute(text(query), params) 
-                request = stmt.scalar_one_or_none()
-                if request:
-                    try:
-                        # with open(request, 'rb') as file:
-                         # Читаем файл в память ДО создания XLImage
-                        with open(request, 'rb') as file:
-                            image_data = BytesIO(file.read())
-                        
-                        # Теперь файл закрыт, но данные сохранены в BytesIO
-                        img = XLImage(image_data)
-                        max_width = 400
-                        max_height = 300
-                        if img.width > max_width or img.height > max_height:
-                            ratio = min(max_width / img.width, max_height / img.height)
-                            img.width = int(img.width * ratio)
-                            img.height = int(img.height * ratio)
-                        # Якорь на ячейку A1 второго листа
-                        img.anchor = 'A1'
-                        # Масштабируем, если нужно
-                        # img.width = 400
-                        # img.height = 300
-                        
-                        second_sheet = workbook.worksheets[1]
-                        second_sheet.add_image(img)
-                    except Exception as img_err:
-                        # Если не удалось загрузить изображение — просто пропускаем
-                        print(f"Не удалось вставить изображение: {img_err}")
-                else:
-                    print('Не найден файл по заданной маркировке')
+            
+            if len(workbook.worksheets) > 1 and drawing_path:
+                try:
+                    with open(drawing_path, 'rb') as file:
+                        image_data = BytesIO(file.read())
+                    
+                    # Теперь файл закрыт, но данные сохранены в BytesIO
+                    img = XLImage(image_data)
+                    max_width = 400
+                    max_height = 300
+                    if img.width > max_width or img.height > max_height:
+                        ratio = min(max_width / img.width, max_height / img.height)
+                        img.width = int(img.width * ratio)
+                        img.height = int(img.height * ratio)
+                    # Якорь на ячейку A1 второго листа
+                    img.anchor = 'A1'
+                    second_sheet = workbook.worksheets[1]
+                    second_sheet.add_image(img)
+                except Exception as img_err:
+                    # Если не удалось загрузить изображение — просто пропускаем
+                    print(f"Не удалось вставить изображение: {img_err}")
+            else:
+                print('Не найден файл по заданной маркировке')
 
             result_stream = BytesIO()
             workbook.save(result_stream)
