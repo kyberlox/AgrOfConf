@@ -95,7 +95,7 @@ async def tkp_generation(
         is_dump = await statistic_router.save_selection(stat_info)
         print(123)
         user_dict['id'] = is_dump.data['elastic_response'].get("_id")
-        print(123)
+        print(123, user_dict['id'])
         user_dict = await convert_data(user_dict, stat_info)
         print(123)
         mark = user_dict.get("Маркировка")
