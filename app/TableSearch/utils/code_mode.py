@@ -1732,7 +1732,7 @@ class CodeParametr:
         mark = mark_info['response_value']
         search_mark = mark[0:6]
         query = """
-            SELECT file_url FROM product_drawing 
+            SELECT * FROM product_drawing 
             WHERE product_id = :product_id 
         """ 
             # AND name = :name
