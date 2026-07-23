@@ -83,7 +83,7 @@ class CodeParametr:
         y = y1 + (x - x1) * (y2 - y1) / (x2 - x1)
         return y
 
-    async def make_mixture(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
+    async def make_mixture(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         """
         алгоритм подбора смеси
         """
@@ -679,7 +679,7 @@ class CodeParametr:
             # print(M, S)
             return (M, S)
 
-    async def raschet(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
+    async def raschet(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         from copy import deepcopy
         #Флаги
         force_open = None # "Устройство принудительного открытия"
@@ -1235,7 +1235,7 @@ class CodeParametr:
         res = self._set_params(res, counter_for_id, "Маркировка", response_value=total_mark, sort=counter_for_sort, param_type='raschet')
         
         # print(param_info, 'ЧТО ТЫ ТАКОЕ')
-        product_drawing = await self._find_param_print(mark, db, 10)  
+        product_drawing = await self._find_param_print(mark, db, product_id)  
 
         counter_for_id += 1
         counter_for_sort += 1
@@ -1283,7 +1283,7 @@ class CodeParametr:
         
         return request
 
-    async def mark_params(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
+    async def mark_params(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         """
         Параметры которые нужны для расчета:
         - Тип предохранительного клапана Пружинный или Пилотный (B/H) (valve_type)
@@ -1558,7 +1558,7 @@ class CodeParametr:
         # mark = select_formula_params.get("Маркировка")
         if mark:
             weight, painting_area = await self._get_by_mark(db, mark, DN, PN)
-            product_drawing = await self._find_param_print(mark, db, 10)
+            product_drawing = await self._find_param_print(mark, db, product_id)
         else:
             weight = None # "Маccа"
             painting_area = None # "Площадь под покраску"
@@ -1722,10 +1722,35 @@ class CodeParametr:
         # Класс герметичности 123123
         return {"total_change": total_res}
     
-    async def safety_valve_drawing(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
-        pass
+    async def get_price_drawing(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
+        """
+        Для прайс-листа выводит чертеж
+        """
+        mark_info = await self._get_param_by_name('Маркировка', selection_result)
+        if not mark_info:
+            return {"total_change" : selection_result} 
+        mark = mark_info['response_value']
+        search_mark = mark[0:6]
+        print(search_mark, 'че получили')
+        query = """
+            SELECT file_url FROM product_drawing 
+            WHERE product_id = :product_id 
+            AND name = :name
+        """
+        params = {"product_id": product_id, "name": search_mark}
+        # Следить чтобы маркировка в БД и маркировка кодовая была одинаковой в плане кириллицы или латиницы
+        stmt = await db.execute(text(query), params) 
+        request = stmt.scalar_one_or_none()
+        if not request:
+            return ""
+        sorted_params = sorted([item for item in selection_result if 'sort' in item], key=lambda x: x['sort'])
+        last_param = sorted_params[-1]
+        counter_for_id = last_param['id']
+        counter_for_sort = last_param['sort']
+        res = self._set_params(selection_result, counter_for_id, "Чертеж", response_value=HOST + request, sort=counter_for_sort, param_type='raschet')
+        return {"total_change" : res}
 
-    async def agent_contacts(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
+    async def agent_contacts(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         """
         Параметры для заполнения контактов агента:
         - Имя агента (agent_name)
