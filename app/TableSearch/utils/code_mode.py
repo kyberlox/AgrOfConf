@@ -20,6 +20,20 @@ HOST = os.getenv("HOST")
 #             return param
 #     #или None
 #     return None
+import time
+from functools import wraps
+
+def timer(func):
+    """Декоратор для замера времени выполнения функции"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print(f"{func.__name__} - {execution_time:.4f} сек.")
+        return result
+    return wrapper
 
 class CodeParametr:
 
@@ -83,6 +97,7 @@ class CodeParametr:
         y = y1 + (x - x1) * (y2 - y1) / (x2 - x1)
         return y
 
+    @timer
     async def make_mixture(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         """
         алгоритм подбора смеси
@@ -678,7 +693,7 @@ class CodeParametr:
                 S = request.s4
             # print(M, S)
             return (M, S)
-
+    @timer
     async def raschet(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         from copy import deepcopy
         #Флаги
@@ -1282,7 +1297,7 @@ class CodeParametr:
             return ""
         
         return request
-
+    @timer
     async def mark_params(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         """
         Параметры которые нужны для расчета:
@@ -1721,7 +1736,7 @@ class CodeParametr:
 
         # Класс герметичности 123123
         return {"total_change": total_res}
-    
+    @timer
     async def get_price_drawing(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         """
         Для прайс-листа выводит чертеж
@@ -1749,7 +1764,7 @@ class CodeParametr:
         counter_for_sort = last_param['sort']
         res = self._set_params(selection_result, counter_for_id, "Чертеж", response_value=HOST + request, sort=counter_for_sort, param_type='raschet')
         return {"total_change" : res}
-
+    @timer
     async def agent_contacts(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         """
         Параметры для заполнения контактов агента:
