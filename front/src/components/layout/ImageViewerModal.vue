@@ -1,8 +1,7 @@
 <template>
 <SlotModal>
     <div class="rounded-[16px] p-[15px] hover:bg-gray-50 hover:border-gray-500 max-w-[80vh] ">
-        <VueImageZoomer class="max-w-full max-h-full"
-                        :regular="imageSrc"
+        <VueImageZoomer :regular="imageSrc"
                         hover-message="Наведите для приближения" />
     </div>
 </SlotModal>

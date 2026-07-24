@@ -32,6 +32,7 @@
             </div>
             <EngineParams v-if="form.length"
                           :form="form"
+                          :paramsLoading="paramsLoading"
                           :type="neuroOlData ? 'free' : 'auto'"
                           :key="paramsRenderKey"
                           @valueChanged="(value: string, key: string) => handleValueChanged(value, key)" />
@@ -125,10 +126,17 @@ export default defineComponent({
         const newFileName = ref<string>();
         const configuratorStore = useConfiguratorStore();
         const freeConfigMode = computed(() => configuratorStore.getFreeModeConfig);
+        const userParams = ref<Record<string, string> | null>(null);
+        const paramsLoading = ref(false);
 
         let abortController: AbortController | null = null;
 
-        const paramsUpdate = async (body: Record<string, string> | null) => {
+        const paramsUpdate = (body: Record<string, string> | null) => {
+            userParams.value = body;
+        }
+
+        const paramsUpdateRequest = async (body: Record<string, string> | null = userParams.value) => {
+            paramsLoading.value = true;
             if (freeConfigMode.value && body !== null) {
                 return
             }
@@ -137,38 +145,40 @@ export default defineComponent({
             }
             abortController = new AbortController();
             const signal = abortController.signal;
-            const data = await Api.post(`/module_search/process_table_data?product_id=${props.id}`, body, {}, signal)
-            const errors: string[] = [];
-            let answeredCounter = 0;
-            let questionCounter = 0;
-            if (!data || !('parameters' in data) || !data.parameters.length) return
-            data.parameters.forEach((e: IFormattedData) => {
-                if ('error' in e && e.error) {
-                    errors.push(e.error)
+            try {
+                const data = await Api.post(`/module_search/process_table_data?product_id=${props.id}`, body, {}, signal)
+                const errors: string[] = [];
+                let answeredCounter = 0;
+                let questionCounter = 0;
+                if (!data || !('parameters' in data) || !data.parameters.length) return
+                data.parameters.forEach((e: IFormattedData) => {
+                    if ('error' in e && e.error) {
+                        errors.push(e.error)
+                    }
+                    if ('response_value' in e && e.response_value) {
+                        userInputs.value[e.name] = e.response_value
+                        answeredCounter++
+                    }
+                    questionCounter++
+                })
+                configuratorStore.setCalcParams(data.parameters.filter((e: IFormattedData) => e.required_type == 'raschet' && e.response_value));
+                configuratorStore.setCovered(Number(answeredCounter));
+                configuratorStore.setAllQuestions(Number(questionCounter));
+                if (errors.length) {
+                    configuratorStore.setError(errors)
                 }
-                if ('response_value' in e && e.response_value) {
-                    userInputs.value[e.name] = e.response_value
-                    answeredCounter++
-                }
-                questionCounter++
-            })
-            configuratorStore.setCalcParams(data.parameters.filter((e: IFormattedData) => e.required_type == 'raschet' && e.response_value));
-            configuratorStore.setCovered(Number(answeredCounter));
-            configuratorStore.setAllQuestions(Number(questionCounter));
-            if (errors.length) {
-                configuratorStore.setError(errors)
-            }
-            else configuratorStore.setDefaultError()
+                else configuratorStore.setDefaultError()
 
-            if (!(data && 'parameters' in data)) return
-            form.value = data.parameters
-            productName.value = data.product_name
+                if (!(data && 'parameters' in data)) return
+                form.value = data.parameters
+                productName.value = data.product_name
+            } finally {
+                paramsLoading.value = false
+            }
         }
 
         onMounted(async () => {
             tkpVariants.value = await getTkpVariants(props.id);
-            if (!Object.keys(neuroOlData.value).length)
-                paramsUpdate(null)
         })
 
         onUnmounted(() => {
@@ -216,6 +226,10 @@ export default defineComponent({
             configuratorStore.setFreeModeConfig(mode)
         }
 
+        watch(() => userParams.value, () => {
+            paramsUpdateRequest()
+        }, { immediate: true, deep: true })
+
         return {
             form,
             modalVisible,
@@ -228,6 +242,7 @@ export default defineComponent({
             olFormData,
             freeConfigMode,
             newFileName,
+            paramsLoading,
             handleValueChanged,
             handleDownloadTkp,
             handleFileUpload,

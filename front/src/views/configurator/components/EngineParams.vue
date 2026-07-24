@@ -1,76 +1,68 @@
 <template>
-<div class="flex flex-row justify-between items-center">
-    <div class="text-[16px] font-[600]">
-        Выберите параметры
-    </div>
-    <div class="flex flex-row gap-[4px] items-center">
-        <RequiredIcon />
-        <div>— обязательные поля</div>
-    </div>
-</div>
-<div class="border border-[#EAECEF] w-full h-[1px] col-span-full"></div>
-<div class="grid gap-[25px] items-end"
-     :class="`grid-cols-${gridCols}`">
-    <template v-for="(param, index) in renderData.filter(e => (e as IFormattedData).visibility && (e as IFormattedData).required_type !== 'raschet' && ((e as IFormattedData).required_type == 'select-input' ? (e as IFormattedData).all_values : true))"
-              :key="'formParam' + param.name">
-        <div v-if="param.name == 'sep' && index !== 0"
-             class="divider">
+<div>
+    <div class="flex flex-row justify-between items-center mb-[12px]">
+        <div class="text-[14px] font-[600] text-[#343B4C]">
+            Выберите параметры
         </div>
-        <!-- Смежный селект + инпут для сред -->
-        <SelectInput v-else-if="(param as IFormattedData).required_type == 'select-input'"
-                     :param="(param as IFormattedData)"
-                     @changeSelectInputValue="(value) => $emit('valueChanged', value, param.name)" />
-
-        <!-- свободный текстовый инпут -->
-        <BaseInput v-else-if="(param as IFormattedData).required_type == 'user_input'"
-                   :propsClass="'input-param'"
-                   :props-placeholder="'Впишите значение'"
-                   :propsName="param.name + (index + 1)"
-                   :props-label="param.name"
-                   :error="'error' in param ? param.error : ''"
-                   @valueChanged="(value: string | null) => $emit('valueChanged', value ?? '', param.name)" />
-
-        <!-- выпадающий список -->
-        <BaseSelect v-else-if="(param.name !== 'sep')"
-                    :propsLabel="param.name"
-                    :propsId="param.name"
-                    :propsClass="'paramsSelect'"
-                    :propsValue="(param as IFormattedData).response_value ? String((param as IFormattedData).response_value) : ''"
-                    :propsOptions="checkParams(param as IFormattedData)"
-                    :propsPlaceholder="!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param ? '' : 'Выберите значение'"
-                    :needReq="true"
-                    :labelIcon="createLabelIconsComponent(param as IFormattedData, () => console.log('testComp'))"
-                    :error="'error' in param ? param.error : ''"
-                    :errorIcon="AlertCircle"
-                    :disabled="((!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')) && type == 'auto'"
-                    @valueChanged="(value: string) => $emit('valueChanged', value, param.name)" />
-
-
-    </template>
+        <div class="flex flex-row gap-[4px] items-center text-[12px] text-[#8E99A8]">
+            <RequiredIcon />
+            <div>— обязательные поля</div>
+        </div>
+    </div>
+    <div class="border-t border-[#EAECEF] w-full max-w-full mb-[20px]"></div>
+    <!-- Группы параметров  -->
+    <MasonryWall v-if="Object.keys(testParamsWithGroups).length"
+                 :items="Object.keys(testParamsWithGroups)"
+                 :columnWidth="320"
+                 :gap="12">
+        <template #default="{ item }">
+            <div class="masonry-item rounded-[10px] p-[12px] border border-[#EAECEF] transition-all duration-200">
+                <!-- Заголовок группы -->
+                <div
+                     class="text-[13px] font-[600] text-[#5E697D] uppercase tracking-[0.03em] mb-[10px] pb-[8px] border-b border-[#EAECEF]">
+                    {{ item }}
+                </div>
+                <!-- Параметры группы -->
+                <EngineParamsGroup :items="getParamsGroup(testParamsWithGroups[item as keyof typeof testParamsWithGroups])
+                    .filter(paramsFilter)"
+                                   :gridCols="gridCols"
+                                   :paramsLoading="paramsLoading"
+                                   @valueChanged="(value, param) => $emit('valueChanged', value, param)" />
+            </div>
+        </template>
+    </MasonryWall>
+    <!-- Параметры скопом -->
+    <EngineParamsNoGroup v-else
+                         :form="form"
+                         :type="type"
+                         :paramsLoading="paramsLoading"
+                         @valueChanged="(value, param) => $emit('valueChanged', value, param)" />
 </div>
 </template>
-
 <script lang='ts'>
 import { defineComponent, computed } from 'vue';
 import ParamsHeaderIcons from './ParamsHeaderIcons.vue';
 import type { IFormattedData } from '@/assets/interfaces/IForm';
 import { createLabelIconsComponent } from '@/composables/createComponent';
-import AlertCircle from '@/assets/icons/AlertCircle.svg?component';
 import { useWindowSize } from '@vueuse/core'
 import RequiredIcon from '@/assets/icons/RequiredIcon.svg?component';
 import SelectInput from '@/components/SelectInput.vue';
 import { BaseInput, BaseSelect } from 'beans-ui-kit';
 import { screenMixins } from '@/assets/static/screenMixins';
-import { useConfiguratorStore } from '@/stores/configurator.ts';
+import EngineParamsGroup from './EngineParamsGroup.vue';
+import EngineParamsNoGroup from './EngineParamsNoGroup.vue';
+import { MasonryWall } from '@yeger/vue-masonry-wall'
 
 export default defineComponent({
     components: {
         BaseSelect,
         ParamsHeaderIcons,
-        AlertCircle,
         RequiredIcon,
+        EngineParamsGroup,
+        EngineParamsNoGroup,
         SelectInput,
         BaseInput,
+        MasonryWall
     },
     props: {
         form: {
@@ -80,65 +72,49 @@ export default defineComponent({
         type: {
             type: String,
             default: 'auto'
+        },
+        paramsLoading: {
+            type: Boolean,
+            defaul: false
         }
     },
     emits: ['valueChanged'],
     setup(props) {
         const { width } = useWindowSize();
-        const configurator = useConfiguratorStore();
-        const freeConfigMode = computed(() => configurator.getFreeModeConfig);
+        const gridCols = computed(() => width.value < screenMixins.xxl ? 1 : 2);
 
-        const gridCols = computed(() => width.value < screenMixins.md ? 1 : width.value < screenMixins.lg ? 2 : 4);
-        const renderData = computed(() => {
-            const rows: Array<IFormattedData | { name: string }> = [];
-            if (!props.form) return rows;
-            let count = 0;
-            props.form.forEach((e) => {
-                if (count < gridCols.value) {
-                    rows.push(e);
-                    count++;
-                }
-                else {
-                    rows.push({ name: 'sep' } as { name: string }, e)
-                    count = 1;
-                }
-            })
-            return rows
-        })
-
-        const checkParams = (param: IFormattedData) => {
-            switch (freeConfigMode.value) {
-                case true:
-                    return Array.from(param?.all_values) || []
-
-                case false:
-                    return Array.from((!('filtered_values' in param) || !param?.filtered_values) ?
-                        param?.all_values :
-                        param?.filtered_values || [])
-
-                default:
-                    return []
-            }
+        const testParamsWithGroups = {
+            // 'Паспортичка': ['ФИО Заказчика', 'Email Заказчика', 'Организация Заказчика', 'Проектная организация', 'Комментарий', 'Должность Заказчика', 'Адрес Заказчика'],
+            // 'Паспортичка2': ['ФИО Заказчика', 'Email Заказчика', 'Организация Заказчика', 'Проектная организация', 'Комментарий', 'Должность Заказчика', 'Адрес Заказчика'],
+            // 'Группа 2': ['ФИО Заказчика', 'Email Заказчика', 'Организация Заказчика', 'Проектная организация', 'Комментарий',],
+            // 'Группа 3': ['Температура рабочей среды максимальная, °C'],
+            // 'Группа 4': ['Температура рабочей среды максимальная, °C'],
         }
 
-        // const testParamsWithGroups = {
-        //     'Паспорт': ['ФИО Заказчика', 'Телефон Заказчика', 'Email Заказчика', 'Организация Заказчика', 'Проектная организация', 'Комментарий', 'Должность Заказчика', 'Адрес Заказчика'],
-        // }
-
-        // Object.keys(testParamsWithGroups).forEach(groupKey => {
-        //     testParamsWithGroups[groupKey as keyof typeof testParamsWithGroups].forEach(e => {
-        //         console.log(props?.form?.find(formEl => formEl.name == e))
-        //     })
-        // })
+        const getParamsGroup = (paramGroup: Array<string>) => {
+            const newGroup: IFormattedData[] = [];
+            paramGroup.forEach(nameInGroup => {
+                const target = props?.form?.find(e => e.name == nameInGroup);
+                if (target)
+                    newGroup.push(target)
+            })
+            return newGroup;
+        }
 
         return {
-            AlertCircle,
             gridCols,
-            renderData,
-            freeConfigMode,
+            screenMixins,
+            testParamsWithGroups,
+            getParamsGroup,
             createLabelIconsComponent,
-            checkParams,
+            paramsFilter: (e: IFormattedData) => e.visibility && e.required_type !== 'raschet' && (e.required_type == 'select-input' ? e.all_values : true)
         }
     }
 });
 </script>
+
+<style scoped>
+.masonry-item {
+    width: 100%;
+}
+</style>
