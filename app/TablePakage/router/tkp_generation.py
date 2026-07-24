@@ -123,7 +123,11 @@ async def tkp_generation(
                 user_dict["Чертеж"] = InlineImage(doc, drawing_path, width=Mm(120)) 
             
             #Переводит на латиницу
-            new_user_dict = {KEY_MAPPING[param]: value for param, value in user_dict.items()}
+            new_user_dict = dict()
+            for param, value in user_dict.items():
+                if KEY_MAPPING.get(param):
+                    new_user_dict[KEY_MAPPING[param]] = value
+            # new_user_dict = {KEY_MAPPING[param]: value for param, value in user_dict.items()}
             
             doc.render(new_user_dict)
 
@@ -149,6 +153,10 @@ async def tkp_generation(
             #                 for key, value in user_dict.items():
             #                     pattern = re.compile(r'\{\{\s*' + re.escape(key) + r'\s*\}\}')
             #                     cell.value = pattern.sub(str(value), cell.value)
+            new_user_dict = dict()
+            for param, value in user_dict.items():
+                if KEY_MAPPING.get(param):
+                    new_user_dict[KEY_MAPPING[param]] = value
             for sheet in workbook.worksheets:
                 for row in sheet.iter_rows():
                     for cell in row:
@@ -159,7 +167,7 @@ async def tkp_generation(
                             def replace_match(match):
                                 key = match.group(1).strip()
                                 # Если ключ есть в словаре - возвращаем значение, иначе - пустую строку
-                                return str(user_dict.get(key, ''))
+                                return str(new_user_dict.get(key, ''))
                             
                             # Заменяем все плейсхолдеры
                             cell.value = pattern.sub(replace_match, cell.value)
