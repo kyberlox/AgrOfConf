@@ -128,7 +128,7 @@ async def tkp_generation(
                 if KEY_MAPPING.get(param):
                     new_user_dict[KEY_MAPPING[param]] = value
             # new_user_dict = {KEY_MAPPING[param]: value for param, value in user_dict.items()}
-            
+            print(new_user_dict.get('cover_cap_bushing_material'), user_dict.get('Материал крышки, колпака и направляющей втулки'))
             doc.render(new_user_dict)
 
             result_stream = BytesIO()
