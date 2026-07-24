@@ -52,8 +52,8 @@ splitting = {
 
 
 
-router = APIRouter(prefix="/blokcs", tags=[""])
+router = APIRouter(prefix="/blocks", tags=[""])
 
-@router.get("/get_by_product{ID}")
+@router.get("/by_product/{ID}")
 async def get_by_product(ID: str):
     return splitting[ID]
