@@ -48,7 +48,7 @@ def validate_file(file: UploadFile) -> None:
 async def convert_data(user_dict: dict, db_info: dict) -> dict:
     data = datetime.strptime(db_info['date_search'], "%d.%m.%Y %H:%M:%S")
     user_dict['дата'] = data.strftime("%d.%m.%Y")
-    user_dict['номер_запроса'] = user_dict['id']
+    user_dict['ТКС'] = user_dict['id']
     user_dict['адрес_исполнителя'] = db_info['user_work_city']
     user_dict['телефон_исполнителя'] = db_info['user_work_phone']
     user_dict['email_исполнителя'] = db_info['user_email']

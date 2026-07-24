@@ -49,7 +49,7 @@ KEY_MAPPING = {
     "Испытания": "tests",
     "Покраска": "painting",
     "Устройство принудительного открытия": "forced_opening_device",
-    "painting": "has_cof",
+    "Наличие КОФ": "has_cof",
     "Наличие ЗИП": "has_spare_parts",  # Оставлен для совместимости, если понадобится
     
     # Цены
@@ -58,7 +58,7 @@ KEY_MAPPING = {
     
     # Параметры исполнителя
     "дата": "date",
-    "номер_запроса": "request_number",
+    "номер_запроса": "tks_num", #ТКС исправить
     "адрес_исполнителя": "executor_address",
     "телефон_исполнителя": "executor_phone",
     "email_исполнителя": "executor_email",
