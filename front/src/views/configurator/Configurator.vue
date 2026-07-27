@@ -142,9 +142,12 @@ export default defineComponent({
         }
 
         watchDebounced(() => userInputs.value, async () => {
-            console.log(userInputs.value)
-            if (userInputs.value)
-                paramsUpdateRequest(userInputs.value)
+            (Object.keys(userInputs.value).forEach(key => {
+                const formTarget = form.value.find(formEl => formEl.name == key)
+                if (!formTarget?.response_value || userInputs.value[key] !== formTarget?.response_value) {
+                    paramsUpdateRequest(userInputs.value)
+                }
+            }))
         }, { debounce: 1000, maxWait: 5000, deep: true })
 
 
@@ -165,6 +168,9 @@ export default defineComponent({
                 let questionCounter = 0;
                 if (!data || !('parameters' in data) || !data.parameters.length) return
                 data.parameters.forEach((e: IFormattedData) => {
+                    if (e.name == 'Маркировка' && e.response_value) {
+                        configuratorStore.setMark(e.response_value)
+                    }
                     if ('error' in e && e.error) {
                         errors.push(e.error)
                     }
@@ -211,9 +217,7 @@ export default defineComponent({
         })
 
         const handleValueChanged = (value: string, key: keyof typeof userInputs.value) => {
-            if (key == 'Маркировка') {
-                configuratorStore.setMark(value)
-            }
+
             if (value && userInputs.value[key] !== value) {
                 userInputs.value[key] = value;
                 paramsUpdate(userInputs.value)
