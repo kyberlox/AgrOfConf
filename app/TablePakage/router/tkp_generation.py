@@ -48,7 +48,7 @@ def validate_file(file: UploadFile) -> None:
 async def convert_data(user_dict: dict, db_info: dict) -> dict:
     data = datetime.strptime(db_info['date_search'], "%d.%m.%Y %H:%M:%S")
     user_dict['дата'] = data.strftime("%d.%m.%Y")
-    user_dict['номер_запроса'] = user_dict['id']
+    user_dict['ТКС'] = user_dict['id']
     user_dict['адрес_исполнителя'] = db_info['user_work_city']
     user_dict['телефон_исполнителя'] = db_info['user_work_phone']
     user_dict['email_исполнителя'] = db_info['user_email']
@@ -64,6 +64,7 @@ async def convert_data(user_dict: dict, db_info: dict) -> dict:
 async def tkp_generation(
         file_id: int,
         product_id: int,
+        ol_filename: Optional[str],
         user_dict: dict,
         db: AsyncSession = Depends(get_db),
         user_id: Optional[int] = Depends(get_user_id_by_session_id),
@@ -120,7 +121,7 @@ async def tkp_generation(
             
             #Рендерим изображение
             if drawing_path:
-                user_dict["Чертеж"] = InlineImage(doc, drawing_path, width=Mm(120)) 
+                user_dict["Чертеж"] = InlineImage(doc, drawing_path, width=Mm(140)) 
             
             #Переводит на латиницу
             new_user_dict = dict()
@@ -128,7 +129,7 @@ async def tkp_generation(
                 if KEY_MAPPING.get(param):
                     new_user_dict[KEY_MAPPING[param]] = value
             # new_user_dict = {KEY_MAPPING[param]: value for param, value in user_dict.items()}
-            
+            # print(new_user_dict.get('cover_cap_bushing_material'), user_dict.get('Материал крышки, колпака и направляющей втулки'))
             doc.render(new_user_dict)
 
             result_stream = BytesIO()
@@ -174,28 +175,28 @@ async def tkp_generation(
 
              # Вставка изображения "Чертеж" на второй лист
             
-            if len(workbook.worksheets) > 1 and drawing_path:
-                try:
-                    with open(drawing_path, 'rb') as file:
-                        image_data = BytesIO(file.read())
+            # if len(workbook.worksheets) > 1 and drawing_path:
+            #     try:
+            #         with open(drawing_path, 'rb') as file:
+            #             image_data = BytesIO(file.read())
                     
-                    # Теперь файл закрыт, но данные сохранены в BytesIO
-                    img = XLImage(image_data)
-                    max_width = 400
-                    max_height = 300
-                    if img.width > max_width or img.height > max_height:
-                        ratio = min(max_width / img.width, max_height / img.height)
-                        img.width = int(img.width * ratio)
-                        img.height = int(img.height * ratio)
-                    # Якорь на ячейку A1 второго листа
-                    img.anchor = 'A1'
-                    second_sheet = workbook.worksheets[1]
-                    second_sheet.add_image(img)
-                except Exception as img_err:
-                    # Если не удалось загрузить изображение — просто пропускаем
-                    print(f"Не удалось вставить изображение: {img_err}")
-            else:
-                print('Не найден файл по заданной маркировке')
+            #         # Теперь файл закрыт, но данные сохранены в BytesIO
+            #         img = XLImage(image_data)
+            #         max_width = 400
+            #         max_height = 300
+            #         if img.width > max_width or img.height > max_height:
+            #             ratio = min(max_width / img.width, max_height / img.height)
+            #             img.width = int(img.width * ratio)
+            #             img.height = int(img.height * ratio)
+            #         # Якорь на ячейку A1 второго листа
+            #         img.anchor = 'A1'
+            #         second_sheet = workbook.worksheets[1]
+            #         second_sheet.add_image(img)
+            #     except Exception as img_err:
+            #         # Если не удалось загрузить изображение — просто пропускаем
+            #         print(f"Не удалось вставить изображение: {img_err}")
+            # else:
+            #     print('Не найден файл по заданной маркировке')
             filename = f"TKP_{to_sql_name_lat(user_dict['ФИО Заказчика'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
             result_stream = BytesIO()
             workbook.save(result_stream)
