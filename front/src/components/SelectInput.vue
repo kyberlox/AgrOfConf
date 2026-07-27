@@ -2,7 +2,7 @@
 <div v-for="(item, index) in inputsCount"
      class="flex flex-col gap-[24px] col-span-full w-full">
     <div class="flex flex-row justify-between w-full gap-[8px]">
-        <BaseSelect :propsClass="'paramsSelect'"
+        <BaseSelect :propsClass="'select-params'"
                     :props-options="param.all_values"
                     :props-label="'Компонент'"
                     :props-placeholder="'Выберите компонент'"

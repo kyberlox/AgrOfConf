@@ -26,7 +26,7 @@
         <BaseSelect v-else-if="(param.name !== 'sep')"
                     :propsLabel="param.name"
                     :propsId="param.name"
-                    :propsClass="'paramsSelect'"
+                    :propsClass="'select-params'"
                     :propsValue="(param as IFormattedData).response_value ? String((param as IFormattedData).response_value) : ''"
                     :propsOptions="checkParams(param as IFormattedData)"
                     :propsPlaceholder="!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param ? '' : 'Выберите значение'"

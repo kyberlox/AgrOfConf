@@ -1,0 +1,11 @@
+/* Для комбинации инпут + селект */
+.input-select {
+  @apply p-[16px] flex flex-row gap-[8px] font-[400] text-[16px] rounded-[8px] bg-[#F6F7F9] outline-0 w-full min-h-[54px];
+}
+.input-select__wrapper {
+  @apply flex flex-col gap-[6px] w-[150px];
+}
+
+.input-select__label {
+  @apply text-[13px] font-[600] flex flex-row justify-between gap-[4px];
+}

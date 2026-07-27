@@ -36,7 +36,7 @@
                           :paramsLoading="freeConfigMode ? false : paramsLoading"
                           :type="freeConfigMode ? 'free' : 'auto'"
                           :key="paramsRenderKey"
-                          :userParams="userParams"
+                          :userParams="userInputs"
                           @valueChanged="(value: string, key: string) => handleValueChanged(value, key)" />
             <div v-else
                  class="engine-params__loader">
@@ -129,7 +129,6 @@ export default defineComponent({
         const newFileName = ref<string>();
         const configuratorStore = useConfiguratorStore();
         const freeConfigMode = computed(() => configuratorStore.getFreeModeConfig);
-        const userParams = ref<Record<string, string>>();
         const paramsLoading = ref(false);
         const paramsGroups = ref<Record<string, Array<string>>>();
         let abortController: AbortController | null = null;
@@ -137,28 +136,29 @@ export default defineComponent({
         const paramsUpdate = (body: Record<string, string> | null) => {
             if (!body) {
                 paramsUpdateRequest()
-            } else
-                userParams.value = body;
+            } else {
+                userInputs.value = body;
+            }
         }
 
-        watchDebounced(() => userParams.value, async () => {
-            // console.log(userParams.value)
-            if (userParams.value)
-                paramsUpdateRequest(userParams.value)
-        }, { debounce: 1000, maxWait: 1000, deep: true })
+        watchDebounced(() => userInputs.value, async () => {
+            console.log(userInputs.value)
+            if (userInputs.value)
+                paramsUpdateRequest(userInputs.value)
+        }, { debounce: 1000, maxWait: 5000, deep: true })
 
 
         const paramsUpdateRequest = async (body: Record<string, string> = {}) => {
-            if (freeConfigMode.value && body !== null) {
+            if (freeConfigMode.value && Object.keys(body).length) {
                 return
             }
-            paramsLoading.value = true;
             if (abortController) {
                 abortController.abort();
             }
             abortController = new AbortController();
             const signal = abortController.signal;
             try {
+                paramsLoading.value = true;
                 const data = await Api.post(`/module_search/process_table_data?product_id=${props.id}`, body, {}, signal)
                 const errors: string[] = [];
                 let answeredCounter = 0;
@@ -214,7 +214,7 @@ export default defineComponent({
             if (key == 'Маркировка') {
                 configuratorStore.setMark(value)
             }
-            if (value) {
+            if (value && userInputs.value[key] !== value) {
                 userInputs.value[key] = value;
                 paramsUpdate(userInputs.value)
             }
@@ -259,7 +259,7 @@ export default defineComponent({
             newFileName,
             paramsLoading,
             paramsGroups,
-            userParams,
+            userInputs,
             handleValueChanged,
             handleDownloadTkp,
             handleFileUpload,
