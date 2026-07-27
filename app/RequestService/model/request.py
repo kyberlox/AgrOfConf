@@ -25,18 +25,16 @@ class Request(Base):
     edited_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
     dispatched_at = Column(DateTime(timezone=True), nullable=True)
     construction_project = Column(Text, nullable=True)
-    tkp_term = Column(DateTime(timezone=True), nullable=True)
-    delivery_time = Column(DateTime(timezone=True), nullable=True)
+    tkp_term = Column(String, nullable=True)
+    delivery_time = Column(String, nullable=True)
     procedure_type = Column(String, nullable=False)
     selection_ids = Column(JSON, nullable=True)
-    user_id = Column(Integer, ForeignKey("requests.user_id", ondelete="RESTRICT"),
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="RESTRICT"),
                      nullable=False)  # Связь через внешний ключ
     visibility = Column(Boolean, default=True)  # Видимость для пользователя
     field_of_view = Column(JSON, default=dict)  # Хранение JSON: {"admin": true, "user": false}
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)  # Связь через внешний ключ
+
 
     # Связь
     customer = relationship("Customer", foreign_keys=[customer_id], back_populates="customer_requests")
     organization = relationship("Customer", foreign_keys=[organization_id], back_populates="organization_requests")
-    user = relationship("User")
-    product = relationship("Product")
