@@ -65,4 +65,4 @@ router = APIRouter(prefix="/blocks", tags=[""])
 
 @router.get("/by_product/{ID}")
 async def get_by_product(ID: str):
-    return splitting.get[ID]
+    return splitting.get(ID)
