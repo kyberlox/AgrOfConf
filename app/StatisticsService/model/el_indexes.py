@@ -132,7 +132,7 @@ def create_selection_index():
             ]
         }
     }
-
+    
     if not es.indices.exists(index=SELECTION_INDEX):
         # Создаём альтернативный анализатор для partial match (опционально)
         es.indices.create(
@@ -202,7 +202,7 @@ def create_recognition_index():
               "user_department": {"type": "keyword"},  # "Отдел WEB-маркетинга"
               "user_work_city": {"type": "keyword"},  # "Саратов"
               "user_work_phone": {"type": "keyword"},  # телефон может содержать '5219' или "+7 (999) 123-45-67"
-
+              "ol_filename": {"type": "keyword"}, 
               # --- Доп. поля для полнотекстового поиска ---
               # "full_text": {
               #     "type": "text",

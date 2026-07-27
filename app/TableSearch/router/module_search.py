@@ -333,9 +333,11 @@ async def get_available_values_for_param(
             break
 
     if target_column is None or not row:
-        return []
+        return None#[]
 
-    values = row[target_column] or []
+    values = row[target_column] or None#[]
+    if not values:
+        return None
 
     return sorted(
         {str(value) for value in values},
@@ -435,7 +437,7 @@ async def process_table_data(
                 "sort": item["sort"],
             })
         formula_params = await search_formula(db, response_params, table_name_params=list(tables_map.keys()),
-                                              column_to_param=all_column_to_param)
+                                              column_to_param=all_column_to_param, product_id=product_id)
 
         response_params = sorted(
             formula_params,
@@ -621,15 +623,16 @@ async def process_table_data(
             filtered_value = error_filtered_values.get((table_name, name))
 
             if filtered_value is None:
-                filtered_value = all_values or []
+                filtered_value = all_values or None#[]
 
         # После первой ошибки в ТОЙ ЖЕ ТАБЛИЦЕ незаполненные параметры пока недоступны
         elif is_after_error and not is_selected:
-            filtered_value = []
+            # ТУТ ПРОБЛЕМА, не понятно из-за чего возникла ошибка
+            filtered_value = None#[]
 
         # Обычный fallback применяется только до ошибки
         elif filtered_value is None:
-            filtered_value = all_values or []
+            filtered_value = all_values or None#[]
 
         response_value = None
 
@@ -669,19 +672,23 @@ async def process_table_data(
             param_info["error"] = error_item["error"]
 
         response_params.append(param_info)
-
+    time_before_fromula = time.perf_counter()
+    
     formula_params = await search_formula(
         db,
         response_params,
         table_name_params=list(tables_map.keys()),
         select_formula_params=selected_params,
-        column_to_param=all_column_to_param
+        column_to_param=all_column_to_param, 
+        product_id=product_id
     )
-
+    # print(formula_params, 'че получили')
     response_params = sorted(
         formula_params,
         key=lambda param: param.get("sort") or param["id"]
     )
+    time_after_formula = time.perf_counter() - time_before_fromula
+    print(f'Время формульного подбора {time_after_formula}, Время табличного подбора: {time_before_fromula - start_time}')
     # total_res = [param for param in response_params if ]
     return {
         "product_id": product_id,

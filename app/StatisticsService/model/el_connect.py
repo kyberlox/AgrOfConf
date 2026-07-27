@@ -10,7 +10,7 @@ pswd = os.getenv('pswd')
 
 def create_elastic_client():
     max_retries = 5
-    retry_delay = 15
+    retry_delay = 30
     
     for i in range(max_retries):
         try:

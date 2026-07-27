@@ -4,6 +4,10 @@ from math import sqrt
 from app.TablePakage.utils.router_utils import to_sql_name_lat, to_sql_name_kir
 from math import sqrt, log, exp, pi, log10
 import math
+import os 
+from dotenv import load_dotenv
+load_dotenv()
+HOST = os.getenv("HOST")
 #функция выводит значение параметра по названию
 # def get_param_by_name(param_name, selection_result):
 #     #найти параметр
@@ -16,6 +20,20 @@ import math
 #             return param
 #     #или None
 #     return None
+import time
+from functools import wraps
+
+def timer(func):
+    """Декоратор для замера времени выполнения функции"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print(f"{func.__name__} - {execution_time:.4f} сек.")
+        return result
+    return wrapper
 
 class CodeParametr:
 
@@ -79,7 +97,8 @@ class CodeParametr:
         y = y1 + (x - x1) * (y2 - y1) / (x2 - x1)
         return y
 
-    async def make_mixture(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
+    @timer
+    async def make_mixture(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         """
         алгоритм подбора смеси
         """
@@ -102,34 +121,38 @@ class CodeParametr:
         got_type = False
         got_T = False
 
+        counter_for_id = param_info.id
+        counter_for_sort = 1
         # поиск смеси среди выбранных значений
         if select_formula_params != []:
             for param_name, value in select_formula_params.items():
                 if param_name == "Смесь":
                     naydeno = True
                     if value == "Да":
-                        res = self._set_params(res, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Да", sort=1)
+                        res = self._set_params(res, counter_for_id, "Смесь", param_description=param_info.description, all_values=["Да", "Нет"], response_value="Да", sort=counter_for_sort)
                         is_mixture = True
 
                     elif value == "Нет":
-                        res = self._set_params(selection_result, param_info.id, param_info.name, param_description=param_info.description, all_values=["Да", "Нет"], response_value="Нет", sort=1)
+                        res = self._set_params(selection_result, counter_for_id, "Смесь", param_description=param_info.description, all_values=["Да", "Нет"], response_value="Нет", sort=counter_for_sort)
                         
         if not naydeno:
             res = self._set_params(res, 1, "Смесь", all_values=["Да", "Нет"], sort=1)
         
         if is_mixture:
+            counter_for_id += 1
+            counter_for_sort += 1
             #список ВСЕХ сред
             param = self._get_param_by_name("Название рабочей среды", selection_result)
             all_values = param["all_values"]
-            envs_param = [value for param_name, value in select_formula_params.items() if param_name == "Состав смеси"]
+            envs_param = select_formula_params.get("Состав смеси")
             
             if not envs_param:
                 description = "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)"
-                res = self._set_params(res, param_info.id, "Состав смеси", param_description=description, all_values=all_values, sort=2, param_type="select-input")
+                res = self._set_params(res, counter_for_id, "Состав смеси", param_description=description, all_values=all_values, sort=counter_for_sort, param_type="select-input")
 
             elif envs_param:
                 #проверить правильность
-                envs = envs_param[0]
+                envs = envs_param
                 #сумма мольных долей
                 r_sum = sum(list(env.values())[0] for env in envs)
                 
@@ -137,83 +160,113 @@ class CodeParametr:
                 if envs == [] or len(envs) == 1:
                     description = "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)"
                     error = "Смесь не может состоять менее чем из двух сред!"
-                    res = self._set_params(res, param_info.id, "Состав смеси", param_description=description, all_values=all_values, sort=2, param_type="select-input", response_value=envs, error=error)
+                    res = self._set_params(res, counter_for_id, "Состав смеси", param_description=description, all_values=all_values, sort=counter_for_sort, param_type="select-input", response_value=envs, error=error)
 
                 #праивльная ли сумма их долей?
                 elif r_sum != 100:
                     description = "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)"
                     error = f"Сумма мольных долей сред смеси должна составлять 100%, а не {r_sum}%"
-                    res = self._set_params(res, param_info.id, "Состав смеси", param_description=description, all_values=all_values, sort=2, param_type="select-input", response_value=envs, error=error)
+                    res = self._set_params(res, counter_for_id, "Состав смеси", param_description=description, all_values=all_values, sort=counter_for_sort, param_type="select-input", response_value=envs, error=error)
                 
                 #если всё правильно
                 else:
                     description = "Нужно выбрать состав смеси из списка доступных сред и указать их мольные доли (%)"
-                    res = self._set_params(res, param_info.id, "Состав смеси", param_description=description, all_values=all_values, sort=2, param_type="select-input", response_value=envs)
+                    res = self._set_params(res, counter_for_id, "Состав смеси", param_description=description, all_values=all_values, sort=counter_for_sort, param_type="select-input", response_value=envs)
                     got_envs = True
 
+        #Если это не смесь
+        elif naydeno and is_mixture is False:
+            envs = select_formula_params.get("Название рабочей среды")
+            if envs:
+                # got_envs = True
+                got_type = True
+                # got_climate = True
         #климатика
         if got_envs:
+            counter_for_id += 1
+            counter_for_sort += 1
             #список ВСЕХ климатик
-            climate = self._get_param_by_name("Климатическое исполнение по ГОСТ 15150-69", selection_result)['all_values']
-            type_param = [value for param_name, value in select_formula_params.items() if param_name == "Климатическое исполнение по ГОСТ 15150-69"]
-            
-            climate_values = type_param[0] if type_param else None # is not None
-            #если нет
-            if climate_values is None:
-                res = self._set_params(res, param_info.id, "Климатическое исполнение по ГОСТ 15150-69", all_values=climate, sort=3)
+            is_climate = self._get_param_by_name("Климатическое исполнение по ГОСТ 15150-69", selection_result)
+            error_climate = None 
+            climate = None
+            if not is_climate:
+                error_climate = "Невозможно подобрать климатическое исполнение для таких сред"
             else:
-                res = self._set_params(res, param_info.id, "Климатическое исполнение по ГОСТ 15150-69", all_values=climate, sort=3, response_value=climate_values)
+                climate = is_climate['all_values']
+            type_param = select_formula_params.get("Климатическое исполнение по ГОСТ 15150-69")
+            
+            climate_values = type_param
+            #если нет
+            if climate_values is None and climate:
+                res = self._set_params(res, counter_for_id, "Климатическое исполнение по ГОСТ 15150-69", all_values=climate, sort=counter_for_sort)
+            elif not climate:
+                res = self._set_params(res, counter_for_id, "Климатическое исполнение по ГОСТ 15150-69", all_values=[], sort=counter_for_sort, error=error_climate)
+            else:
+                res = self._set_params(res, counter_for_id, "Климатическое исполнение по ГОСТ 15150-69", all_values=climate, sort=counter_for_sort, response_value=climate_values)
                 got_climate = True
-
+        
         #Тип клапана
+        # type_val = None
         if got_climate:
+            counter_for_id += 1
+            counter_for_sort += 1
             #список ВСЕХ климатик
             all_type_names = self._get_param_by_name("Тип клапана", selection_result)["all_values"]
             # type_param = self._get_param_by_name("Тип предохранительного клапана", select_formula_params)
-            type_param = [value for param_name, value in select_formula_params.items() if param_name == "Тип клапана"]
+            type_param = select_formula_params.get("Тип клапана")
             
-            type_val = type_param[0] if type_param else None # is not None
+            type_val = type_param # is not None
 
             #если нет
             if type_val is None:
-                res = self._set_params(res, param_info.id, "Тип клапана", all_values=all_type_names, sort=4)
+                res = self._set_params(res, counter_for_id, "Тип клапана", all_values=all_type_names, sort=counter_for_sort)
 
             #валидация нужна
             elif type_val not in all_type_names:
                 error = "Надо выбрать один из предложеннных вариантов"
-                res = self._set_params(res, param_info.id, "Тип клапана", all_values=all_type_names, sort=4, error=error, response_value=type_val)
+                res = self._set_params(res, counter_for_id, "Тип клапана", all_values=all_type_names, sort=counter_for_sort, error=error, response_value=type_val)
 
             else:
-                res = self._set_params(res, param_info.id, "Тип клапана", all_values=all_type_names, sort=4, response_value=type_val)
+                res = self._set_params(res, counter_for_id, "Тип клапана", all_values=all_type_names, sort=counter_for_sort, response_value=type_val)
                 got_type = True
         
         #Температура
         if got_type:
+            counter_for_id += 1
+            counter_for_sort += 1
             # задана пользователем?
             # T_param  = self._get_param_by_name("Температура рабочей среды", select_formula_params)
-            T_param  = [value for param_name, value in select_formula_params.items() if param_name == "Температура рабочей среды"]
-            T = int(T_param[0]) if T_param else None
+            T_param  = select_formula_params.get("Температура рабочей среды")
+            T = int(T_param) if T_param else None
 
             description = "Ввведите значение температуры рабочей среды (°C)"
             required_type = "user_input"
             response_value = T
+
+            type_param = select_formula_params.get("Тип клапана")
             
+            type_val = type_param
             #если нет
             if T is None:
-                res = self._set_params(res, param_info.id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=5, param_type=required_type)
-            
-            #валидировать:
-            elif (type_val == "Пружинный (В)" and (T < -60 or T > 600) ) or (type_val == "Пилотный (П)" and (T < -60 or T > 250) ):
-                error = "Температура должна быть в диапазоне от -60°С до 600°С для пружинных и от -60°С до 250°С для пилотных клапанов"
-                res = self._set_params(res, param_info.id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=5, param_type=required_type, response_value=response_value, error=error)
-            
+                res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, sort=counter_for_sort, param_type=required_type) #all_values=all_type_names, 
             else:
-                res = self._set_params(res, param_info.id, "Температура рабочей среды", param_description=description, all_values=all_type_names, sort=5, param_type=required_type, response_value=response_value)
-
-                got_T = True
-
+                if type_val:
+                    #валидировать:
+                    if (type_val == "Пружинный (В)" and (T < -60 or T > 600) ) or (type_val == "Пилотный (П)" and (T < -60 or T > 250) ):
+                        error = "Температура должна быть в диапазоне от -60°С до 600°С для пружинных и от -60°С до 250°С для пилотных клапанов"
+                        res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, sort=counter_for_sort, param_type=required_type, response_value=response_value, error=error) #all_values=all_type_names, 
+                    
+                    else:
+                        res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, sort=counter_for_sort, param_type=required_type, response_value=response_value) #all_values=all_type_names, 
+                        got_T = True
+                else:
+                    error = "Заполните Тип клапана"
+                    res = self._set_params(res, counter_for_id, "Температура рабочей среды", param_description=description, sort=counter_for_sort, param_type=required_type, response_value=response_value, error=error) #all_values=all_type_names, 
+                    
         ################# РАСЧЕТ #################
         if got_T:
+            counter_for_id += 1
+            counter_for_sort += 1
             #ключи === названия колонок БД
             searching_table_name = "pktable_1"
 
@@ -252,10 +305,48 @@ class CodeParametr:
 
             # env_name_colunm = env_keys["name"]
             env_name_colunm = "nazvanie_rabochej_sredy"
+            if isinstance(envs, list):
+                for env in envs:
+                    env_name = list(env.keys())[0]
+                    r = env[env_name] / 100
+                    ###################### собрать sql запрос ##############################
+                    env_params_sql = "SELECT "
+                    # for keys in env_keys.keys():
+                    for colunm_name in env_keys:
+                        # colunm_name = env_keys[keys]
+                        env_params_sql += colunm_name + ", "
+                    env_params_sql = env_params_sql[:-2]
+                    env_params_sql += f" FROM {searching_table_name} WHERE {env_name_colunm} = \'{env_name}\';"
+                    # print(env_params_sql)
+                    sql_result = await db.execute( text(env_params_sql) )
+                    env_result = sql_result.mappings().first() 
+                    if not env_result:
+                        continue
+                    # print(env_result, "ЧЕ получили перед ошибкой")
+                    ###################### обработать его в json ###########################
+                    env_json = {
+                        "name" : env_result.nazvanie_rabochej_sredy,
+                        "r" : r,
+                        "environment" : env_result.agregatnoe_sostojanie,
+                        "molekuljarnaja_massa" : env_result.molekuljarnaja_massa,
+                        "plotnost_zhidkosti" : env_result.plotnost_zhidkosti,
+                        "material" : env_result.material,
+                        "vjazkost_pa_s" : env_result.vjazkost_pa_s,
+                        "isobaric_capacity" : env_result.udel_naja_izobarnaja_teploemkost_kdzh_kg_k,
+                        "moljarnaja_massa" : env_result.moljarnaja_massa,
+                        "isochoric_capacity" : env_result.udel_naja_izohornaja_teploemkost_kdzh_kg_k,
+                        "pokazatel_adiabaty" : env_result.pokazatel_adiabaty,
+                        "compressibility_factor" : env_result.faktor_szhimaemosti,
+                    }
+                    #возможные типы состава сред
+                    env_type.add(env_json["environment"])
 
-            for env in envs:
-                env_name = list(env.keys())[0]
-                r = env[env_name] / 100
+                    #значения для ключей среды
+                    envs_json.append(env_json)
+            #Если это не смесь
+            elif isinstance(envs, str):
+                env_name = envs
+                r = 1
                 ###################### собрать sql запрос ##############################
                 env_params_sql = "SELECT "
                 # for keys in env_keys.keys():
@@ -266,10 +357,9 @@ class CodeParametr:
                 env_params_sql += f" FROM {searching_table_name} WHERE {env_name_colunm} = \'{env_name}\';"
                 # print(env_params_sql)
                 sql_result = await db.execute( text(env_params_sql) )
-                env_result = sql_result.mappings().first()
+                env_result = sql_result.mappings().first() 
                 if not env_result:
-                    continue
-                # print(env_result, "ЧЕ получили перед ошибкой")
+                    print(env_result, "ЧЕ получили перед ошибкой, строка 333")
                 ###################### обработать его в json ###########################
                 env_json = {
                     "name" : env_result.nazvanie_rabochej_sredy,
@@ -290,6 +380,7 @@ class CodeParametr:
 
                 #значения для ключей среды
                 envs_json.append(env_json)
+
 
             result = {
                 "nazvanie_rabochej_sredy" : "",
@@ -317,10 +408,10 @@ class CodeParametr:
                     for env in envs_json:
                         r = env["r"]
                         result["nazvanie_rabochej_sredy"] += f"{env['name']}:{r}% " 
-                        result["molekuljarnaja_massa"] += float(env["molecular_weight"]) * r
-                        ch_den += float(env["density"]) * r
+                        result["molekuljarnaja_massa"] += float(env["molekuljarnaja_massa"]) * r
+                        ch_den += float(env["plotnost_zhidkosti"]) * r
                         zn_den += r
-                        pre_viscosity += log10(float(env["viscosity"])) * r
+                        pre_viscosity += log10(float(env["vjazkost_pa_s"])) * r
 
 
                     result["plotnost_zhidkosti"] = ch_den/zn_den
@@ -341,7 +432,7 @@ class CodeParametr:
                         viscosity_сh += u_i * r * sqrt(M_i)
                         viscosity_zn += r * sqrt(M_i)
                         adiabatic_index += float(env['pokazatel_adiabaty']) * r
-
+                        #!!!!! env['pokazatel_adiabaty'] приходит 46113, а должен 1.4
                         # плотность при н.у.
                         result["plotnost_zhidkosti"] += (M_i * r)
                     result["moljarnaja_massa"] = pre_M #/100
@@ -356,22 +447,22 @@ class CodeParametr:
                 density_zn = 0
                 pre_u = 0
                 for env in envs_json:
-
+                    # print(env, "че такое?")
                     r = env["r"]
                     result["nazvanie_rabochej_sredy"] += f"{env['name']}:{r}% "
 
                     # pre_viscosity += log10(env["viscosity"]) * r
 
                     if env["environment"] == "Газ":
-                        M = float(env["molar_mass"])
-                        density_ch += (float(env["molar_mass"]) / 22.4) * r
+                        M = float(env["moljarnaja_massa"])
+                        density_ch += (float(env["moljarnaja_massa"]) / 22.4) * r
                         density_zn += r
                     elif env["environment"] == "Жидкость":
-                        M = float(env["molecular_weight"])
-                        density_ch += float(env["density"]) * r
+                        M = float(env["molekuljarnaja_massa"])
+                        density_ch += float(env["plotnost_zhidkosti"]) * r
                         density_zn += r
 
-                    pre_u += r * float(env["viscosity"]) * M
+                    pre_u += r * float(env["vjazkost_pa_s"]) * M
 
                     if r > r_max:
                         # Плотность несущей среды при нормальных условиях
@@ -398,7 +489,8 @@ class CodeParametr:
                     result["material"] = mat
 
             #если климатика => то материал
-            if ((climate == "ХЛ1") or (climate == "УХЛ1")) and (result["material"] == "25Л"):
+            climate = select_formula_params.get('Климатическое исполнение по ГОСТ 15150-69')
+            if climate and ((climate == "ХЛ1") or (climate == "УХЛ1")) and (result["material"] == "25Л"):
                 if T < 350.0:
                     result["material"] = "20ГЛ"
                 elif T >= 350.0 and climate == "ХЛ1":
@@ -413,16 +505,29 @@ class CodeParametr:
                 if not param_info:
                     continue
                 param_info = param_info[0]
-                res = self._set_params(res, param_info['id'], kir_param_name, param_description=param["description"], response_value=value, sort=param_info['sort'], param_type='user_input') # all_values=param_info['all_values'], 
-            
+                res = self._set_params(res, counter_for_id, kir_param_name, param_description=param_info["description"], response_value=value, sort=counter_for_sort, param_type='raschet') 
+                counter_for_id += 1
+                counter_for_sort += 1
             # Поскольку расчет смеси завершился, докидываем
             # параметры из БД для следующего расчета
             for param_db in selection_result:
-                param_info = [param_res for param_res in res if 'debug' in param_res or param_res["name"] == param_db["name"]]
+                # print(param_db['name'], "Какие параметры из БД")
+                
+                param_info = [param_res for param_res in res if "name" in param_res and param_res["name"] == param_db["name"]] # 'debug' in param_res or 
                 if param_info:
+                    # print(param_info, 'ЧТО НЕ ПРОШЛО УСЛОВИЕ И ТО ЧТО УЖЕ БЫЛО В РЕЗУЛЬТАТЕ')
                     continue
-                if param_db["table_name"] in ['table2', 'table3', 'table10']:
+                
+                if param_db["table_name"] in ['table2', 'table3', 'table4', 'table10']:
+                    # print(param_db['name'], 'ЧТО ТАБЛИЧНОЕ?')
                     continue
+                if param_db['name'] == 'Название рабочей среды' and (select_formula_params.get('Смесь') and select_formula_params.get('Смесь') == 'Да'):
+                    # print(123123123) В БУДУЩЕМ ПОДУМАТЬ КАК УБРАТЬ НАЗВАНИЕ РАБОЧЕЙ СРЕДЫ
+                    continue
+                param_db['id'] = counter_for_id
+                param_db['sort'] = counter_for_sort
+                counter_for_id += 1
+                counter_for_sort += 1
                 res.append(param_db)
 
         return {"total_change" : res}
@@ -494,13 +599,13 @@ class CodeParametr:
         return ans
 
     async def _searchParams(self, db, DNS, Pn, PN, valve_type):
-        print(DNS, PN, valve_type)
         #найти все подходящие строки их DNS и P1 - больше искомых
         # request = db.query(Params).filter(Params.DNS >= DNS, Params.PN == PN, Params.valve_type == valve_type).all()
+        # print(DNS, type(DNS), PN, type(PN), valve_type, 123123123)
         query = """
             SELECT * FROM table3 
             WHERE dns3::float >= :DNS_val 
-            AND pn3::float >= :Pn_val
+            AND pn3::float = :Pn_val
             AND tip_klapana = :valve_type
         """
         params = {"DNS_val": DNS, "Pn_val": PN, "valve_type": valve_type}
@@ -510,7 +615,6 @@ class CodeParametr:
         if request == None or request == []:
             return False
         ans = False
-
         #найти самый подходящий - MIN по DNS и P1
         minDNS = request[0].dns3
         #minP1 = request[0].P1
@@ -519,14 +623,13 @@ class CodeParametr:
         for example in request:
 
             #print(example.id, example.DNS, example.valve_type, example.DN, example.PN)
-
+            # print(example.id, example.dns3, example.tip_klapana, example.dn3, example.pn3, "ЧТО ПОЛУЧАЕМ")
             try:
                 Pn1 = str(example.pnd3).split("...")[0]
                 Pn2 = str(example.pnd3).split("...")[1]
                 #print(Pn1, Pn2)
-
                 #print(f"example.DNS <= minDNS {example.DNS <= minDNS} example.PN == minPN {example.PN == minPN} float(Pn1) <= Pn <= float(Pn2) {float(Pn1)} {Pn} {float(Pn2)} {float(Pn1) <= Pn <= float(Pn2)}")
-                if (example.dns3 <= minDNS)  and (example.pn3 == minPN) and (float(Pn1) <= Pn <= float(Pn2)):
+                if (float(example.dns3) <= float(minDNS))  and (float(example.pn3) == float(minPN)) and (float(Pn1) <= Pn <= float(Pn2)):
                     minDNS = example.dns3
                     #minP1 = example.P1
                     minPN = example.pn3
@@ -540,7 +643,7 @@ class CodeParametr:
                         "spring_number" : example.nomer_pruzhiny,
                         "valve_type" : valve_type
                     }
-                elif (Pn <= float(Pn2)) and (Pn <= 4) and (example.dns3 <= minDNS)  and (example.pn3 == minPN):
+                elif (Pn <= float(Pn2)) and (Pn <= 4) and (float(example.dns3) <= float(minDNS))  and (float(example.pn3) == float(minPN)):
                     minDNS = example.dns3
                     # minP1 = example.P1
                     minPN = example.pn3
@@ -564,7 +667,34 @@ class CodeParametr:
 
         return ans 
 
-    async def raschet(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
+    async def _get_by_mark(self, db, mark, DN, PN):
+        mark = float(mark[2:5])
+        query = """
+            SELECT * FROM table4 
+            WHERE mark4::float = :mark
+            AND dn4::float = :dn
+            AND pn4::float = :pn
+        """
+        params = {"mark": mark, "dn": DN, "pn": PN}
+        stmt = await db.execute(text(query), params) 
+        request = stmt.first()
+        # request = db.query(pakingParams).filter(pakingParams.mark == mark, pakingParams.DN == DN, pakingParams.PN == PN).first()
+        # print(mark, DN, PN, 12341243)
+        if request is None:
+            return None, None
+        else:
+
+            M = None
+            S = None
+            # print(request)
+            if request.m4 is not None:
+                M = request.m4
+            if request.s4 is not None:
+                S = request.s4
+            # print(M, S)
+            return (M, S)
+    @timer
+    async def raschet(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         from copy import deepcopy
         #Флаги
         force_open = None # "Устройство принудительного открытия"
@@ -576,104 +706,132 @@ class CodeParametr:
         Pp_din = None # Противодавление динамическое
         if not select_formula_params:
             return {"total_change" : selection_result}
-        last_sort = 0
+        
         selection_result.pop(0)
         res = deepcopy(selection_result)
+
+        last_sort = 0
+        
+        sorted_params = sorted([item for item in selection_result if 'sort' in item], key=lambda x: x['sort'])
+        last_param = sorted_params[-1]
+        counter_for_id = last_param['id']
+        counter_for_sort = last_param['sort']
         #Ищем Устройство принудительного открытия
-        for param_name, value in select_formula_params.items():
-            if param_name == "Устройство принудительного открытия":
-                force_open = value
-                #ищем данные параметра
-                param_info = [param for param in selection_result if param["name"] == param_name]
-                if not param_info:
-                    return {'error': 'Не найден параметр в БД - Устройство принудительного открытия'}
-                param_info = param_info[0]
-                # res = self._set_params(res, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
-                last_sort = param_info['sort']
-            elif param_name == "Давление настройки" and force_open:
-                if not value:
-                    continue
-                Pn = float(value)
-                last_sort += 1
-                
-                if Pn > 16 or Pn < 0:
-                    res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Давление настройки не может быть меньше 0 и больше 16")
-                    continue
-                res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=Pn, sort=last_sort)
-            elif param_name == "Максимальный аварийный расход жидкости и газа" and force_open:
-                if not value:
-                    continue
-                Gab = float(value)
-                last_sort += 1
-                
-                if Gab < 0:
-                    res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Значение не может быть меньше 0")
-                    continue
-                res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=Gab, sort=last_sort)
-            elif param_name == "Количество параллельно установленных и одновременно работающих клапанов (шт)" and force_open:
-                if not value:
-                    continue
-                N = float(value)
-                last_sort += 1
-                
-                if N < 0:
-                    res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Значение не может быть меньше 0")
-                    continue
-                res = self._set_params(res, last_sort, param_name, param_type='user_input', param_description="", response_value=N, sort=last_sort)
-            elif param_name == "Мембранно-предохранительное устройство" and force_open:
-                pre_Kc = value
-                last_sort += 1
-                res = self._set_params(res, last_sort, param_name, param_description="", all_values=["Да", "Нет"], response_value=value, sort=last_sort)
-            elif param_name == "Противодавление статическое" and Pn:
-                if not value:
-                    continue
-                last_sort += 1
-                Pp = float(value)
-                
-                if Pp > Pn * 0.7 or Pp < 0:
-                    res = self._set_params(res, last_sort, "Противодавление статическое", param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
-                else:
-                    
-                    last_sort += 1
-                    res = self._set_params(res, last_sort, "Противодавление статическое", param_type='user_input', param_description="", response_value=Pp, sort=last_sort)
-            elif param_name == "Противодавление динамическое" and Pn:
-                if not value:
-                    continue
-                last_sort += 1
-                Pp_din = float(value)
-                
-                if Pp_din > Pn * 0.7 or Pp_din < 0:
-                    res = self._set_params(res, last_sort, "Противодавление динамическое", param_type='user_input', param_description="", response_value=value, sort=last_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
-                else:
-                    res = self._set_params(res, last_sort, "Противодавление динамическое", param_type='user_input', param_description="", response_value=Pp_din, sort=last_sort)
+        # for param_name, value in select_formula_params.items():
+        if select_formula_params.get("Устройство принудительного открытия"):
+            
+            #ищем данные параметра
+            param_info = [param for param in selection_result if param["name"] == "Устройство принудительного открытия"]
+            if not param_info:
+                # res = self._set_params(selection_result, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
+                return {'error': 'Не найден параметр в БД - Устройство принудительного открытия'}
+            force_open = select_formula_params.get("Устройство принудительного открытия")
+            # param_info = param_info[0]
+            # res = self._set_params(res, param_info['id'], param_name, param_description=param_info['description'], all_values=["Да", "Нет"], response_value=value, sort=param_info['sort'])
+            # last_sort = param_info['sort']
+        if select_formula_params.get("Давление настройки") and force_open:
+            # if not value:
+            #     continue
+            Pn = float(select_formula_params.get("Давление настройки"))
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            if Pn > 16 or Pn < 0:
+                res = self._set_params(res, counter_for_id, "Давление настройки", param_type='user_input', param_description="", response_value=Pn, sort=counter_for_sort, error="Давление настройки не может быть меньше 0 и больше 16")
+                # continue
+            else:
+                res = self._set_params(res, counter_for_id, "Давление настройки", param_type='user_input', param_description="", response_value=Pn, sort=counter_for_sort)
+        if select_formula_params.get("Максимальный аварийный расход жидкости и газа") and force_open:
+            # if not value:
+            #     continue
+            Gab = float(select_formula_params.get("Максимальный аварийный расход жидкости и газа"))
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            if Gab < 0:
+                res = self._set_params(res, counter_for_id, "Максимальный аварийный расход жидкости и газа", param_type='user_input', param_description="", response_value=Gab, sort=counter_for_sort, error="Значение не может быть меньше 0")
+            else:
+                res = self._set_params(res, counter_for_id, "Максимальный аварийный расход жидкости и газа", param_type='user_input', param_description="", response_value=Gab, sort=counter_for_sort)
+        if select_formula_params.get("Количество параллельно установленных и одновременно работающих клапанов (шт)") and force_open:
+            # if not value:
+            #     continue
+            N = float(select_formula_params.get("Количество параллельно установленных и одновременно работающих клапанов (шт)"))
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            if N < 0:
+                res = self._set_params(res, counter_for_id, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_type='user_input', param_description="", response_value=N, sort=counter_for_sort, error="Значение не может быть меньше 0")
+            else:
+                res = self._set_params(res, counter_for_id, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_type='user_input', param_description="", response_value=N, sort=counter_for_sort)
+        if select_formula_params.get("Мембранно-предохранительное устройство") and force_open:
+            pre_Kc = select_formula_params.get("Мембранно-предохранительное устройство")
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Мембранно-предохранительное устройство", param_description="", all_values=["Да", "Нет"], response_value=pre_Kc, sort=counter_for_sort)
+        if select_formula_params.get("Противодавление статическое") and Pn:
+            # if not value:
+            #     continue
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            Pp = float(select_formula_params.get("Противодавление статическое"))
+            if Pp > Pn * 0.7 or Pp < 0:
+                res = self._set_params(res, counter_for_id, "Противодавление статическое", param_type='user_input', param_description="", response_value=Pp, sort=counter_for_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
+            else:
+                res = self._set_params(res, counter_for_id, "Противодавление статическое", param_type='user_input', param_description="", response_value=Pp, sort=counter_for_sort)
+        if select_formula_params.get("Противодавление динамическое") and Pn:
+            # if not value:
+            #     continue
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            Pp_din = float(select_formula_params.get("Противодавление динамическое"))
+            
+            if Pp_din > Pn * 0.7 or Pp_din < 0:
+                res = self._set_params(res, counter_for_id, "Противодавление динамическое", param_type='user_input', param_description="", response_value=Pp_din, sort=counter_for_sort, error="Значение не может быть больше 70% давления настройки и меньше 0")
+            else:
+                res = self._set_params(res, counter_for_id, "Противодавление динамическое", param_type='user_input', param_description="", response_value=Pp_din, sort=counter_for_sort)
 
         #Формируем Устройство принудительного открытия
         if not force_open:
             {"total_change" : res}
         #Формируем Давление настройки
         if not Pn and force_open:
-            last_sort += 1
-            res = self._set_params(res, last_sort, "Давление настройки", param_description="", all_values=[0, 16], sort=last_sort, param_type="user_input")
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Давление настройки", param_description="", all_values=[0, 16], sort=counter_for_sort, param_type="user_input")
         #Формируем Максимальный аварийный расход жидкости и газа
         if not Gab and force_open:
-            last_sort += 1
-            res = self._set_params(res, last_sort, "Максимальный аварийный расход жидкости и газа", param_description="", all_values=[0, 10 ** 100], sort=last_sort, param_type="user_input")
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Максимальный аварийный расход жидкости и газа", param_description="", all_values=[0, 10 ** 100], sort=counter_for_sort, param_type="user_input")
         #Формируем Количество параллельно установленных и одновременно работающих клапанов (шт)
         if not N and force_open:
-            last_sort += 1
-            res = self._set_params(res, last_sort, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_description="", all_values=[0, 10 ** 100], sort=last_sort, param_type="user_input")
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Количество параллельно установленных и одновременно работающих клапанов (шт)", param_description="", all_values=[0, 10 ** 100], sort=counter_for_sort, param_type="user_input")
         #Формируем Мембранно-предохранительное устройство
         if not pre_Kc and force_open:
-            last_sort += 1
-            res = self._set_params(res, last_sort, "Мембранно-предохранительное устройство", param_description="", all_values=["Да", "Нет"], sort=last_sort)
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Мембранно-предохранительное устройство", param_description="", all_values=["Да", "Нет"], sort=counter_for_sort)
         #Формируем Противодавление статическое
         if not Pp and Pn:
-            last_sort += 1
-            res = self._set_params(res, last_sort, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], sort=last_sort, param_type="user_input")
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Противодавление статическое", param_description="", all_values=[0, Pn * 0.7], sort=counter_for_sort, param_type="user_input")
         #Формируем Противодавление динамическое
         if not Pp_din and Pn:
-            last_sort += 1
-            res = self._set_params(res, last_sort, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], sort=last_sort, param_type="user_input")
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Противодавление динамическое", param_description="", all_values=[0, Pn * 0.7], sort=counter_for_sort, param_type="user_input")
         
         #Если не все заполнено, возвращаем массив параметров для заполнения
         is_exist = [force_open, Pn, Gab, N, pre_Kc, Pp, Pp_din]
@@ -683,8 +841,8 @@ class CodeParametr:
         #Все заполнено, можно выполнять расчет
         P_atm = 0.101320
         R = 8.31446261815324  # Газовая постоянная ( Па / (моль * K))
-        u_info = [param for param in res if param["name"] == 'Вязкость (Па*с)']
-        u = u_info[0]["response_value"]
+        u_info = select_formula_params.get("Вязкость (Па*с)")
+        u = float(u_info) if u_info else None
 
         "Климатическое исполнение по ГОСТ 15150-69"
         
@@ -735,8 +893,9 @@ class CodeParametr:
             #     Gab *= p1
         else:
             #Ищем плотность
-            density_inf = [param for param in selection_result if param["name"] == 'Плотность жидкости']
-            p1 = density_inf["response_value"]
+            # density_inf = [param for param in selection_result if param["name"] == 'Плотность жидкости']
+            density_inf = select_formula_params.get('Плотность жидкости')
+            p1 = int(density_inf) if density_inf else None
         
         #!!!!!!!!!!!!! ОБРАТИТЬ ВНИМАНИЕ
         # dt["density"] = #p1 !!!!!!!!!!!!! ОБРАТИТЬ ВНИМАНИЕ
@@ -818,13 +977,16 @@ class CodeParametr:
             else:  # докритический режим
                 Kp_kr = 1
                 if n == 1:
+                    # print("GHT")
                     Kb = B ** 2 * -2 * exp * log(B)  # на самом деле, тут корень, но его будем извлекать в конце
                 else:
+                    # print("TNVD", B, n) # на сервере TNVD 0.6396824882086095 1.4 | на локалке TNVD 0.6396824882086095 46113.0
                     Kb = (((n + 1) / (n - 1)) * (B ** (2 / n) - B ** ((n + 1) / n)) * ((n + 1) / 2)) ** 2
 
             # P1 * p1
             Gideal = Kp_kr * Kb * sqrt(P1 * p1)
-
+            # 1731832127.5731838 1 69021157.59355277 11.10132 56.71167636200972 Че получилось - на локалке
+            # 5.212068048661966 1 0.20772392684452992 11.10132 56.71167636200972 Че получилось - на сервере
             if Gideal <= 0:
                 return {'error': 'ошибка расчетов, Gideal <= 0 там где среда газ'}
         else:
@@ -839,23 +1001,20 @@ class CodeParametr:
                 Kw = 1.149 - 0.988 * (Pp / Pno)
 
             Kp = sqrt(2 * (1 - B))  # на самом деле, тут корень, но его будем извлекать в конце
-            Gideal = Kp * sqrt(P1 * p1)
-
+            Gideal = Kp * sqrt(P1 * p1)  # на сервере 5.212068048661966 1 0.20772392684452992 11.10132 56.71167636200972 Че получилось
             if Gideal <= 0:
                 return {'error': 'ошибка расчетов, Gideal <= 0 там где среда не газ'}
         
         DN_s = None
         pre_DN = 0
         Kv = 1
-
+        
         while DN_s != pre_DN:
 
             pre_F = Gab / (3.6 * alpha * Kv * Kw * Kc * Gideal * N)
-            print(pre_F, ":", Gab, alpha, Kv, Kw, Kc, Gideal, N)
             if pre_F == 0:
                 return {"error": f"Ошибка расчета, pre_F == 0"}
             pre_DN = sqrt((4 * pre_F) / pi)
-
             Re = (Gideal * p1 * pre_DN) / u  # Gideal
             if (Re >= 1000) and (Re <= 100000):
                 Kv = (0.9935 + (2.8780 / Re ** 0.5) + (342.75 / Re ** 1.5)) ** (-1)
@@ -867,7 +1026,6 @@ class CodeParametr:
             F = Gab / (3.6 * alpha * Kv * Kw * Kc * Gideal * N)
             DN_s = sqrt((4 * F) / pi)
         DN_s = math.ceil(DN_s * 10) / 10
-
         material_inf = [param for param in selection_result if param["name"] == "Материал"]
         if material_inf[0]['response_value'] == "20ГЛ" or material_inf[0]['response_value'] == "25Л":
             ex = await self._searchT2(T, Pn * 10.197162, db)
@@ -878,54 +1036,91 @@ class CodeParametr:
         if ex:
             PN = ex["PN"]
         else:
-            return {"error": "Нет возможности подобрать PN"}
+            #Собираем ответ
+            #Получаем последний айдишник
+            param = self._get_param_by_name("Мембранно-предохранительное устройство", res)
+            # counter = param['sort'] + 1 #Счетчик для увеличения порядкового номера
+            # last_sort += 1
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Номинальное давление", param_type='user-input', sort=counter_for_sort, error="Ошибка расчетов: Нет возможности подобрать PN")
+            return {"total_change" : res}
 
         param = self._get_param_by_name("Тип клапана", selection_result)
         valve_type = param["response_value"][-2]
-        example = await self._searchParams(db, float(DN_s), Pn * 10.197162, int(PN), valve_type)
+        example = await self._searchParams(db, float(DN_s), float(Pn) * 10.197162, int(PN), valve_type)
+        # print(DN_s, Pn, PN, valve_type, 'ЧЕ ЗАКИДЫВАЕМ')
+        # print(example, 'ЧЕ ПОЛУЧИЛИ')
+
 
         #Собираем ответ
         #Получаем последний айдишник
         param = self._get_param_by_name("Мембранно-предохранительное устройство", res)
-        counter = param['sort'] + 1 #Счетчик для увеличения порядкового номера
+        # last_sort += 1
+        counter_for_id += 1
+        counter_for_sort += 1#Счетчик для увеличения порядкового номера
 
         #Минимальная рабочая температура
-        res = self._set_params(res, counter, "Минимальная рабочая температура", param_type='raschet', response_value=T_min, sort=counter, visibility=False)
-        counter += 1
+        res = self._set_params(res, counter_for_id, "Минимальная рабочая температура", param_type='raschet', response_value=T_min, sort=counter_for_sort, visibility=False)
         #Максимальная рабочая температура
-        res = self._set_params(res, counter, "Максимальная рабочая температура", param_type='raschet', response_value=T_max, sort=counter, visibility=False)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Максимальная рабочая температура", param_type='raschet', response_value=T_max, sort=counter_for_sort, visibility=False)
+        # counter += 1
         # Давление начала открытия с противодавлением
-        res = self._set_params(res, counter, "Давление начала открытия с противодавлением", param_type='raschet', response_value=Pno * 10.197162, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Давление начала открытия с противодавлением", param_type='raschet', response_value=Pno * 10.197162, sort=counter_for_sort)
+        # counter += 1
         # Давление полного открытия с противодавлением
-        res = self._set_params(res, counter, "Давление полного открытия с противодавлением", param_type='raschet', response_value=Ppo * 10.197162, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Давление полного открытия с противодавлением", param_type='raschet', response_value=Ppo * 10.197162, sort=counter_for_sort)
+        # counter += 1
         # Давление на входе
-        res = self._set_params(res, counter, "Давление на входе", param_type='raschet', response_value=P1 * 10.197162, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Давление на входе", param_type='raschet', response_value=P1 * 10.197162, sort=counter_for_sort)
+        # counter += 1
         # Давление на выходе
-        res = self._set_params(res, counter, "Давление на выходе", param_type='raschet', response_value=P2 * 10.197162, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Давление на выходе", param_type='raschet', response_value=P2 * 10.197162, sort=counter_for_sort)
+        # counter += 1
         # Коэффициент, учитывающий эффект неполного открытия разгруженных ПК из-за противодавления
-        res = self._set_params(res, counter, "Коэффициент, учитывающий эффект неполного открытия разгруженных ПК из-за противодавления", param_type='raschet', response_value=Kw, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Коэффициент, учитывающий эффект неполного открытия разгруженных ПК из-за противодавления", param_type='raschet', response_value=Kw, sort=counter_for_sort)
+        # counter += 1
         # Массовая скорость
-        res = self._set_params(res, counter, "Массовая скорость", param_type='raschet', response_value=Gideal, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Массовая скорость", param_type='raschet', response_value=Gideal, sort=counter_for_sort)
+        # counter += 1
+        # Предварительный Диаметр седла клапана, мм:
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Предварительный Диаметр седла клапана, мм:", param_type='raschet', response_value=DN_s, sort=counter_for_sort)
+        # counter += 1
         # Предварительный Диаметр седла клапана, мм
-        res = self._set_params(res, counter, "Диаметр седла клапана, мм:", param_type='raschet', response_value=DN_s, sort=counter)
-        counter += 1
-        # Номиннальный диаметр седла !f example:
-        res = self._set_params(res, counter, "Номиннальный диаметр седла", param_type='raschet', response_value=example["DNS"], sort=counter)
-        counter += 1
-        # Номиннальный диаметр !f example:
-        res = self._set_params(res, counter, "Номиннальный диаметр", param_type='raschet', response_value=example["DN"], sort=counter)
-        counter += 1
-        # Номиннальное давление !f example:
-        res = self._set_params(res, counter, "Номиннальное давление", param_type='raschet', response_value=example["PN"], sort=counter)
-        counter += 1
-        # Номиннальный диаметр на выходе
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Диаметр седла клапана, мм:", param_type='raschet', response_value=float(example['DN']), sort=counter_for_sort)
+        # counter += 1
+        # Номинальный диаметр седла !f example:
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Номинальный диаметр седла", param_type='raschet', response_value=float(example["DNS"]), sort=counter_for_sort)
+        # counter += 1
+        # Номинальный диаметр !f example:
+        # res = self._set_params(res, counter, "Номинальный диаметр", param_type='raschet', response_value=example["DN"], sort=counter)
+        # counter += 1
+        # Номинальное давление !f example:
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Номинальное давление", param_type='raschet', response_value=float(example["PN"]), sort=counter_for_sort)
+        # counter += 1
+        # Номинальный диаметр на выходе
         DN2 = {
             25.0: 40.0,
             50.0: 80.0,
@@ -934,8 +1129,10 @@ class CodeParametr:
             150.0: 200.0,
             200.0: 300.0
         }
-        res = self._set_params(res, counter, "Номиннальный диаметр на выходе", param_type='raschet', response_value=DN2[int(example["DN"])], sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Номинальный диаметр на выходе", param_type='raschet', response_value=DN2[int(example["DN"])], sort=counter_for_sort)
+        # counter += 1
         # Номинальное давление на выходе
         PN2 = {
             16.0: 6,
@@ -945,71 +1142,630 @@ class CodeParametr:
             160.0: 40.0,
             250.0: 40.0
         }
-        res = self._set_params(res, counter, "Номинальное давление на выходе", param_type='raschet', response_value=PN2[int(example["PN"])], sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Номинальное давление на выходе", param_type='raschet', response_value=PN2[int(example["PN"])], sort=counter_for_sort)
+        # counter += 1
         # Площадь седла клапана
         DN_s = int(example["DNS"])
         S = (pi * DN_s**2 )/ 4
-        res = self._set_params(res, counter, "Площадь седла клапана", param_type='raschet', response_value=S, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Площадь седла клапана", param_type='raschet', response_value=S, sort=counter_for_sort)
+        # counter += 1
         # Эффективная площадь седла калапана
-        res = self._set_params(res, counter, "Эффективная площадь седла калапана", param_type='raschet', response_value=S * alpha, sort=counter)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Эффективная площадь седла калапана", param_type='raschet', response_value=S * alpha, sort=counter_for_sort)
+        # counter += 1
         # Материал пружины
-        res = self._set_params(res, counter, "Материал пружины", param_type='raschet', response_value=example["spring_material"], sort=counter, visibility=False)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Материал пружины", param_type='raschet', response_value=example["spring_material"], sort=counter_for_sort, visibility=False)
+        # counter += 1
         # Номер пружины
-        res = self._set_params(res, counter, "Номер пружины", param_type='raschet', response_value=example["spring_number"], sort=counter, visibility=False)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Номер пружины", param_type='raschet', response_value=example["spring_number"], sort=counter_for_sort, visibility=False)
+        # counter += 1
         # Диапазон давлений настройки
-        res = self._set_params(res, counter, "Диапазон давлений настройки", param_type='raschet', response_value=example["Pnd"], sort=counter, visibility=False)
-        counter += 1
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Диапазон давлений настройки", param_type='raschet', response_value=example["Pnd"], sort=counter_for_sort, visibility=False)
+        # counter += 1
+        
         # Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ
+        # Проверка есть ли этот параметр среди выбранных и какое у него значение
+        is_need_bellows = select_formula_params.get("Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ")
+        if is_need_bellows:
+            need_bellows = is_need_bellows
+        else:
+            need_bellows = None
+
+        if (valve_type == 'В') and (((example["spring_material"] == '51ХФА') and (T > 120)) or ((example["spring_material"] == '50ХФА') and (T > 250))):
+            need_bellows = "Да"
+        elif valve_type == 'В' and not is_need_bellows:
+            need_bellows = None
+        else:
+            need_bellows = "Нет"
+        
+        env_names = list()
+        cool_env = ["Вода", "Водяной пар", "Воздух", "Азот", "Вода"]
+        evil_env = False
+        cool = 0
+        is_mixture = select_formula_params.get("Состав смеси")
+        if is_mixture:
+            # Если это смесь, то собираем список компонентов
+            
+            envs_value = select_formula_params.get("Состав смеси")
+            for env in envs_value:
+                env_value = list(env.keys())[0]
+                if env_value in cool_env:
+                    cool += 1
+                env_names.append(list(env.keys())[0])
+        else:
+            env = select_formula_params.get("Название рабочей среды")
+            if env in cool_env: 
+                cool+=1
+            env_names.append(env)
+        
+        if cool == len(env_names) and (valve_type == 'В') and (((example["spring_material"] == '51ХФА') and (T > 120)) or ((example["spring_material"] == '50ХФА') and (T > 250))):
+            evil_env = True
+
+        open_close_type = "закрытого типа"
+        if evil_env and T :
+            open_close_type = "открытого типа"
+            need_bellows = "Нет"
+        
+        material = None
+        if "Сероводород" in env_names and "Хлор" in env_names and PN >= 0.003:
+            #молибденовое исполнение
+            material = "12Х18Н12М3ТЛ"
+            
+        # Заполняем need_bellows (list), open_close_type(raschet, тип ПК:, visibility=False), material(raschet, молибденовое исполнение, visibility=False)
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ", all_values=["Да", "Нет"], response_value=need_bellows, sort=counter_for_sort)
+        # counter += 1
+        
+        #Собираем маркировку
+        if valve_type == 'В':
+            if force_open == "Да" and need_bellows == "Да":
+                mark = "АМ211"
+                
+            elif force_open == "Нет" and need_bellows == "Да":
+                mark = "АМ212"
+            elif force_open == "Да" and need_bellows == "Нет":
+                mark = "АМ213"
+            else:
+                mark = "АМ214"
+        else:
+            if force_open == "Да":
+                mark = "АМ220"
+            else:
+                mark = "АМ219"
+        total_mark = f"{mark}.{int(example["DN"])}.{int(example["PN"])}.XXXX.X/X"
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Маркировка", response_value=total_mark, sort=counter_for_sort, param_type='raschet')
+        
+        # print(param_info, 'ЧТО ТЫ ТАКОЕ')
+        product_drawing = await self._find_param_print(mark, db, product_id)  
+
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Чертеж", response_value=HOST + product_drawing, sort=counter_for_sort, param_type='raschet')
+
+
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Открытый / Закрытый тип", param_type='raschet', response_value=open_close_type, sort=counter_for_sort)
+        # counter += 1
+
+        is_joining_type = select_formula_params.get("Тип присоединения")
+        joining_type_values = ["Фланцевое", "Под приварку", "Штуцерно-торцовое", "Муфтовое", "Ниппельное", "Кламповое", "Комбинированное"]
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(res, counter_for_id, "Тип присоединения", all_values=joining_type_values, response_value=is_joining_type, sort=counter_for_sort)
+        # counter += 1
+        if material:
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Молибденовое исполнение", param_type='raschet', response_value=material, sort=counter_for_sort, visibility=False)
+            # counter += 1
+        
         new_list = []
         for param in res:
-            if 'table_name' in param:
+            if "table_name" in param and param["table_name"] in ['table2', 'table3', 'table10']:
+                # print(param_db['name'], 'ЧТО ТАБЛИЧНОЕ?')
                 continue
             new_list.append(param)
 
         return {"total_change" : new_list}
 
-    async def mark_params(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
+    async def _find_param_print(self, mark, db, product_id):
+        query = """
+            SELECT file_url FROM product_drawing 
+            WHERE product_id = :product_id 
+            AND name = :name
+        """
+        params = {"product_id": product_id, "name": mark}
+        # Следить чтобы маркировка в БД и маркировка кодовая была одинаковой в плане кириллицы или латиницы
+        stmt = await db.execute(text(query), params) 
+        request = stmt.scalar_one_or_none()
+        if not request:
+            return ""
+        
+        return request
+    @timer
+    async def mark_params(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         """
         Параметры которые нужны для расчета:
         - Тип предохранительного клапана Пружинный или Пилотный (B/H) (valve_type)
         - Номинальное давление (PN)
         - Номинальное давление на выходе (PN2)
-        - Номиннальный диаметр (DN)
+        - Номинальный диаметр (DN)
         - Температура рабочей среды (T)
         - Тип присоединения (joining_type)
         - Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ (need_bellows)
         - Маркировка (mark)
         """
-        # need_bellows = False
-        # if (dt["valve_type"] == 'В') and (((example["spring_material"] == '51ХФА') and (T > 120)) or ((example["spring_material"] == '50ХФА') and (T > 250))):
-        #     new_dt["need_bellows"] = True
-        # # elif dt["valve_type"] == 'В':
-        # #         new_dt["need_bellows"] = [True, False]
+        sorted_params = sorted([item for item in selection_result if 'sort' in item], key=lambda x: x['sort'])
+        last_param = sorted_params[-1]
+        counter_for_id = last_param['id']
+        counter_for_sort = last_param['sort']
 
-        # # вода агрессиваня?
-        # cool_env = ["Вода", "Водяной пар", "Воздух", "Азот", "Вода"]
+        # Переменная длоя сбора аргументов маркировки
+        # MARK_ARR = ['X', "X", "X", "X", "X", "X", "X", ""]
+        if not select_formula_params:
+            return {"total_change" : selection_result}
+        valve_type_full = select_formula_params.get("Тип клапана")
+        valve_type = None
+        if valve_type_full:
+            valve_type = valve_type_full.split('(')[-1][0]
+        # Проверяем наличие всех параметров
+        check_value = self._get_param_by_name("Номинальное давление", selection_result)
+        PN = float(check_value['response_value']) if check_value else None
+        check_value = self._get_param_by_name("Номинальное давление на выходе", selection_result)
+        PN2 = float(check_value['response_value']) if check_value else None
+        check_value = self._get_param_by_name("Диаметр седла клапана, мм:", selection_result)
+        DN = float(check_value['response_value']) if check_value else None
+        check_value = self._get_param_by_name("Температура рабочей среды", selection_result)
+        T = float(check_value['response_value']) if check_value and 'response_value' in check_value else None
+        check_value = self._get_param_by_name("Давление начала открытия с противодавлением", selection_result)
+        Ppo = float(check_value['response_value']) if check_value and 'response_value' in check_value else None
+        check_value = self._get_param_by_name("Тип присоединения", selection_result)
+        joining_type = check_value['response_value'] if check_value and 'response_value' in check_value else None
+        check_value = self._get_param_by_name("Переменное противодавление или необходим сильфон на пружинные ПК по требованию ОЛ", selection_result)
+        need_bellows = check_value['response_value'] if check_value and 'response_value' in check_value else None
+        check_value = self._get_param_by_name("Материал", selection_result)
+        material = check_value['response_value'] if check_value and 'response_value' in check_value else None
+        check_value = self._get_param_by_name("Устройство принудительного открытия", selection_result)
+        force_open = check_value['response_value'] if check_value and 'response_value' in check_value else None
 
+        is_exist = [valve_type, PN, PN2, DN, T, Ppo, joining_type, need_bellows, material, force_open]
+        
+        if not all(x is not None for x in is_exist):
+            # print(is_exist)
+            total_res = list()
+            for param in selection_result:
+                if "table_name" in param and param["table_name"] in ['table2', 'table3', 'table10', 'table4']:
+                    # print(param['name'], 'ЧТО ТАБЛИЧНОЕ?')
+                    continue
+                # if param['name'] == 'Материал':
+                #     param['response_value'] = material
+                total_res.append(param)
+            return {"total_change": total_res}
+            # return {"total_change" : selection_result}
+        
+        #тип контакта
+        err = None
+        contact_type_all_values = ["металл-неметалл", "металл-металл"]
+        contact_type = None
+        if valve_type == "В": #у пружинного - строго металл-металл
+            contact_type = "металл-металл"
 
-        # cool = 0
-        # for en in env_names:
-        #     # убрать из смеси неагрессивные среды
-        #     if en in cool_env:
-        #         # print(en)
-        #         cool += 1
-        # open_close_type = "закрытого типа"
-        # if cool == len(env_names) and (dt["valve_type"] == 'В') and (((example["spring_material"] == '51ХФА') and (T > 120)) or ((example["spring_material"] == '50ХФА') and (T > 250))):
+        elif (valve_type == "П") and (PN > 160):  
+            contact_type = "металл-металл"
 
-        #     if T:
-        #         open_close_type = "открытого типа"
-        #         dt["need_bellows"] = False
-        pass
+        elif (valve_type == "П") and (PN <= 160): #если пилотный - по умлочанию металл-неметалл, но можно выбрать
+            # contact_type = ["металл-неметалл", "металл-металл"] #можно заменить
+            contact_type = None
 
-    async def agent_contacts(self, selection_result, param_info, select_formula_params, db, column_to_param=[]):
+        else:
+            err = f"Некорректое значение типа ПК: {valve_type}"
+        #Получаем последний айдишник
+        param = self._get_param_by_name("Мембранно-предохранительное устройство", selection_result)
+        counter = param['sort'] + 1 #Счетчик для увеличения порядкового номера
+
+        # Выбрал ли что-то пользователь, если это совпадает с расчетным значением, то в response_value записываем выбор пользователя
+        user_choice_contact_type = select_formula_params.get("Тип котакта")
+        if user_choice_contact_type and contact_type and user_choice_contact_type == contact_type:
+            is_response_contact_type = user_choice_contact_type
+        #Либо расчетное значение не подходит к выбору пользователя
+        elif user_choice_contact_type and not contact_type:
+            is_response_contact_type = user_choice_contact_type
+        else:
+            is_response_contact_type = contact_type
+        for param in selection_result:
+            if param['name'] == 'Тип котакта':
+                param['response_value'] = is_response_contact_type
+                break
+
+        # Класс герметичности
+        tightness = []
+        err_tightness = None
+        if valve_type == "П":
+            type_contact_for_tightness = contact_type if contact_type else user_choice_contact_type
+            if type_contact_for_tightness == "металл-металл":
+                tightness = ["С"]
+            elif type_contact_for_tightness == "металл-неметалл":
+                tightness = ["В", "А", "АА", "С"]
+        elif valve_type == "В":
+            if DN == 25.0:
+                tightness = ["В", "С"]
+            else:
+                tightness = ["В", "А", "AA", "С"]
+        else:
+            tightness = None
+            err_tightness = f"Невозможно определить класс герметичнности, Некорректое значение типа ПК: {valve_type}"
+
+        counter_for_id += 1
+        counter_for_sort += 1
+        user_tightness = select_formula_params.get("Класс герметичности")
+        res = self._set_params(selection_result, counter_for_id, "Класс герметичности", all_values=tightness, response_value=user_tightness, sort=counter_for_sort, error=err_tightness, param_type="list")
+        # counter += 1
+
+        #подбор фланцев
+        if joining_type == "Фланцевое":
+            inlet_flange = ['B']#B C D F J K
+            if PN == 6.0:
+                inlet_flange = ['B', 'C', 'D', 'E', 'F']
+            if PN == 16.0:
+                inlet_flange = ['B', 'C', 'D', 'E', 'F']
+            if PN == 40.0:
+                inlet_flange = ['F', 'C', 'D', 'E']
+            if PN == 63.0 or PN == 100.0 or PN == 160.0:
+                inlet_flange = ['J', 'K', 'F', 'C', 'D', 'E']
+            if PN == 250.0:
+                inlet_flange = ['K', 'D']
+            
+            outlet_flange = ['B']#B C D F J K
+            
+            if PN2 == 6.0:
+                outlet_flange = ['B', 'C', 'D', 'E', 'F']
+            if PN2 == 16.0 or PN2 == 16.4:
+                outlet_flange = ['B', 'C', 'D', 'E', 'F']
+            if PN2 == 40.0:
+                outlet_flange = ['F', 'C', 'D', 'E']
+            if PN2 == 63.0 or PN2 == 100.0 or PN2 == 160.0:
+                outlet_flange = ['J', 'K', 'F', 'C', 'D', 'E']
+            if PN2 == 250.0:
+                outlet_flange = ['K', 'D']
+
+        else:
+            inlet_flange = []
+            outlet_flange = inlet_flange
+
+        #Фланцы
+        user_inlet_flange = select_formula_params.get("Фланец на входе")
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(selection_result, counter_for_id, "Фланец на входе", all_values=inlet_flange, response_value=user_inlet_flange, sort=counter_for_sort, param_type='list')
+        # counter += 1
+
+        counter_for_id += 1
+        counter_for_sort += 1
+        user_outlet_flange = select_formula_params.get("Фланец на выходе")
+        res = self._set_params(selection_result, counter_for_id, "Фланец на выходе", all_values=outlet_flange, response_value=user_outlet_flange, sort=counter_for_sort, param_type='list')
+        # counter += 1
+        
+        # Материал сильфона
+        counter_for_id += 1
+        counter_for_sort += 1
+        material_bellows = "08Х18Н10Т" if need_bellows else None
+        res = self._set_params(selection_result, counter_for_id, "Материал сильфона", response_value=material_bellows, sort=counter_for_sort, param_type='raschet')
+        # counter += 1
+
+        # Испытания
+        env_names = list()
+        is_mixture = select_formula_params.get("Состав смеси")
+        if is_mixture:
+            # Если это смесь, то собираем список компонентов
+            
+            envs_value = select_formula_params.get("Состав смеси")
+            for env in envs_value:
+                env_value = list(env.keys())[0]
+                env_names.append(list(env.keys())[0])
+        else:
+            env = select_formula_params.get("Название рабочей среды")
+            env_names.append(env)
+
+        trials = "По ТУ"
+        if "Сероводород" in env_names:
+            need = False
+            need_M = False
+
+            # s = env_names
+            # inx = s.rfind("Сероводород")
+            # s_new = s[inx + 12:]
+            # r = float(s_new[:s_new.find("%")]) # Какой процент выбрал пользователь
+            if not is_mixture:
+                r = 100.0
+            else:
+                for env in is_mixture:
+                    if "Сероводород" in env:
+                        r = float(env.get("Сероводород"))
+            if r > 6.0 and is_mixture:
+                need = True
+
+            r *= 0.01
+            if Ppo * r >= 0.003:
+                need = True
+
+            if need and "Хлор" in env_names:
+                need_M = True
+
+            if need:
+                # нержавеющее исполнение
+                material = "12Х18Н9ТЛ"
+                trials = "По СТ ЦКБА 052-2008\n\nИспытания материала корпуса:\n 1) Хим. Состав \n 2) На растяжение при +20 град. С \n 3) KCU при -60 град. С \n 4) Твердость \n 5) Стойкость к МКК \n 6) ВИК \n 7) РК \n 8) Капиллярный контроль \n\nИспытания материала золотника и седла: \n 1) Хим. Состав \n 2) На растяжение при +20 град. С \n 3) Контроль неметаллических включений \n 4) Контроль макроструктуры \n 5) Твердость \n 6) Стойкость к МКК \n 7) ВИК \n 8) РК \n 9) Капиллярный контроль"
+            if need_M:
+                # молибденовое исполнение
+                material = "12Х18Н12М3ТЛ"
+                trials = "По СТ ЦКБА 052-2008\n\nИспытания материала корпуса:\n 1) Хим. Состав \n 2) На растяжение при +20 град. С \n 3) KCU при -60 град. С \n 4) Твердость \n 5) Стойкость к МКК \n 6) ВИК \n 7) РК \n 8) Капиллярный контроль \n\nИспытания материала золотника и седла: \n 1) Хим. Состав \n 2) На растяжение при +20 град. С \n 3) Контроль неметаллических включений \n 4) Контроль макроструктуры \n 5) Твердость \n 6) Стойкость к МКК \n 7) ВИК \n 8) РК \n 9) Капиллярный контроль"
+
+        if material == "25Л" and T <= 200:
+            material_spool = "20Х13"
+        elif material == "25Л" and T > 200:
+            material_spool = "12Х18Н10Т"
+        elif material == "20ГЛ" and T > 200:
+            material_spool = "12Х18Н10Т"
+        elif material == "20ГЛ" and T <= 200:
+            material_spool = "14Х17Н2"
+        elif material == "12Х18Н9ТЛ" and T > 200:
+            material_spool = "12Х18Н10Т"
+        elif material == "12Х18Н9ТЛ" and T <= 200:
+            material_spool = "12Х18Н10Т"
+        else:
+            material_spool = "10Х17Н13М3Т"
+
+        if material == "25Л":
+            color = [
+                f"Серый RAL7035 по технологической инструкции 38877941.25206.01013 АО \"НПО Регулятор\" ", #Заводская
+                f"Серый RAL7035 cистема АКП С4 по № П2-05 ТИ-0002", #Роснефть
+                f"Красный RAL3020 по СТО Газпром 9.1-018-2012", #Газпром
+                "Другое"
+                ]
+        elif material == "20ГЛ":
+            color = [
+                f"Синий RAL5017 по технологической инструкции 38877941.25206.01013 АО \"НПО Регулятор\" ", #Заводская
+                f"Синий RAL5017 система АКП С4 по № П2-05 ТИ-0002", #Роснефть
+                f"Красный RAL3020 по СТО Газпром 9.1-018-2012", #Газпром
+                "Другое"
+                ]
+        else:
+            color = [
+                f"Голубой RAL5012 по технологической инструкции 38877941.25206.01013 АО \"НПО Регулятор\" ", #Заводская
+                f"Голубой RAL5012 система АКП С4 по № П2-05 ТИ-0002", #Роснефть
+                f"Красный RAL3020 по СТО Газпром 9.1-018-2012", #Газпром
+                "Другое"
+                ]
+        
+        #Собираем маркировку
+        mark = None
+        if valve_type == 'В':
+            if force_open == "Да" and need_bellows == "Да":
+                mark = "АМ211"
+                
+            elif force_open == "Нет" and need_bellows == "Да":
+                mark = "АМ212"
+            elif force_open == "Да" and need_bellows == "Нет":
+                mark = "АМ213"
+            else:
+                mark = "АМ214"
+        else:
+            if force_open == "Да":
+                mark = "АМ220"
+            else:
+                mark = "АМ219"
+        
+        # mark = select_formula_params.get("Маркировка")
+        if mark:
+            weight, painting_area = await self._get_by_mark(db, mark, DN, PN)
+            product_drawing = await self._find_param_print(mark, db, product_id)
+        else:
+            weight = None # "Маccа"
+            painting_area = None # "Площадь под покраску"
+            product_drawing = None 
+        # print(product_drawing, 'Получили изображение')
+        packaging = [
+            "Упаковка на европаллет (1200х800)",
+            "Упаковка груза в ящики из OSB по ТУ “АО НПО Регулятор”",
+            "Упаковка груза в ящики из OSB по ТУ “АО НПО Регулятор”  в северном исполнении",
+            "Упаковка груза в ящики из OSB по ТУ “АО НПО Регулятор”  в морском исполнении",
+            "Упаковка груза в дощатые ящики по ГОСТ 10198",
+            "Упаковка груза в дощатые ящики по ГОСТ 10198 в северном исполнении",
+            "Упаковка груза в дощатые ящики по ГОСТ 10198 в морском исполнении"
+            ]
+        
+        if DN <= 50:
+            packaging.insert(1, "Пенная защитная упаковка груза")
+
+        assignment = "25 лет" if need_bellows else "30 лет"
+
+        
+        # material_spool "Материал золотника"
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(selection_result, counter_for_id, "Материал золотника", response_value=material_spool, sort=counter_for_sort, param_type='raschet')
+        # counter += 1
+
+        # weight Маccа
+        counter_for_id += 1
+        counter_for_sort += 1 
+        res = self._set_params(selection_result, counter_for_id, "Маccа", response_value=float(weight), sort=counter_for_sort, param_type='raschet')
+        # counter += 1
+
+        # painting_area Площадь под покраску
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(selection_result, counter_for_id, "Площадь под покраску", response_value=float(painting_area), sort=counter_for_sort, param_type='raschet')
+        # counter += 1
+
+        # assignment Срок службы
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(selection_result, counter_for_id, "Срок службы", response_value=assignment, sort=counter_for_sort, param_type='raschet')
+        # counter += 1
+
+        # color Цвет
+        counter_for_id += 1
+        counter_for_sort += 1
+        user_color = select_formula_params.get("Цвет")
+        res = self._set_params(selection_result, counter_for_id, "Цвет", all_values=color, response_value=user_color, sort=counter_for_sort, param_type='list')
+        # counter += 1
+
+        # packaging Упаковка
+        counter_for_id += 1
+        counter_for_sort += 1
+        user_packaging = select_formula_params.get("Упаковка")
+        res = self._set_params(selection_result, counter_for_id, "Упаковка", all_values=packaging, response_value=user_packaging, sort=counter_for_sort, param_type='list')
+        # counter += 1
+
+        # trials Испытания
+        counter_for_id += 1
+        counter_for_sort += 1
+        res = self._set_params(selection_result, counter_for_id, "Испытания", response_value=trials, sort=counter_for_sort, param_type='raschet')
+        # counter += 1
+
+        #Собираем маркировку
+        # MARK_ARR[0] = mark
+        # MARK_ARR[1] = str(int(DN))
+        # MARK_ARR[2] = str(int(PN))
+        MARK_ARR = f"{mark}.{int(DN)}.{int(PN)}."
+        connection_params = {
+            "В": {
+                "Фланцевое": "3",
+                "Под приварку": "4",
+                "Цапковое": "1",
+                "Штуцерно-торцовое": "2",
+                "Штуцерное": "5",
+                "Муфтовое": "6",
+                "Ниппельное": "7",
+                "Кламповое": "8"
+            },
+            "П": {
+                "Фланцевое": "3",
+                "Под приварку": "4",
+                "Цапковое": "7",
+                "Штуцерно-торцовое": "9",
+                "Штуцерное": "6",
+                "Муфтовое": "8",
+                "Ниппельное": "5",
+                "Кламповое": "2"
+            }
+        }
+        # MARK_ARR[3] = connection_params[valve_type].get(joining_type, "X")
+        MARK_ARR += connection_params[valve_type].get(joining_type, "X")
+        contact_params = {
+            "металл-неметалл": "2",
+            "металл-металл": "3",
+        }
+        if not contact_type:
+            # MARK_ARR[4] = contact_params.get(user_choice_contact_type, "X")
+            MARK_ARR += contact_params.get(user_choice_contact_type, "X")
+        else:
+            # MARK_ARR[4] = contact_params.get(contact_type, "X")
+            MARK_ARR += contact_params.get(contact_type, "X")
+
+        material_params = {
+            "25Л": "1",
+            "12Х18Н9ТЛ": "2",
+            "20ГЛ": "3",
+            "12Х18Н12М3ТЛ": "4"
+        }
+        # MARK_ARR[5] = material_params.get(material, "X")
+        MARK_ARR += material_params.get(material, "X")
+        open_close_type_dict = {
+            "открытого типа": "1",
+            "закрытого типа": "0"
+        }
+        open_close_type = self._get_param_by_name("Открытый / Закрытый тип", res)
+        if open_close_type:
+            # MARK_ARR[6] = open_close_type_dict.get(open_close_type['response_value'], "X")
+            MARK_ARR += open_close_type_dict.get(open_close_type['response_value'], "X")
+        else:
+            # MARK_ARR[6] = "X"
+            MARK_ARR += "X"
+        if user_inlet_flange and user_outlet_flange and joining_type == "Фланцевое": 
+            # MARK_ARR[7] = f'{user_inlet_flange}/{user_outlet_flange}'
+            MARK_ARR += f'.{user_inlet_flange}/{user_outlet_flange}'
+        else:
+            # MARK_ARR[7] = ""
+            MARK_ARR += ""
+        # total_mark = ''
+        # total_mark += '.'.join(MARK_ARR)
+        # ['X', "X", "X", "X", "X", "X", "X", ""]
+        # counter_for_id += 1
+        # counter_for_sort += 1
+        # res = self._set_params(res, counter_for_id, "Маркировка", response_value=total_mark, sort=counter_for_sort, param_type='raschet')
+        # counter += 1
+
+        #изменился Материал material
+        total_res = list()
+        for param in res:
+            if "table_name" in param and param["table_name"] in ['table2', 'table3', 'table10', 'table4']:
+                # print(param['name'], 'ЧТО ТАБЛИЧНОЕ?')
+                continue
+            if param['name'] == 'Материал':
+                param['response_value'] = material
+            if param['name'] == 'Маркировка':
+                # print(param['response_value'], 'ДО')
+                param['response_value'] = MARK_ARR
+            # if 'response_value' not in param:
+            #     print(param['name'], 123123)
+
+            total_res.append(param)
+        # Параметры без response_value
+        # Молекулярная масса 123123
+
+        # Удельная изобарная теплоемкость кДж/(кг*К) 123123
+
+        # Тип котакта 123123
+
+        # Класс герметичности 123123
+        return {"total_change": total_res}
+    @timer
+    async def get_price_drawing(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
+        """
+        Для прайс-листа выводит чертеж
+        """
+        mark_info = self._get_param_by_name('Маркировка', selection_result)
+        if not mark_info or not mark_info['response_value']:
+            return {"total_change" : selection_result} 
+        mark = mark_info['response_value']
+        search_mark = mark[0:5]
+        query = """
+            SELECT file_url FROM product_drawing 
+            WHERE product_id = :product_id 
+            AND name = :name
+        """ 
+        params = {"product_id": product_id, "name": search_mark} 
+        # Следить чтобы маркировка в БД и маркировка кодовая была одинаковой в плане кириллицы или латиницы
+        stmt = await db.execute(text(query), params) 
+        request = stmt.scalar_one_or_none()
+        if not request:
+            return {"total_change" : selection_result} 
+
+        sorted_params = sorted([item for item in selection_result if 'sort' in item], key=lambda x: x['sort'])
+        last_param = sorted_params[-1]
+        counter_for_id = last_param['id']
+        counter_for_sort = last_param['sort']
+        res = self._set_params(selection_result, counter_for_id, "Чертеж", response_value=HOST + request, sort=counter_for_sort, param_type='raschet')
+        return {"total_change" : res}
+    @timer
+    async def agent_contacts(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         """
         Параметры для заполнения контактов агента:
         - Имя агента (agent_name)
@@ -1017,10 +1773,23 @@ class CodeParametr:
         - Email агента (agent_email)
         - Организация агента (agent_organization)
         """
-        param = self._get_param_by_name("Цена /шт. руб с НДС 22%", selection_result)
-        counter = param['sort'] + 1
+        sorted_params = sorted([item for item in selection_result if 'sort' in item], key=lambda x: x['sort'])
+        last_param = sorted_params[-1]
+        counter_for_id = last_param['id']
+        counter_for_sort = last_param['sort']
+        # param = self._get_param_by_name("Цена /шт. руб с НДС 22%", selection_result)
+        counter = counter_for_sort
         res = []
-        contact_info = ["ФИО Заказчика", "Телефон Заказчика", "Email Заказчика", "Организация Заказчика"]
+        contact_info = [
+            "ФИО Заказчика", 
+            "Телефон Заказчика", 
+            "Email Заказчика", 
+            "Организация Заказчика", 
+            "Должность Заказчика",
+            "Проектная организация",
+            "Комментарий",
+            "Адрес Заказчика"
+        ]
         
         result = self._set_params(selection_result, counter, "ФИО Заказчика", sort=counter, param_type='user_input')
         counter += 1
@@ -1042,7 +1811,7 @@ class CodeParametr:
             return {"total_change" : result}
         for param in result:
             if param['name'] in contact_info and param['name'] in select_formula_params:
-                param['responce_value'] = select_formula_params[param['name']]
+                param['response_value'] = select_formula_params[param['name']]
             res.append(param)
         return {"total_change" : res}
         

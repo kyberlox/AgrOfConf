@@ -4,9 +4,9 @@
         <Clip />
     </div>
     <h2 class="text-(--text-primary)">
-        {{ isLogin ?
-            `Опросных листов пока нет` :
-            `Вы неавторизованы` }}
+        {{ isLogin && !isSearchResult ?
+            `Опросных листов пока нет` : isSearchResult ? 'По вашему запросу нет совпадений' :
+                `Вы неавторизованы` }}
     </h2>
     <div class="max-w-[340px] text-center text-(--text-secondary)">
         {{
@@ -35,9 +35,13 @@ export default defineComponent({
         ClipPlus,
         BaseButton
     },
-    props: {},
+    props: {
+        isSearchResult: {
+            type: Boolean,
+            required: true
+        }
+    },
     setup() {
-
         return {
             isLogin: computed(() => useUserStore().getIsLogin)
         }

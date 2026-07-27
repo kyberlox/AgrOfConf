@@ -1,8 +1,9 @@
 export const featuresFlags = {
     rightSidebar: {
-        description: false,
         mark: true,
-        img: false,
-        docs: false
+        description: false,
+        img: true,
+        docs: false,
+        calcParams: true
     },
 }

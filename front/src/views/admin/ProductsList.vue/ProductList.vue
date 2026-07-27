@@ -1,5 +1,5 @@
 <template>
-<div class="h-screen bg-white p-[32px] rounded-lg w-full">
+<div class="h-[88vh] bg-white p-[32px] rounded-lg w-full">
     <div class="flex justify-end">
         <BaseButton @click="showAddModal = true"
                     :propsClass="'button-primary'"
@@ -34,27 +34,22 @@
                     </div>
                 </div>
             </RouterLink>
-            <SlotModal v-if="showDeleteModal || showEditModal"
-                       @closeModal="closeAllModals">
-                <ProductDeleteModal v-if="showDeleteModal"
-                                    :product="product"
-                                    :isLoading="isLoading"
-                                    @closeAllModals="closeAllModals"
-                                    @deleteProduct="deleteProduct" />
-                <ProductParamsModal v-else-if="showEditModal"
-                                    :product="product"
-                                    :type="'edit'"
-                                    :isLoading="isLoading"
-                                    @changeProduct="changeProduct" />
-            </SlotModal>
+
+            <!-- Модалка удаления параметров-->
+            <ProductDeleteModal :showDeleteModal="showDeleteModal"
+                                :product="product"
+                                :isLoading="isLoading"
+                                @closeAllModals="closeAllModals"
+                                @deleteProduct="deleteProduct" />
+
+            <!-- Модалка редактирования параметров -->
+            <ProductParamsModal :showEditModal="showEditModal"
+                                :product="product"
+                                :type="'edit'"
+                                :isLoading="isLoading"
+                                @changeProduct="changeProduct" />
         </div>
     </div>
-    <SlotModal v-if="showAddModal"
-               @closeModal="closeAllModals">
-        <ProductParamsModal :type="'add'"
-                            :isLoading="isLoading"
-                            @changeProduct="changeProduct" />
-    </SlotModal>
 </div>
 </template>
 <script lang='ts'>

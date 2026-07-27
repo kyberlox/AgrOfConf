@@ -3,35 +3,51 @@
     <input class="hidden"
            ref=fileInput
            type="file"
+           :value="fileValue"
            @change="handleFileUpload" />
-    <BaseButton :props-class="'button-primary'"
-                :props-title="fileName"
+
+    <BaseButton :props-class="buttonClass"
+                :props-title="needFileNameInTitle ? fileName : 'Загрузить'"
+                :disabled="isLoading"
                 @clicked="handleClick">
-        {{ fileName }}
+        <span v-if="!isLoading">{{ fileName }}</span>
+        <Loader v-else />
     </BaseButton>
 </div>
 </template>
 <script lang='ts'>
 import { defineComponent, ref, watch } from 'vue';
 import { BaseButton } from 'beans-ui-kit';
+import Loader from './Loader.vue';
 
 export default defineComponent({
     components: {
-        BaseButton
+        BaseButton,
+        Loader
     },
     props: {
-        placeholder: {
-            type: String,
-            default: ''
+        fileValue: {
+            type: File,
         },
-        value: {
-            type: [String, Number],
-            default: ''
+        fileName: {
+            type: String,
+            default: 'Загрузить'
+        },
+        buttonClass: {
+            type: String
+        },
+        needFileNameInTitle: {
+            type: Boolean,
+        },
+        isLoading: {
+            type: Boolean
         }
     },
+    emits: ['fileUpload'],
     setup(props, { emit }) {
         const fileInput = ref();
-        const fileName = ref('Загрузить фото');
+        const fileName = ref();
+
         const handleClick = () => {
             if (fileInput.value)
                 (fileInput.value).click()
@@ -42,6 +58,18 @@ export default defineComponent({
             fileName.value = fileInput.value.files[0].name;
             emit('fileUpload', fileInput.value.files[0])
         }
+
+        watch(() => props.fileValue, () => {
+            if (props.fileValue) {
+                fileInput.value = props.fileValue
+            }
+        }, { immediate: true })
+
+        watch(() => props.fileName, () => {
+            if (props.fileName) {
+                fileName.value = props.fileName
+            }
+        }, { immediate: true })
 
         return {
             fileInput,

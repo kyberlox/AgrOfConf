@@ -1,26 +1,29 @@
 <template>
-<div class="pb-[15px]">
-    <div v-if="!wasRecognized"
-         class="prompt-area__actions  flex flex-col gap-[15px] w-[80vh] h-[80vh] justify-center px-[25px]">
-        <h3 class="text-left mt-[15px]">Дополните промпт или отправьте без изменений</h3>
-        <span>Нередактируемый промпт</span>
-        <pre class="bg-blue-50 border border-gray-400 rounded-[16px] p-[25px] max-h-full overflow-auto"
-             v-html="defaultPromptToOCR"></pre>
-        <span>Если необходимо дополнить, заполните поле ниже</span>
-        <BaseTextarea :propsClass="'prompt-area'"
-                      @valueChanged="(newVal) => promptVal = newVal" />
-        <BaseButton :propsClass="'button-primary'"
-                    :disabled="docIsLoading"
-                    @clicked="sendToServer">
-            Отправить
-        </BaseButton>
+<SlotModal v-if="promptModalVisible"
+           @closeModal="$emit('closeModal')">
+    <div class="pb-[15px]">
+        <div v-if="!wasRecognized"
+             class="prompt-area__actions  flex flex-col gap-[15px] w-[80vh] h-[80vh] justify-center px-[25px]">
+            <h3 class="text-left mt-[15px]">Дополните промпт или отправьте без изменений</h3>
+            <span>Нередактируемый промпт</span>
+            <pre class="bg-blue-50 border border-gray-400 rounded-[16px] p-[25px] max-h-full overflow-auto"
+                 v-html="defaultPromptToOCR"></pre>
+            <span>Если необходимо дополнить, заполните поле ниже</span>
+            <BaseTextarea :propsClass="'prompt-area'"
+                          @valueChanged="(newVal) => promptVal = newVal" />
+            <BaseButton :propsClass="'button-primary'"
+                        :disabled="docIsLoading"
+                        @clicked="sendToServer">
+                Отправить
+            </BaseButton>
+        </div>
+        <RecognitionCompare v-else
+                            :imagesUrl="imagesUrl"
+                            :recognizedTable="recognizedTable"
+                            :convertAiIsLoading="convertAiIsLoading"
+                            @successRecognized="(newTable) => handleSuccessRecognized(newTable)" />
     </div>
-    <RecognitionCompare v-else
-                        :imagesUrl="imagesUrl"
-                        :recognizedTable="recognizedTable"
-                        :convertAiIsLoading="convertAiIsLoading"
-                        @successRecognized="(newTable) => handleSuccessRecognized(newTable)" />
-</div>
+</SlotModal>
 </template>
 
 <script lang='ts'>
@@ -50,6 +53,10 @@ export default defineComponent({
         uploadedFileName: {
             type: String,
             required: true
+        },
+        promptModalVisible: {
+            type: Boolean,
+            default: false
         }
     },
     emits: ['closeModal'],

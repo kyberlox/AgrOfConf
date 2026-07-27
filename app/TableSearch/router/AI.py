@@ -132,12 +132,12 @@ async def upload_OL(
         )
         # res = response.model_dump()
         # total_coast = res['usage']['total_cost']
-        need = response.choices[0].message.content
-        total_coast = response.usage.total_cost
+        # need = response.choices[0].message.content
+        # total_coast = response.usage.total_cost
         # need = res['choices'][0]['message']['content']
         # parsed_need = _extract_json_from_response(need)
         
-        # Сохраняем статистику
+        # # Сохраняем статистику
         # stat_info = await build_statistic_data(db, user_id, product_id)
         # stat_info['parameters'] = parsed_need
         # stat_info['total_coast'] = total_coast
@@ -149,7 +149,7 @@ async def upload_OL(
     except HTTPException:
         raise
     except Exception as e:
-        print(123, str(e))
+        # print(123, str(e))
         raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")
 
 
@@ -157,8 +157,10 @@ async def upload_OL(
 async def convert_ai_result(
     # raw_json: dict = Body(...)
     product_id: int,
+    ol_filename: str,
     raw_md: str = Body(...),
-    db: AsyncSession = Depends(get_db) 
+    db: AsyncSession = Depends(get_db),
+    user_id: Optional[int] = Depends(get_user_id_by_session_id) 
 ):
     try:
         #RAW_JSON: {json.dumps(raw_json, ensure_ascii=False, indent=2)} 
@@ -206,9 +208,20 @@ async def convert_ai_result(
         total_coast = response.model_dump()['usage']['total_cost']
         print(f"Total cost конвертации: {total_coast}")
         result = response.choices[0].message.content
+        # need = response.choices[0].message.content
+        # total_coast = response.usage.total_cost
+        # # need = res['choices'][0]['message']['content']
+        # parsed_need = _extract_json_from_response(result)
         
+        # # Сохраняем статистику
+        # stat_info = await build_statistic_data(db, user_id, product_id)
+        # stat_info['parameters'] = parsed_need
+        # stat_info['total_coast'] = total_coast
+        # stat_info['ol_filename'] = ol_filename
+        
+        # is_dump = await statistic_router.save_recognition(stat_info)
         fin_all = time.time()
         print(f"Конвертировали за {fin_all - start_all}")
         return json.loads(result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка обработки данных с vision модели: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки данных с thinking модели: {str(e)}")

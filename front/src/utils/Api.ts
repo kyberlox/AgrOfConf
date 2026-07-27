@@ -25,8 +25,9 @@ const api = axios.create({
 // })
 
 export default class Api {
-    static async get(url: string, config?: AxiosRequestConfig) {
-        return await api.get(url, config)
+    static async get(url: string, config?: AxiosRequestConfig, signal?: AbortSignal) {
+        const mergedConfig: AxiosRequestConfig = { ...config, signal: signal ?? config?.signal }
+        return await api.get(url, mergedConfig)
             .then(resp => resp.data)
             .catch(e => handleApiErrors(e))
     }
@@ -40,8 +41,10 @@ export default class Api {
             const respData = await api.post(url, data, mergedConfig)
             return needRespInfo ? respData : respData.data
         } catch (e) {
-            console.error(e)
-            handleApiErrors(e as AxiosError)
+            if ((e as Error).name == 'CanceledError')
+                return
+            else
+                handleApiErrors(e as AxiosError)
         }
     }
 

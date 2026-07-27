@@ -1,5 +1,5 @@
 <template>
-<div class="p-[32px] w-full bg-[#FDFDFD] max-w-full border border-gray-200 rounded-xl">
+<div class="p-[32px] w-full bg-[#FDFDFD] ml-auto border border-gray-200 rounded-xl min-h-[86vh]">
     <div class="flex flex-row gap-[24px] h-full flex-wrap md:flex-wrap lg:flex-nowrap">
         <div class="flex flex-col gap-[24px] w-full">
             <div
@@ -32,11 +32,14 @@
             </div>
             <EngineParams v-if="form.length"
                           :form="form"
-                          :type="neuroOlData ? 'free' : 'auto'"
+                          :paramsGroups="paramsGroups"
+                          :paramsLoading="freeConfigMode ? false : paramsLoading"
+                          :type="freeConfigMode ? 'free' : 'auto'"
                           :key="paramsRenderKey"
+                          :userParams="userParams"
                           @valueChanged="(value: string, key: string) => handleValueChanged(value, key)" />
             <div v-else
-                 class="w-[60px] h-[60px] m-auto">
+                 class="engine-params__loader">
                 <Loader />
             </div>
             <div class="flex flex-row justify-end gap-[8px] flex-wrap mt-0">
@@ -54,28 +57,22 @@
         </div>
         <RightSidebar @readyToUploadFile="handleFileUpload" />
     </div>
-    <!-- Модалка для description -->
-    <SlotModal v-if="modalVisible"
-               @closeModal="modalVisible = false">
-        <h1>dsa</h1>
-    </SlotModal>
+
     <!-- Модальное окно для TKP вариантов -->
-    <SlotModal v-if="tkpModalIsVisible"
-               @closeModal="tkpModalIsVisible = false">
-        <TkpVariants :tkpVariants="tkpVariants"
-                     @downloadTkp="(id: number) => handleDownloadTkp(id)" />
-    </SlotModal>
+    <TkpVariants :tkpVariants="tkpVariants"
+                 :tkpModalIsVisible="tkpModalIsVisible"
+                 @closeModal="tkpModalIsVisible = false"
+                 @downloadTkp="(id: number) => handleDownloadTkp(id)" />
+
     <!-- Модалка для промпта для распознавания -->
-    <SlotModal v-if="promptModalVisible"
-               @closeModal="promptModalVisible = false">
-        <PromptModal :formData="olFormData"
-                     :uploadedFileName="newFileName || ''"
-                     @closeModal="promptModalVisible = false" />
-    </SlotModal>
+    <PromptModal :promptModalVisible="promptModalVisible"
+                 :formData="olFormData"
+                 :uploadedFileName="newFileName || ''"
+                 @closeModal="promptModalVisible = false" />
 </div>
 </template>
 <script lang='ts'>
-import { defineComponent, onMounted, ref, computed, watch } from 'vue';
+import { defineComponent, onMounted, ref, computed, watch, onUnmounted } from 'vue';
 import { BaseButton } from 'beans-ui-kit';
 import Ellipse from '@/assets/icons/Ellipse.svg?component';
 import ArrowLeft from '@/assets/icons/ArrowLeft.svg?component';
@@ -94,6 +91,8 @@ import { type ITkpVariant } from '@/assets/interfaces/ITkpVariant.ts';
 import { downloadFile } from '@/utils/downloadFile.ts';
 import Loader from '@/components/layout/Loader.vue';
 import { getTkpVariants } from '@/utils/getTkpVariants.ts';
+import { toast } from 'vue3-toastify';
+import { watchDebounced } from '@vueuse/core';
 
 export default defineComponent({
     components: {
@@ -130,13 +129,30 @@ export default defineComponent({
         const newFileName = ref<string>();
         const configuratorStore = useConfiguratorStore();
         const freeConfigMode = computed(() => configuratorStore.getFreeModeConfig);
-
+        const userParams = ref<Record<string, string>>();
+        const paramsLoading = ref(false);
+        const paramsGroups = ref<Record<string, Array<string>>>();
         let abortController: AbortController | null = null;
 
-        const paramsUpdate = async (body: Record<string, string> | null) => {
+        const paramsUpdate = (body: Record<string, string> | null) => {
+            if (!body) {
+                paramsUpdateRequest()
+            } else
+                userParams.value = body;
+        }
+
+        watchDebounced(() => userParams.value, async () => {
+            // console.log(userParams.value)
+            if (userParams.value)
+                paramsUpdateRequest(userParams.value)
+        }, { debounce: 1000, maxWait: 1000, deep: true })
+
+
+        const paramsUpdateRequest = async (body: Record<string, string> = {}) => {
             if (freeConfigMode.value && body !== null) {
                 return
             }
+            paramsLoading.value = true;
             if (abortController) {
                 abortController.abort();
             }
@@ -152,32 +168,39 @@ export default defineComponent({
                     if ('error' in e && e.error) {
                         errors.push(e.error)
                     }
-                    if ('response_value' in e && e.response_value) {
+                    if ('response_value' in e && e.response_value && userInputs.value[e.name] !== e.response_value) {
                         userInputs.value[e.name] = e.response_value
                         answeredCounter++
                     }
                     questionCounter++
                 })
+                configuratorStore.setCalcParams(data.parameters.filter((e: IFormattedData) => e.required_type == 'raschet' && e.response_value));
                 configuratorStore.setCovered(Number(answeredCounter));
                 configuratorStore.setAllQuestions(Number(questionCounter));
                 if (errors.length) {
                     configuratorStore.setError(errors)
                 }
                 else configuratorStore.setDefaultError()
+
                 if (!(data && 'parameters' in data)) return
                 form.value = data.parameters
                 productName.value = data.product_name
-            }
-            catch (error) {
-                console.error(error)
+            } finally {
+                paramsLoading.value = false
             }
         }
 
         onMounted(async () => {
             tkpVariants.value = await getTkpVariants(props.id);
-            if (!Object.keys(neuroOlData.value).length)
-                paramsUpdate(null)
+            const data = await Api.get(`/blocks/by_product/${props.id}`);
+            if (data) {
+                paramsGroups.value = data;
+            }
+            paramsUpdateRequest();
+        })
 
+        onUnmounted(() => {
+            configuratorStore.$reset();
         })
 
         watch(neuroOlData, () => {
@@ -191,19 +214,23 @@ export default defineComponent({
             if (key == 'Маркировка') {
                 configuratorStore.setMark(value)
             }
-            userInputs.value[key] = value;
-            paramsUpdate(userInputs.value)
+            if (value) {
+                userInputs.value[key] = value;
+                paramsUpdate(userInputs.value)
+            }
         }
 
         const handleDownloadTkp = async (variantId: number) => {
             try {
-                const response = await Api.post(`tkp_generation/create_tkp?file_id=${variantId}&product_id=${props.id}&save_to_statistic=true`, userInputs.value, { responseType: 'blob' }, undefined, true)
-                const contentDisposition = response.headers['content-disposition'];
-                const filename = contentDisposition?.split('filename=')[1].replaceAll('"', '');
-                await downloadFile(response.data, filename)
+                const response = await Api.post(`tkp_generation/create_tkp?file_id=${variantId}&product_id=${props.id}&save_to_statistic=true`, userInputs.value, { responseType: 'blob' }, undefined, true);
+                if (response) {
+                    const contentDisposition = response.headers['content-disposition'];
+                    const filename = contentDisposition?.split('filename=')[1].replaceAll('"', '');
+                    await downloadFile(response.data, filename)
+                }
             }
             catch (error) {
-                console.error(error)
+                toast.error(error)
             }
         }
 
@@ -217,6 +244,7 @@ export default defineComponent({
             configuratorStore.setFreeModeConfig(mode)
         }
 
+
         return {
             form,
             modalVisible,
@@ -229,6 +257,9 @@ export default defineComponent({
             olFormData,
             freeConfigMode,
             newFileName,
+            paramsLoading,
+            paramsGroups,
+            userParams,
             handleValueChanged,
             handleDownloadTkp,
             handleFileUpload,

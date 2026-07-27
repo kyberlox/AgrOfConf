@@ -15,6 +15,7 @@ from .TablePakage.router.parameter_values import router as parameter_values_rout
 from .TableSearch.router.module_search import router as module_search_router
 from .TableSearch.router.module_search_pandas import router as module_search_router_pandas
 from .TableSearch.router.AI import router as AI_router
+from .TableSearch.router.blocks import router as blocks_router
 from .TablePakage.router.tkp_generation import router as tkp_generation
 
 from .TablePakage.model.database import create_tables
@@ -55,13 +56,13 @@ DOMAIN = os.getenv('DOMAIN')
 # # Настройка CORS
 origins = ["http://localhost:5173", DOMAIN]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,  # В продакшене укажите конкретные домены
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=origins,  # В продакшене укажите конкретные домены
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 #Открытые эндпоинты
 open_links = ["/api/docs", "/api/openapi.json"]
@@ -156,6 +157,7 @@ app.include_router(parameter_values_router, prefix="/api")
 app.include_router(module_search_router, prefix="/api")
 app.include_router(module_search_router_pandas, prefix="/api")
 app.include_router(AI_router, prefix="/api")
+app.include_router(blocks_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(roots_router, prefix="/api")

@@ -3,7 +3,9 @@
   <VHeader />
   <div class="p-[24px] bg-[#F6F7F9] flex flex-row gap-[32px]">
     <LeftSidebar />
-    <RouterView @getTkpVariants="console.log('ablst')" />
+    <div class="max-w-[calc(100%-114px)] ml-auto grow">
+      <RouterView />
+    </div>
   </div>
 </div>
 </template>
@@ -23,7 +25,6 @@ export default defineComponent({
   props: {},
   setup() {
     const userStore = useUserStore();
-
     const authorize = async () => {
       try {
         const user: IUser = await Api.get('auth/user_id_by_session_id')
