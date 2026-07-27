@@ -32,9 +32,11 @@
             </div>
             <EngineParams v-if="form.length"
                           :form="form"
-                          :paramsLoading="paramsLoading"
-                          :type="neuroOlData ? 'free' : 'auto'"
+                          :paramsGroups="paramsGroups"
+                          :paramsLoading="freeConfigMode ? false : paramsLoading"
+                          :type="freeConfigMode ? 'free' : 'auto'"
                           :key="paramsRenderKey"
+                          :userParams="userParams"
                           @valueChanged="(value: string, key: string) => handleValueChanged(value, key)" />
             <div v-else
                  class="engine-params__loader">
@@ -90,6 +92,7 @@ import { downloadFile } from '@/utils/downloadFile.ts';
 import Loader from '@/components/layout/Loader.vue';
 import { getTkpVariants } from '@/utils/getTkpVariants.ts';
 import { toast } from 'vue3-toastify';
+import { watchDebounced } from '@vueuse/core';
 
 export default defineComponent({
     components: {
@@ -126,20 +129,30 @@ export default defineComponent({
         const newFileName = ref<string>();
         const configuratorStore = useConfiguratorStore();
         const freeConfigMode = computed(() => configuratorStore.getFreeModeConfig);
-        const userParams = ref<Record<string, string> | null>(null);
+        const userParams = ref<Record<string, string>>();
         const paramsLoading = ref(false);
-
+        const paramsGroups = ref<Record<string, Array<string>>>();
         let abortController: AbortController | null = null;
 
         const paramsUpdate = (body: Record<string, string> | null) => {
-            userParams.value = body;
+            if (!body) {
+                paramsUpdateRequest()
+            } else
+                userParams.value = body;
         }
 
-        const paramsUpdateRequest = async (body: Record<string, string> | null = userParams.value) => {
-            paramsLoading.value = true;
+        watchDebounced(() => userParams.value, async () => {
+            // console.log(userParams.value)
+            if (userParams.value)
+                paramsUpdateRequest(userParams.value)
+        }, { debounce: 1000, maxWait: 1000, deep: true })
+
+
+        const paramsUpdateRequest = async (body: Record<string, string> = {}) => {
             if (freeConfigMode.value && body !== null) {
                 return
             }
+            paramsLoading.value = true;
             if (abortController) {
                 abortController.abort();
             }
@@ -155,7 +168,7 @@ export default defineComponent({
                     if ('error' in e && e.error) {
                         errors.push(e.error)
                     }
-                    if ('response_value' in e && e.response_value) {
+                    if ('response_value' in e && e.response_value && userInputs.value[e.name] !== e.response_value) {
                         userInputs.value[e.name] = e.response_value
                         answeredCounter++
                     }
@@ -179,6 +192,8 @@ export default defineComponent({
 
         onMounted(async () => {
             tkpVariants.value = await getTkpVariants(props.id);
+            paramsGroups.value = await Api.get(`/blocks/by_product/${props.id}`);
+            paramsUpdateRequest();
         })
 
         onUnmounted(() => {
@@ -196,7 +211,7 @@ export default defineComponent({
             if (key == 'Маркировка') {
                 configuratorStore.setMark(value)
             }
-            if (value || value == '') {
+            if (value) {
                 userInputs.value[key] = value;
                 paramsUpdate(userInputs.value)
             }
@@ -226,9 +241,6 @@ export default defineComponent({
             configuratorStore.setFreeModeConfig(mode)
         }
 
-        watch(() => userParams.value, () => {
-            paramsUpdateRequest()
-        }, { immediate: true, deep: true })
 
         return {
             form,
@@ -243,6 +255,8 @@ export default defineComponent({
             freeConfigMode,
             newFileName,
             paramsLoading,
+            paramsGroups,
+            userParams,
             handleValueChanged,
             handleDownloadTkp,
             handleFileUpload,

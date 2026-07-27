@@ -1,9 +1,13 @@
 .paramsSelect {
-  @apply px-[8px] py-[12px] pr-[12px] border border-transparent flex flex-row gap-[8px] font-[400] text-[16px] rounded-[8px] bg-[#F6F7F9] outline-0 w-full min-h-[43px] cursor-pointer duration-300 transition-all mt-auto;
+  @apply px-[8px] pr-[12px] border border-transparent flex flex-row  gap-[8px] font-[400] text-[14px] rounded-[8px] bg-[#F6F7F9] outline-0 w-full min-h-[43px] cursor-pointer duration-300 transition-all mt-auto font-[600];
 }
 
 .paramsSelect:hover, .paramsSelect:focus {
   border: 1px solid #f36e3c;
+}
+
+.paramsSelect__option{
+ @apply font-[600]
 }
 
 .paramsSelect__option--marked {
@@ -11,15 +15,18 @@
 }
 
 .paramsSelect__inner{
-  @apply mt-auto;
+  @apply w-[45%] ;
 }
 
 .paramsSelect__wrapper {
-  @apply flex flex-col gap-[6px] w-full h-full;
+  @apply flex flex-row py-[2px] items-center gap-[6px] w-full h-full justify-between border-b border-b-(--color-information-gray-100);
 }
 
-.paramsSelect__wrapper--disabled{
-  border: transparent;
+.paramsSelect__wrapper:hover .paramsSelect__label{
+   @apply text-(--orange)
+}
+
+.paramsSelect__wrapper--disabled {
   @apply text-gray-200;
 }
 
@@ -28,10 +35,10 @@
 }
 
 .paramsSelect__label {
-  @apply text-[13px] font-[600] flex flex-row justify-between gap-[4px];
+  @apply text-[14px] font-[500]  flex flex-row justify-between gap-[4px] transition-all duration-100;
 }
 .paramsSelect__label__wrapper {
-  @apply mt-auto;
+  @apply w-[50%] flex-grow;
 }
 
 .paramsSelect__error {

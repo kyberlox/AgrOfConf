@@ -1,41 +1,42 @@
 <template>
-<div class="grid gap-[16px]"
-     :class="`grid-cols-${gridCols}`">
-    <template v-for="(param, index) in items"
-              :key="param.id">
-        <div :class="{ 'last:col-span-2': items.length % 2 }">
-            <!-- Смежный селект + инпут для сред -->
-            <SelectInput v-if="(param as IFormattedData).required_type == 'select-input'"
-                         :param="(param as IFormattedData)"
-                         :disabled="paramsLoading"
-                         @changeSelectInputValue="(value) => $emit('valueChanged', value, param.name)" />
+<div class="grid grid-cols-1 gap-[2px]">
+    <div v-for="(param, index) in items"
+         :key="param.id"
+         class="flex flex-row items-center">
+        <!-- Смежный селект + инпут для сред -->
+        <SelectInput v-if="(param as IFormattedData).required_type == 'select-input'"
+                     :param="(param as IFormattedData)"
+                     :disabled="paramsLoading"
+                     @changeSelectInputValue="(value) => $emit('valueChanged', value, param.name)" />
 
-            <!-- свободный текстовый инпут -->
-            <BaseInput v-else-if="(param as IFormattedData).required_type == 'user_input'"
-                       :propsClass="'input-param'"
-                       :props-placeholder="'Впишите значение'"
-                       :propsName="param.name + (index + 1)"
-                       :props-label="param.name"
-                       :error="'error' in param ? (param as IFormattedData).error : ''"
-                       :disabled="paramsLoading"
-                       @valueChanged="(value: string | null) => $emit('valueChanged', value ?? '', param.name)" />
+        <!-- свободный текстовый инпут -->
+        <BaseInput v-else-if="(param as IFormattedData).required_type == 'user_input'"
+                   :propsClass="'input-param'"
+                   :props-placeholder="paramsLoading ? '...' : 'Впишите значение'"
+                   :propsValue="userParams ? userParams[param.name as keyof typeof userParams] : param?.response_value || ''"
+                   :propsName="param.name + (index + 1)"
+                   :props-label="param.name"
+                   :error="'error' in param ? (param as IFormattedData).error : ''"
+                   :disabled="paramsLoading"
+                   @valueChanged="(value: string | null) => $emit('valueChanged', value ?? '', param.name)" />
 
-            <!-- выпадающий список -->
-            <BaseSelect v-else-if="(param.name !== 'sep')"
-                        :propsLabel="param.name"
-                        :propsId="param.name"
-                        :propsClass="'paramsSelect'"
-                        :propsValue="(param as IFormattedData).response_value ? String((param as IFormattedData).response_value) : ''"
-                        :propsOptions="checkParams(param as IFormattedData)"
-                        :propsPlaceholder="!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param ? '' : 'Выберите значение'"
-                        :needReq="true"
-                        :labelIcon="createLabelIconsComponent(param as IFormattedData, () => console.log('testComp'))"
-                        :error="'error' in param ? (param as IFormattedData).error : ''"
-                        :errorIcon="AlertCircle"
-                        :disabled="((!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')) && type == 'auto'"
-                        @valueChanged="(value: string) => $emit('valueChanged', value, param.name)" />
-        </div>
-    </template>
+        <!-- выпадающий список -->
+        <BaseSelect v-else-if="(param.name !== 'sep')"
+                    :propsLabel="param.name"
+                    :propsId="param.name"
+                    :propsClass="'paramsSelect'"
+                    :propsValue="userParams ? userParams[param.name as keyof typeof userParams] : param?.response_value || ''"
+                    :propsOptions="checkParams(param as IFormattedData)"
+                    :propsPlaceholder="!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param ? '' : 'Выберите значение'"
+                    :needReq="true"
+                    :labelIcon="createLabelIconsComponent(param as IFormattedData, () => console.log('testComp'))"
+                    :error="'error' in param ? (param as IFormattedData).error : ''"
+                    :errorIcon="AlertCircle"
+                    :disabled="(((!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')) && type == 'auto') || paramsLoading"
+                    @valueChanged="(value: string) => $emit('valueChanged', value, param.name)" />
+        <QuestionStatus v-if="type == 'auto'"
+                        :status="paramsLoading ? 'loading' : param.error ? 'canceled' : param.response_value ? 'checked' : ''" />
+    </div>
 </div>
 </template>
 <script lang='ts'>
@@ -46,6 +47,7 @@ import SelectInput from '@/components/SelectInput.vue';
 import { useConfiguratorStore } from '@/stores/configurator';
 import { createLabelIconsComponent } from '@/composables/createComponent';
 import AlertCircle from '@/assets/icons/AlertCircle.svg?component';
+import QuestionStatus from '@/components/layout/QuestionStatus.vue';
 
 export default defineComponent({
     components: {
@@ -53,6 +55,7 @@ export default defineComponent({
         BaseSelect,
         BaseInput,
         SelectInput,
+        QuestionStatus,
         AlertCircle
     },
     emits: ['valueChanged'],
@@ -72,6 +75,9 @@ export default defineComponent({
         paramsLoading: {
             type: Boolean,
             default: false
+        },
+        userParams: {
+            type: Object as PropType<Record<string, string>>
         }
     },
     setup() {

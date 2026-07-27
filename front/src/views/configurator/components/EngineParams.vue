@@ -11,21 +11,23 @@
     </div>
     <div class="border-t border-[#EAECEF] w-full max-w-full mb-[20px]"></div>
     <!-- Группы параметров  -->
-    <MasonryWall v-if="Object.keys(testParamsWithGroups).length"
-                 :items="Object.keys(testParamsWithGroups)"
-                 :columnWidth="320"
+    <MasonryWall v-if="Object.keys(paramsGroups).length"
+                 :items="Object.keys(paramsGroups)"
+                 :columnWidth="400"
                  :gap="12">
         <template #default="{ item }">
             <div class="masonry-item rounded-[10px] p-[12px] border border-[#EAECEF] transition-all duration-200">
                 <!-- Заголовок группы -->
                 <div
-                     class="text-[13px] font-[600] text-[#5E697D] uppercase tracking-[0.03em] mb-[10px] pb-[8px] border-b border-[#EAECEF]">
+                     class="text-[13px] font-[600] text-[#5E697D] uppercase tracking-[0.03em] mb-[2px] pb-[8px] border-b border-[#EAECEF]">
                     {{ item }}
                 </div>
                 <!-- Параметры группы -->
-                <EngineParamsGroup :items="getParamsGroup(testParamsWithGroups[item as keyof typeof testParamsWithGroups])
+                <EngineParamsGroup :items="getParamsGroup(paramsGroups[item as keyof typeof paramsGroups])
                     .filter(paramsFilter)"
                                    :gridCols="gridCols"
+                                   :type="type"
+                                   :userParams="userParams"
                                    :paramsLoading="paramsLoading"
                                    @valueChanged="(value, param) => $emit('valueChanged', value, param)" />
             </div>
@@ -40,7 +42,7 @@
 </div>
 </template>
 <script lang='ts'>
-import { defineComponent, computed } from 'vue';
+import { defineComponent, computed, type PropType } from 'vue';
 import ParamsHeaderIcons from './ParamsHeaderIcons.vue';
 import type { IFormattedData } from '@/assets/interfaces/IForm';
 import { createLabelIconsComponent } from '@/composables/createComponent';
@@ -76,6 +78,13 @@ export default defineComponent({
         paramsLoading: {
             type: Boolean,
             defaul: false
+        },
+        paramsGroups: {
+            type: Object as PropType<Record<string, Array<string>>>,
+            default: {}
+        },
+        userParams: {
+            type: Object as PropType<Record<string, string>>
         }
     },
     emits: ['valueChanged'],
@@ -83,15 +92,10 @@ export default defineComponent({
         const { width } = useWindowSize();
         const gridCols = computed(() => width.value < screenMixins.xxl ? 1 : 2);
 
-        const testParamsWithGroups = {
-            // 'Паспортичка': ['ФИО Заказчика', 'Email Заказчика', 'Организация Заказчика', 'Проектная организация', 'Комментарий', 'Должность Заказчика', 'Адрес Заказчика'],
-            // 'Паспортичка2': ['ФИО Заказчика', 'Email Заказчика', 'Организация Заказчика', 'Проектная организация', 'Комментарий', 'Должность Заказчика', 'Адрес Заказчика'],
-            // 'Группа 2': ['ФИО Заказчика', 'Email Заказчика', 'Организация Заказчика', 'Проектная организация', 'Комментарий',],
-            // 'Группа 3': ['Температура рабочей среды максимальная, °C'],
-            // 'Группа 4': ['Температура рабочей среды максимальная, °C'],
-        }
-
-        const getParamsGroup = (paramGroup: Array<string>) => {
+        const getParamsGroup = (paramGroup?: Array<string>) => {
+            if (!paramGroup) {
+                return []
+            }
             const newGroup: IFormattedData[] = [];
             paramGroup.forEach(nameInGroup => {
                 const target = props?.form?.find(e => e.name == nameInGroup);
@@ -104,7 +108,6 @@ export default defineComponent({
         return {
             gridCols,
             screenMixins,
-            testParamsWithGroups,
             getParamsGroup,
             createLabelIconsComponent,
             paramsFilter: (e: IFormattedData) => e.visibility && e.required_type !== 'raschet' && (e.required_type == 'select-input' ? e.all_values : true)

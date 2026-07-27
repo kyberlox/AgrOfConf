@@ -95,7 +95,7 @@
                 </div>
             </div>
         </div>
-        <div class="mt-[16px] bg-gray-100 bg-contain bg-no-repeat bg-center w-[294px] h-[120px]"
+        <div class="mt-[16px] bg-gray-100 bg-contain bg-no-repeat bg-center w-[294px] h-[120px] cursor-zoom-in"
              @click="{ activeImageInModal = images[activeImgBlock]?.img; showImageModal = true }"
              :style="{ 'background-image': `url(${images[activeImgBlock]?.img})` }">
         </div>
