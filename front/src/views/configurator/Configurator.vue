@@ -192,7 +192,10 @@ export default defineComponent({
 
         onMounted(async () => {
             tkpVariants.value = await getTkpVariants(props.id);
-            paramsGroups.value = await Api.get(`/blocks/by_product/${props.id}`);
+            const data = await Api.get(`/blocks/by_product/${props.id}`);
+            if (data) {
+                paramsGroups.value = data;
+            }
             paramsUpdateRequest();
         })
 
