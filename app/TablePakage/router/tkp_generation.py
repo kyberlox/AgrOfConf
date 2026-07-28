@@ -78,7 +78,7 @@ async def tkp_generation(
         if not file_info:
             raise HTTPException(status_code=404, detail="Файл не найден")
         template_path = file_info.file
-        contact_info = ["ФИО Заказчика", "Маркировка"]
+        contact_info = ["Маркировка"]
         if not all(key in user_dict for key in contact_info):
             raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
 
@@ -135,7 +135,7 @@ async def tkp_generation(
             result_stream = BytesIO()
             doc.save(result_stream)
             result_stream.seek(0)
-            filename = f"TKP+TO_{to_sql_name_lat(user_dict['ФИО Заказчика'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
+            filename = f"TKP+TO_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}"
             return StreamingResponse(
                 result_stream,
                 media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
