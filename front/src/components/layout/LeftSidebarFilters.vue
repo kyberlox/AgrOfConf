@@ -7,7 +7,7 @@
                 :props-placeholder="'Выберите значение'"
                 :propsClass="'sidebar__filter'"
                 :props-id="'sidebar__filter' + index"
-                @value-changed="(value) => handleFilterChange(value, item.name)" />
+                @value-changed="(value: string) => handleFilterChange(value, item.name)" />
 </div>
 </template>
 

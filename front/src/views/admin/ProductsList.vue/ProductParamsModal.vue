@@ -12,7 +12,7 @@
                        :propsPlaceholder="param"
                        :propsLabel="param"
                        :propsValue="userInputs[param as keyof IProduct]"
-                       @valueChanged="(x) => updateUserInputs(param as keyof IProduct, x)" />
+                       @valueChanged="(x: string) => updateUserInputs(param as keyof IProduct, x)" />
         </div>
         <div class="flex justify-start">
             <BaseButton :props-class="'button-primary'"

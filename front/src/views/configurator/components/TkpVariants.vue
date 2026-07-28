@@ -8,7 +8,7 @@
                         :props-placeholder="'Выберите варианты ТКП'"
                         :propsClass="'select-params'"
                         :propsOptions="formatToSelect(tkpVariants)"
-                        @valueChanged="(id) => chosenVariant = id" />
+                        @valueChanged="(id: string) => chosenVariant = id" />
 
             <BaseButton :propsClass="'button-primary'"
                         @clicked=handleDownload>
