@@ -31,6 +31,7 @@ from .UserService.router.roots_router import router as roots_router
 from .StatisticsService.router.recognition_router import router as recognition_router
 from .StatisticsService.router.selection_router import router as selection_router
 from .StatisticsService.model.el_indexes import create_selection_index, create_recognition_index
+from .RequestService.router.requests import router as requests_router
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -163,7 +164,7 @@ app.include_router(roots_router, prefix="/api")
 app.include_router(tkp_generation, prefix="/api")
 app.include_router(recognition_router, prefix="/api")
 app.include_router(selection_router, prefix="/api")
-
+app.include_router(requests_router, prefix="/api")
 # app.include_router(calculated_router, prefix="/api")
 # app.include_router(user_input_router, prefix="/api")
 # app.include_router(condition_router, prefix="/api")
@@ -189,4 +190,3 @@ async def read_root():
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
-

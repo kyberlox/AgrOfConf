@@ -65,3 +65,4 @@ async def create_tables():
             await conn.run_sync(Base.metadata.create_all)
     except Exception as e:
         print(f"❌ Error creating tables: {e}")
+        raise
