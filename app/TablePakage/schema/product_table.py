@@ -6,7 +6,6 @@ from pydantic import BaseModel, ConfigDict, Field
 class ProductTableCreate(BaseModel):
     product_id: int
     name: str = Field(min_length=1, max_length=255)
-    physical_table_name: str | None
 
 
 class ProductTableUpdate(BaseModel):
