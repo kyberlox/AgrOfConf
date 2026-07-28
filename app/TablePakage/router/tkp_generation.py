@@ -64,7 +64,7 @@ async def convert_data(user_dict: dict, db_info: dict) -> dict:
 async def tkp_generation(
         file_id: int,
         product_id: int,
-        ol_filename: Optional[str],
+        # ol_filename: Optional[str],
         user_dict: dict,
         db: AsyncSession = Depends(get_db),
         user_id: Optional[int] = Depends(get_user_id_by_session_id),
