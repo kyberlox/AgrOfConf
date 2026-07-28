@@ -2,12 +2,12 @@
 <div v-for="(item, index) in inputsCount"
      class="flex flex-col gap-[24px] col-span-full w-full">
     <div class="flex flex-row justify-between w-full gap-[8px]">
-        <BaseSelect :propsClass="'paramsSelect'"
+        <BaseSelect :propsClass="'select-params'"
                     :props-options="param.all_values"
                     :props-label="'Компонент'"
                     :props-placeholder="'Выберите компонент'"
-                    :error="'error' in param && choices.find(e => e.name && e.value) && index == 0 ? param.error : ''"
-                    @value-changed="(x) => handleValueChange(x, index, 'select')">
+                    :error="'error' in param && choices.some(e => e.name && e.value) && index == 0 ? param.error : ''"
+                    @value-changed="(x: string) => handleValueChange(x, index, 'select')">
             <AlertCircle />
         </BaseSelect>
 
@@ -19,7 +19,7 @@
                    :min="Number(0)"
                    :max="Number(100)"
                    :error="'error' in param ? param.error : ''"
-                   @valueChanged="(x) => handleValueChange(x, index, 'input')" />
+                   @valueChanged="(x: string) => handleValueChange(x, index, 'input')" />
     </div>
     <div v-if="index !== item - 1"
          class="border border-[#EAECEF] w-full h-[1px] col-span-full m-auto"></div>
@@ -27,7 +27,7 @@
 </template>
 
 <script lang='ts'>
-import { defineComponent, type PropType, ref, watch } from 'vue';
+import { defineComponent, type PropType, ref } from 'vue';
 import { BaseInput, BaseSelect } from 'beans-ui-kit';
 import type { IFormattedData } from '@/assets/interfaces/IForm';
 import AlertCircle from '@/assets/icons/AlertCircle.svg?component';

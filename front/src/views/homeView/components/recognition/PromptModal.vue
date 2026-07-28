@@ -10,7 +10,7 @@
                  v-html="defaultPromptToOCR"></pre>
             <span>Если необходимо дополнить, заполните поле ниже</span>
             <BaseTextarea :propsClass="'prompt-area'"
-                          @valueChanged="(newVal) => promptVal = newVal" />
+                          @valueChanged="(newVal: string) => promptVal = newVal" />
             <BaseButton :propsClass="'button-primary'"
                         :disabled="docIsLoading"
                         @clicked="sendToServer">

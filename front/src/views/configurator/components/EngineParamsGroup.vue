@@ -1,8 +1,8 @@
 <template>
-<div class="grid grid-cols-1 gap-[2px]">
+<div class="grid grid-cols-1 ">
     <div v-for="(param, index) in items"
          :key="param.id"
-         class="flex flex-row items-center">
+         class="flex flex-row items-center px-[10px]  hover:bg-(--color-information-orange-50)">
         <!-- Смежный селект + инпут для сред -->
         <SelectInput v-if="(param as IFormattedData).required_type == 'select-input'"
                      :param="(param as IFormattedData)"
@@ -11,9 +11,10 @@
 
         <!-- свободный текстовый инпут -->
         <BaseInput v-else-if="(param as IFormattedData).required_type == 'user_input'"
+                   :class="{ 'input-param__wrapper--no-response': (userParams && !userParams[param.name as keyof typeof userParams]) }"
                    :propsClass="'input-param'"
                    :props-placeholder="paramsLoading ? '...' : 'Впишите значение'"
-                   :propsValue="userParams ? userParams[param.name as keyof typeof userParams] : param?.response_value || ''"
+                   :propsValue="userParams && userParams[param.name as keyof typeof userParams] ? userParams[param.name as keyof typeof userParams] : ''"
                    :propsName="param.name + (index + 1)"
                    :props-label="param.name"
                    :error="'error' in param ? (param as IFormattedData).error : ''"
@@ -22,9 +23,10 @@
 
         <!-- выпадающий список -->
         <BaseSelect v-else-if="(param.name !== 'sep')"
+                    :class="{ 'select-params__wrapper--no-response': (userParams && !userParams[param.name as keyof typeof userParams]) }"
                     :propsLabel="param.name"
                     :propsId="param.name"
-                    :propsClass="'paramsSelect'"
+                    :propsClass="'select-params'"
                     :propsValue="userParams ? userParams[param.name as keyof typeof userParams] : param?.response_value || ''"
                     :propsOptions="checkParams(param as IFormattedData)"
                     :propsPlaceholder="!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param ? '' : 'Выберите значение'"

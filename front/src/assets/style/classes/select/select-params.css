@@ -1,0 +1,62 @@
+.select-params {
+  @apply px-[8px] pr-[12px] flex flex-row gap-[8px] font-[400] text-[14px] rounded-[8px] border border-(--color-information-gray-300) outline-0 w-full min-h-[43px] cursor-pointer duration-100 transition-all mt-auto font-[600] bg-white;
+}
+
+.select-params:hover {
+  /* @apply bg-gray-100; */
+  @apply border-(--color-information-gray-500)
+}
+
+.select-params__option{
+ @apply font-[600] text-black
+}
+
+.select-params__option--marked {
+  @apply bg-[#61f679] text-[black];
+}
+
+.select-params__inner{
+  @apply w-[45%] ;
+}
+
+.select-params__wrapper {
+  @apply flex flex-row py-[2px]  items-center gap-[6px] w-full h-full justify-between border-b border-b-(--color-information-gray-100);
+}
+
+.select-params__wrapper:hover .select-params__label{
+   /* @apply text-(--orange) */
+}
+
+.select-params__wrapper--disabled {
+  @apply text-gray-200!;
+}
+
+.select-params__wrapper--disabled > .select-params__inner > .select-params {
+  @apply bg-[#F6F7F9] appearance-none;
+}
+
+.select-params__wrapper--no-response:not(.select-params__wrapper--disabled) .select-params{
+    @apply text-[#7e7f7c] font-normal bg-[#F6F7F9];
+}
+
+.select-params__label {
+  @apply text-[14px] font-[400]  flex flex-row justify-between gap-[4px] transition-all duration-100;
+}
+.select-params__label__wrapper {
+  @apply w-[50%] flex-grow;
+}
+
+.select-params__error {
+  @apply text-red-600 text-[13px];
+}
+.select-params__error__icon {
+  @apply min-w-[14px] h-[14px];
+}
+
+.select-params__error__wrapper {
+  @apply text-red-600 flex flex-row gap-[4px] items-center hidden;
+}
+
+.select-params__wrapper:has(.select-params__error) .select-params {
+  @apply border-red-600;
+}

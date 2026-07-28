@@ -6,9 +6,9 @@
              class="flex flex-col gap-[6px]">
             <BaseSelect :propsId="'tkpVariants'"
                         :props-placeholder="'Выберите варианты ТКП'"
-                        :propsClass="'paramsSelect'"
+                        :propsClass="'select-params'"
                         :propsOptions="formatToSelect(tkpVariants)"
-                        @valueChanged="(id) => chosenVariant = id" />
+                        @valueChanged="(id: string) => chosenVariant = id" />
 
             <BaseButton :propsClass="'button-primary'"
                         @clicked=handleDownload>

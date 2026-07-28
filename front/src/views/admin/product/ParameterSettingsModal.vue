@@ -6,7 +6,7 @@
                    :props-label="item.title"
                    :props-value="item.name == 'name' ? parameter?.name : parameter?.description"
                    :props-placeholder="'...'"
-                   @value-changed="(value) => changeValue(value, (item.name as 'name' | 'description'))" />
+                   @value-changed="(value: string) => changeValue(value, (item.name as 'name' | 'description'))" />
         <div class="flex flex-row justify-end gap-[15px]">
             <div v-for="item in ['Назад', 'Принять']">
                 <BaseButton class="min-w-[200px]"

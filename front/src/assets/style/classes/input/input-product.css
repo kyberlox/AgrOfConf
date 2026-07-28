@@ -1,0 +1,19 @@
+
+/* Для редактирования параметров продукта в админке */
+.input-product-edit__wrapper {
+  @apply p-[16px] bg-[#F6F7F9] rounded-[8px] relative flex flex-col gap-[4px] min-h-[76px];
+}
+.input-product-edit {
+  @apply grow block outline-none min-h-full min-w-[500px] placeholder:text-[16px];
+}
+
+.input-product-edit__label {
+  @apply block text-[#6B778C] hidden;
+}
+
+.input-product-edit__placeholder {
+  @apply text-[#6B778C] text-[600];
+}
+.input-product-edit__wrapper:has(.input-product-edit:placeholder-shown) .input-product-edit__label {
+  display: none;
+}

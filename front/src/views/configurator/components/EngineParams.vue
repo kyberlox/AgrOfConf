@@ -16,10 +16,10 @@
                  :columnWidth="400"
                  :gap="12">
         <template #default="{ item }">
-            <div class="masonry-item rounded-[10px] p-[12px] border border-[#EAECEF] transition-all duration-200">
+            <div class="masonry-item rounded-[10px_10px_0_0] border border-[#EAECEF] transition-all duration-200">
                 <!-- Заголовок группы -->
                 <div
-                     class="text-[13px] font-[600] text-[#5E697D] uppercase tracking-[0.03em] mb-[2px] pb-[8px] border-b border-[#EAECEF]">
+                     class="text-[13px] px-[8px] py-[8px] rounded-[10px_10px_0_0] font-[600] bg-(--color-information-gray-200) text-black uppercase tracking-[0.03em] mb-[2px] border-b border-[#EAECEF]">
                     {{ item }}
                 </div>
                 <!-- Параметры группы -->
