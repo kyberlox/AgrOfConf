@@ -150,7 +150,6 @@ export default defineComponent({
             }))
         }, { debounce: 1000, maxWait: 5000, deep: true })
 
-
         const paramsUpdateRequest = async (body: Record<string, string> = {}) => {
             if (freeConfigMode.value && Object.keys(body).length) {
                 return

@@ -1,20 +1,27 @@
 /* Ввод параметров в подборе */
 .input-param {
-  @apply px-[8px] py-[12px] flex flex-row gap-[8px] font-[400] text-[16px] rounded-[8px] bg-[#F6F7F9] outline-0 w-full max-w-[260px] mt-auto;
+  @apply px-[8px] font-[600] py-[12px] flex flex-row gap-[8px]  text-[14px] rounded-[8px] bg-[#F6F7F9] outline-0 w-full max-w-[260px] mt-auto bg-white;
 }
-.input-param__wrapper:hover .input-param__label{
-   @apply text-(--orange)
+.input-param__wrapper--no-response{
+
+}
+.input-param__wrapper--no-response:not(.input-param__wrapper--disabled) .input-param{
+    @apply  bg-[#F6F7F9]! ;
+}
+
+.input-param:hover {
+   /* @apply text-(--orange) */
 }
 .input-param::placeholder {
-  @apply text-[14px];
+  @apply text-[14px] font-[400];
 }
 .input-param:disabled .input-param__wrapper {
-   @apply bg-[#F6F7F9] appearance-none text-gray-200;
+   @apply bg-[#F6F7F9] appearance-none !text-gray-200;
 }
 .input-param__wrapper {
-  @apply flex flex-row justify-between gap-[12px] py-[4px] w-full h-full border-b border-b-(--color-information-gray-100) ;
+  @apply flex flex-row justify-between items-center gap-[12px] py-[4px] w-full h-full border-b border-b-(--color-information-gray-100) ;
 }
 
 .input-param__label {
-  @apply text-[14px] font-[600] flex flex-row justify-between gap-[4px] mt-auto w-[120px] transition-all duration-100;
+  @apply text-[14px] font-[400] flex flex-row justify-between gap-[4px] w-[120px] transition-all duration-100;
 }
