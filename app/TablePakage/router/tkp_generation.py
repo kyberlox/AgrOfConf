@@ -197,7 +197,7 @@ async def tkp_generation(
             #         print(f"Не удалось вставить изображение: {img_err}")
             # else:
             #     print('Не найден файл по заданной маркировке')
-            filename = f"TKP_{to_sql_name_lat(user_dict['ФИО Заказчика'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
+            filename = f"TKP_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}"
             result_stream = BytesIO()
             workbook.save(result_stream)
             result_stream.seek(0)
