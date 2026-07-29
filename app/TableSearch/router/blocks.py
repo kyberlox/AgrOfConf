@@ -9,7 +9,7 @@ from fastapi import Request, HTTPException, status
 
 
 splitting = {
-    "13" : {
+    "15" : {
     "🛠 Конструкция": [
         "Устройство принудительного открытия",
         "Тип уплотнения",

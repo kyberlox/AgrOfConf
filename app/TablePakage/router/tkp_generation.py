@@ -64,7 +64,7 @@ async def convert_data(user_dict: dict, db_info: dict) -> dict:
 async def tkp_generation(
         file_id: int,
         product_id: int,
-        ol_filename: Optional[str],
+        # ol_filename: Optional[str],
         user_dict: dict,
         db: AsyncSession = Depends(get_db),
         user_id: Optional[int] = Depends(get_user_id_by_session_id),
@@ -78,7 +78,7 @@ async def tkp_generation(
         if not file_info:
             raise HTTPException(status_code=404, detail="Файл не найден")
         template_path = file_info.file
-        contact_info = ["ФИО Заказчика", "Маркировка"]
+        contact_info = ["Маркировка"]
         if not all(key in user_dict for key in contact_info):
             raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
 
@@ -114,7 +114,7 @@ async def tkp_generation(
             drawing_path = stmt.scalar_one_or_none()
         else:
             drawing_path = None
-        
+        filename = f"TKP+TO_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}_{user_dict.get('id', '')}"
         if template_path.endswith(".docx"):
             
             doc = DocxTemplate(template_path)
@@ -135,7 +135,7 @@ async def tkp_generation(
             result_stream = BytesIO()
             doc.save(result_stream)
             result_stream.seek(0)
-            filename = f"TKP+TO_{to_sql_name_lat(user_dict['ФИО Заказчика'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
+            
             return StreamingResponse(
                 result_stream,
                 media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -197,7 +197,7 @@ async def tkp_generation(
             #         print(f"Не удалось вставить изображение: {img_err}")
             # else:
             #     print('Не найден файл по заданной маркировке')
-            filename = f"TKP_{to_sql_name_lat(user_dict['ФИО Заказчика'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
+            # filename = f"TKP_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}"
             result_stream = BytesIO()
             workbook.save(result_stream)
             result_stream.seek(0)
