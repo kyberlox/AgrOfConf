@@ -130,10 +130,10 @@ async def upload_OL(
             messages=[{"role": "user", "content": content}],
             # response_format={"type": "json_object"}
         )
-        # res = response.model_dump()
-        # total_coast = res['usage']['total_cost']
-        need = response.choices[0].message.content
-        total_coast = response.usage.total_cost
+        res = response.model_dump()
+        total_coast = res['usage']['total_cost']
+        # need = response.choices[0].message.content
+        # total_coast = response.usage.total_cost
         need = res['choices'][0]['message']['content']
         # parsed_need = _extract_json_from_response(need)
         
