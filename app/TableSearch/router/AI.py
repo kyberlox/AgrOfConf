@@ -130,14 +130,14 @@ async def upload_OL(
             messages=[{"role": "user", "content": content}],
             # response_format={"type": "json_object"}
         )
-        # res = response.model_dump()
-        # total_coast = res['usage']['total_cost']
+        res = response.model_dump()
+        total_coast = res['usage']['total_cost']
         # need = response.choices[0].message.content
         # total_coast = response.usage.total_cost
-        # need = res['choices'][0]['message']['content']
+        need = res['choices'][0]['message']['content']
         # parsed_need = _extract_json_from_response(need)
         
-        # # Сохраняем статистику
+        # Сохраняем статистику
         # stat_info = await build_statistic_data(db, user_id, product_id)
         # stat_info['parameters'] = parsed_need
         # stat_info['total_coast'] = total_coast
@@ -157,7 +157,7 @@ async def upload_OL(
 async def convert_ai_result(
     # raw_json: dict = Body(...)
     product_id: int,
-    ol_filename: str,
+    # ol_filename: str,
     raw_md: str = Body(...),
     db: AsyncSession = Depends(get_db),
     user_id: Optional[int] = Depends(get_user_id_by_session_id) 
