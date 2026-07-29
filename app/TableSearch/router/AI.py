@@ -134,7 +134,7 @@ async def upload_OL(
         # total_coast = res['usage']['total_cost']
         need = response.choices[0].message.content
         total_coast = response.usage.total_cost
-        need = res['choices'][0]['message']['content']
+        # need = res['choices'][0]['message']['content']
         parsed_need = _extract_json_from_response(need)
         
         # Сохраняем статистику
