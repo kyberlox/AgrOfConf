@@ -2,7 +2,7 @@
 <div class="grid grid-cols-1 ">
     <div v-for="(param, index) in items"
          :key="param.id"
-         class="flex flex-row items-center px-[10px]  hover:bg-(--color-information-orange-50)">
+         class="flex flex-row items-center px-[10px]  hover:bg-(--color-information-orange-50) hover:shadow-sm hover:shadow-gray-500">
         <!-- Смежный селект + инпут для сред -->
         <SelectInput v-if="(param as IFormattedData).required_type == 'select-input'"
                      :param="(param as IFormattedData)"
@@ -36,6 +36,8 @@
                     :errorIcon="AlertCircle"
                     :disabled="(((!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')) && type == 'auto') || paramsLoading"
                     @valueChanged="(value: string) => $emit('valueChanged', value, param.name)" />
+
+        <!-- Статус вопроса -->
         <QuestionStatus v-if="type == 'auto'"
                         :status="paramsLoading ? 'loading' : param.error ? 'canceled' : param.response_value ? 'checked' : ''" />
     </div>

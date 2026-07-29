@@ -36,8 +36,6 @@
                     :errorIcon="AlertCircle"
                     :disabled="(((!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')) && type == 'auto') || paramsLoading"
                     @valueChanged="(value: string) => $emit('valueChanged', value, param.name)" />
-
-
     </template>
 </div>
 </template>

@@ -43,13 +43,20 @@
                                 @deleteProduct="deleteProduct" />
 
             <!-- Модалка редактирования параметров -->
-            <ProductParamsModal :showEditModal="showEditModal"
+            <ProductParamsModal :showModal="showEditModal"
                                 :product="product"
                                 :type="'edit'"
                                 :isLoading="isLoading"
+                                @closeModal="closeAllModals"
                                 @changeProduct="changeProduct" />
         </div>
     </div>
+    <!-- Модалка добавления продукта -->
+    <ProductParamsModal :showModal="showAddModal"
+                        :type="'add'"
+                        :isLoading="isLoading"
+                        @closeModal="closeAllModals"
+                        @changeProduct="changeProduct" />
 </div>
 </template>
 <script lang='ts'>

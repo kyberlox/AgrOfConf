@@ -4,7 +4,7 @@
 
 .select-params:hover {
   /* @apply bg-gray-100; */
-  @apply border-(--color-information-gray-500)
+  /* @apply border-(--color-information-gray-500) */
 }
 
 .select-params__option{
@@ -17,6 +17,9 @@
 
 .select-params__inner{
   @apply w-[45%] ;
+}
+.select-params__inner:hover .select-params{
+  @apply border-(--color-information-gray-500)
 }
 
 .select-params__wrapper {
@@ -44,6 +47,10 @@
 }
 .select-params__label__wrapper {
   @apply w-[50%] flex-grow;
+}
+
+.select-params__label:hover {
+ @apply pointer-events-none
 }
 
 .select-params__error {

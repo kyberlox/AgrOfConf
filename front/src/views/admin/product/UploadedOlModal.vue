@@ -21,7 +21,8 @@
             <BaseInput :propsClass="'input-admin'"
                        :propsPlaceholder="'Введите название документа'"
                        :disabled="isLoading"
-                       :propsValue="fileName" />
+                       :propsValue="fileName"
+                       @value-changed="(value) => fileName = value" />
             <UploadFileArea :disabled="!fileName"
                             :formats="'.xlsx,.docx'"
                             @ready-to-upload-file="uploadOlToProduct">

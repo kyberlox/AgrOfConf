@@ -1,12 +1,12 @@
 <template>
 <SlotModal v-if="tkpModalIsVisible">
-    <div class="min-w-[250px] p-[24px] flex flex-col gap-[24px]">
+    <div class="min-w-[250px] p-[24px] flex flex-col gap-[12px]">
         <h3>Выберите вариант ТКП</h3>
         <div v-if="tkpVariants.length"
              class="flex flex-col gap-[6px]">
             <BaseSelect :propsId="'tkpVariants'"
-                        :props-placeholder="'Выберите варианты ТКП'"
-                        :propsClass="'select-params'"
+                        :props-placeholder="'...'"
+                        :propsClass="'select-primary'"
                         :propsOptions="formatToSelect(tkpVariants)"
                         @valueChanged="(id: string) => chosenVariant = id" />
 

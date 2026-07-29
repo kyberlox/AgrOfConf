@@ -1,10 +1,11 @@
 <template>
-<SlotModal v-if="showAddModal">
+<SlotModal v-if="showModal">
     <div class="flex flex-col gap-2 p-4 min-w-full cursor-default">
         <div class="flex flex-col"
              v-for="(param, index) in params.filter(e => e !== 'id')"
              :key="index + 'input'">
             <VInputFile v-if="param == 'image'"
+                        :button-class="'button-primary'"
                         @fileUpload="(image: string) => updateUserInputs('image', image)" />
 
             <BaseInput v-else
@@ -61,7 +62,7 @@ export default defineComponent({
         isLoading: {
             type: Boolean
         },
-        showAddModal: {
+        showModal: {
             type: Boolean,
             default: false
         }
@@ -71,6 +72,7 @@ export default defineComponent({
         const userInputs = ref<IProduct>({} as IProduct);
 
         watch(() => props.product, () => {
+            if (props.type == 'add') return
             userInputs.value = { ...props.product };
         }, { immediate: true })
 
