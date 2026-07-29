@@ -114,7 +114,7 @@ async def tkp_generation(
             drawing_path = stmt.scalar_one_or_none()
         else:
             drawing_path = None
-        
+        filename = f"TKP+TO_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}_{user_dict.get('id', '')}"
         if template_path.endswith(".docx"):
             
             doc = DocxTemplate(template_path)
@@ -135,7 +135,7 @@ async def tkp_generation(
             result_stream = BytesIO()
             doc.save(result_stream)
             result_stream.seek(0)
-            filename = f"TKP+TO_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}"
+            
             return StreamingResponse(
                 result_stream,
                 media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -197,7 +197,7 @@ async def tkp_generation(
             #         print(f"Не удалось вставить изображение: {img_err}")
             # else:
             #     print('Не найден файл по заданной маркировке')
-            filename = f"TKP_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}"
+            # filename = f"TKP_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}"
             result_stream = BytesIO()
             workbook.save(result_stream)
             result_stream.seek(0)
