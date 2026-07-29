@@ -17,7 +17,7 @@ class ParameterSchema(Base):
     visibility = Column(Boolean, default=True)  # Видимость для пользователя
     required_type = Column(Text, default='list')  # Тип данных для типа "Formula"
     table_name = Column(String(255))  #s Имя таблицы для типа "Table"
-    field_of_view = Column(JSON, default=dict)  # Хранение JSON: {"admin": true, "user": false}
+    field_of_view = Column(Text, nullable=True, default="")
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)  # Связь через внешний ключ
     product_table_id = Column( Integer, ForeignKey("product_tables.id", ondelete="CASCADE"), nullable=True, index=True)
     sort = Column(Float, nullable=True)
