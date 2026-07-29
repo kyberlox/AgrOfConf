@@ -2,7 +2,7 @@
 <div class="grid grid-cols-1 ">
     <div v-for="(param, index) in items"
          :key="param.id"
-         class="flex flex-row items-center px-[10px]  hover:bg-(--color-information-orange-50) hover:shadow-sm hover:shadow-gray-500">
+         class="flex flex-row items-center px-[10px]  hover:bg-(--color-information-orange-50) ">
         <!-- Смежный селект + инпут для сред -->
         <SelectInput v-if="(param as IFormattedData).required_type == 'select-input'"
                      :param="(param as IFormattedData)"
