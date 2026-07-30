@@ -685,7 +685,7 @@ async def process_table_data(
     )
 
     #Получаем файлы продукта
-    stmt_product_files = await db.execute(select(ProductFiles).where(ProductFiles.product_id = product_id))
+    stmt_product_files = await db.execute(select(ProductFiles).where(ProductFiles.product_id == product_id))
     product_files = stmt_product_files.fetchall()
     # print(formula_params, 'че получили')
     response_params = sorted(
