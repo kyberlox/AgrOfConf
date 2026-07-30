@@ -30,7 +30,7 @@ DRAWING_DIR = "./static/product_drawings"
 os.makedirs(DRAWING_DIR, exist_ok=True)
 
 FILES_DIR = "./static/product_files"
-os.makedirs(DRAWING_DIR, exist_ok=True)
+os.makedirs(FILES_DIR, exist_ok=True)
 
 # Настройки
 MAX_FILE_SIZE = 35 * 1024 * 1024  # 35 МБ
