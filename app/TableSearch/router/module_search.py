@@ -687,6 +687,7 @@ async def process_table_data(
     #Получаем файлы продукта
     stmt_product_files = await db.execute(select(ProductFiles).where(ProductFiles.product_id == product_id))
     product_files = stmt_product_files.fetchall()
+    print(type(product_files), 'че получимли')
     # print(formula_params, 'че получили')
     response_params = sorted(
         formula_params,
@@ -698,7 +699,7 @@ async def process_table_data(
     return {
         "product_id": product_id,
         "product_name": product_name,
-        "files": product_files,
+        # "files": product_files,
         "parameters": response_params,
         "matched_rows": total_matched_rows,
         "request_time": time.perf_counter() - start_time,
