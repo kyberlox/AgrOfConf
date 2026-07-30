@@ -7,6 +7,7 @@ import time
 from collections import defaultdict
 
 from app.TablePakage.model.database import get_db
+from app.TablePakage.model.product_files import ProductFiles
 from app.TableSearch.utils.dm_search import ensure_dm_exists, get_full_search_from_dm
 from ..utils.formula_search import search_formula
 
@@ -682,6 +683,10 @@ async def process_table_data(
         column_to_param=all_column_to_param, 
         product_id=product_id
     )
+
+    #Получаем файлы продукта
+    stmt_product_files = await db.execute(select(ProductFiles).where(ProductFiles.product_id = product_id))
+    product_files = stmt_product_files.fetchall()
     # print(formula_params, 'че получили')
     response_params = sorted(
         formula_params,
@@ -693,6 +698,7 @@ async def process_table_data(
     return {
         "product_id": product_id,
         "product_name": product_name,
+        "files": product_files,
         "parameters": response_params,
         "matched_rows": total_matched_rows,
         "request_time": time.perf_counter() - start_time,
