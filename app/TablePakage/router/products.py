@@ -381,6 +381,7 @@ async def get_product_files(product_id: int, db: AsyncSession = Depends(get_db))
 
 @router.get('/download_product_file/{id}', status_code=201, description='Скачивание сертификата')
 async def download_product_file(id: int, db: AsyncSession = Depends(get_db)):
+    from ..utils.router_utils import to_sql_name_lat
     try:
         stmt = await db.execute(select(ProductFiles).where(ProductFiles.id == id))
         node = stmt.scalar_one_or_none()
@@ -401,14 +402,14 @@ async def download_product_file(id: int, db: AsyncSession = Depends(get_db)):
         elif ext == '.txt':
             media_type = 'text/plain'
         # можно добавить другие типы
-        
+        filename = to_sql_name_lat(node.name)
         # 4. Отдаём файл
         return FileResponse(
             path=node.file,
-            filename=node.name,          # имя, которое увидит пользователь
+            filename=filename,          # имя, которое увидит пользователь
             media_type=media_type,                  # правильный Content-Type
             headers={
-                "Content-Disposition": f"attachment; filename=\"{node.name}.{ext}\""
+                "Content-Disposition": f"attachment; filename=\"{filename}.{ext}\""
                 # Если убрать "attachment", файл откроется в браузере (для PDF)
             }
         )
