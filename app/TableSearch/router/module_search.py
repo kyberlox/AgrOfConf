@@ -699,7 +699,7 @@ async def process_table_data(
     return {
         "product_id": product_id,
         "product_name": product_name,
-        # "files": product_files,
+        "files": product_files,
         "parameters": response_params,
         "matched_rows": total_matched_rows,
         "request_time": time.perf_counter() - start_time,
