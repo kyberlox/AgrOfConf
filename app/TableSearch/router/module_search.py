@@ -2,7 +2,7 @@ import re
 
 from fastapi import APIRouter, Depends, Body, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+from sqlalchemy import text, select
 import time
 from collections import defaultdict
 
