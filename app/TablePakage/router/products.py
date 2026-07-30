@@ -415,4 +415,4 @@ async def download_product_file(id: int, db: AsyncSession = Depends(get_db)):
         )
 
     except Exception as e:
-        return {'error': f"Ошибка добавления сертификатов к продукту: {e}"}
+        return HTTPException(status_code=500, detail=f"Ошибка получения сертификатов к продукту: {e}")
