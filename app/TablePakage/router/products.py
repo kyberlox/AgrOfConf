@@ -366,8 +366,8 @@ async def delete_product_files(
         await db.delete(node)
         await db.commit()
 
-        if node.file and os.path.exists(node.file):
-            os.remove(node.file)
+        # if node.file and os.path.exists(node.file):
+        #     os.remove(node.file)
         return True
     except Exception as e:
         await db.rollback()
