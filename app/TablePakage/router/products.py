@@ -268,7 +268,7 @@ async def upload_product_drawing(
         file_type = Path(original_filename).suffix
         new_filename = f"{name}{file_type}"
         
-        file_path = os.path.join(FILES_DIR, new_filename)
+        file_path = os.path.join(DRAWING_DIR, new_filename)
         with open(file_path, "wb") as f:
             f.write(await image.read())
 
