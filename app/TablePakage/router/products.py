@@ -352,7 +352,7 @@ async def upload_product_file(
         await db.rollback()
         return {'error': f"Ошибка добавления сертификатов к продукту: {e}"}
 
-@router.delete("/delete_product_files/{id}", description="Удаление сертификатов для продукта", status_code=201)
+@router.delete("/delete_product_file/{id}", description="Удаление сертификатов для продукта", status_code=201)
 async def delete_product_files(
     id: int,
     db: AsyncSession = Depends(get_db)
