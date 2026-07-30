@@ -339,7 +339,7 @@ async def upload_product_file(
         new_product_drawing = ProductFiles(
             product_id=product_id,
             name=name,
-            file_path=file_path,
+            file=file_path,
             file_url=file_url
         )
         db.add(new_product_drawing)
@@ -366,8 +366,8 @@ async def delete_product_files(
         await db.delete(node)
         await db.commit()
 
-        if node.file_path and os.path.exists(node.file_path):
-            os.remove(node.file_path)
+        if node.file and os.path.exists(node.file_filepath):
+            os.remove(node.file)
         return True
     except Exception as e:
         await db.rollback()
@@ -388,7 +388,7 @@ async def download_product_file(id: int, db: AsyncSession = Depends(get_db)):
             raise HTTPException(status_code=404, detail=f"Не найден сертификат с id = {id}")
 
         media_type = None
-        ext = os.path.splitext(node.file_path)[-1].lower()
+        ext = os.path.splitext(node.file)[-1].lower()
         
         if ext == '.pdf':
             media_type = 'application/pdf'
@@ -404,7 +404,7 @@ async def download_product_file(id: int, db: AsyncSession = Depends(get_db)):
         
         # 4. Отдаём файл
         return FileResponse(
-            path=node.file_path,
+            path=node.file,
             filename=node.name,          # имя, которое увидит пользователь
             media_type=media_type,                  # правильный Content-Type
             headers={
