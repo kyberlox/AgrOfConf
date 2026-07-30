@@ -361,6 +361,7 @@ async def delete_product_files(
         stmt = await db.execute(select(ProductFiles).where(ProductFiles.id == id))
         node = stmt.scalar_one_or_none()
         if not node:
+            print(123123)
             raise HTTPException(status_code=404, detail=f"Не найден сертификат с id = {id}")
 
         await db.delete(node)
