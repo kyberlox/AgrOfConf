@@ -12,6 +12,7 @@ class ProductFiles(Base):
     file_url = Column(Text)  # URL файла
     product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"),
                         nullable=False)  # Связь через внешний ключ
+    date_to = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Связь с параметрами

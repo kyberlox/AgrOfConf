@@ -688,7 +688,7 @@ async def process_table_data(
     stmt_product_files = await db.execute(select(ProductFiles).where(ProductFiles.product_id == product_id))
     product_files = stmt_product_files.scalars().all()
     # product_files = [dict(row) for row in rows]  
-    print(type(product_files), 'че получимли')
+    # print(type(product_files), 'че получимли')
     # print(formula_params, 'че получили')
     response_params = sorted(
         formula_params,
