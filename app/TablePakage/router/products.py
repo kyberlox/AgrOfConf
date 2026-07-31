@@ -5,16 +5,17 @@ import re
 
 from fastapi import APIRouter, Depends, File, HTTPException, Form, Body
 from fastapi import UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import text
-
+from sqlalchemy import text, select, func, cast, Date
+import zipfile
+import io
 import uuid
 from pathlib import Path
 import imghdr
-
+from datetime import date
 from ..model.database import get_db
 from ..model.product import Product
 from ..model.product_drawing import ProductDrawing
@@ -381,3 +382,35 @@ async def get_product_files(product_id: int, db: AsyncSession = Depends(get_db))
     stmt = await db.execute(select(ProductFiles).where(ProductFiles.product_id == product_id))
     nodes = stmt.scalars().all()
     return nodes
+
+@router.get("/get_product_files_zip/{product_id}")
+async def get_product_files_zip(product_id: int, db: AsyncSession = Depends(get_db)):
+    today = date.today()
+    stmt = await db.execute(
+        select(ProductFiles.file).where(
+            ProductFiles.product_id == product_id,
+            func.to_date(ProductFiles.date_to, 'DD.MM.YYYY') > today
+        )
+    )
+    nodes = stmt.scalars().all()
+    if not nodes:
+        return HTTPException(status_code=404, detail='Не найдены сертификаты для продукта')
+     # Создаём ZIP в памяти
+    zip_buffer = io.BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for file_path in nodes:
+            # Добавляем файл в архив с его именем
+            file_name = os.path.basename(file_path)
+            zip_file.write(file_path, file_name)
+    
+    # Подготавливаем ответ
+    zip_buffer.seek(0)
+    
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f"attachment; filename={request.archive_name}"
+        }
+    )
