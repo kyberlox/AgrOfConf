@@ -322,6 +322,7 @@ async def get_product_drawings(product_id: int, db: AsyncSession = Depends(get_d
 async def upload_product_file(
     product_id: int,
     name: str, 
+    date_to: str
     image: UploadFile = File(None),
     db: AsyncSession = Depends(get_db)
 ):
@@ -340,7 +341,8 @@ async def upload_product_file(
             product_id=product_id,
             name=name,
             file=file_path,
-            file_url=file_url
+            file_url=file_url,
+            date_to=date_to
         )
         db.add(new_product_drawing)
         await db.commit()
