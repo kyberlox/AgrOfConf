@@ -121,13 +121,14 @@ async def tkp_generation(
             
             #Рендерим изображение
             if drawing_path:
-                if drawing_path.startswith('./'):
-                    # Преобразуем ./path/to/file.png в полный абсолютный путь
-                    current_dir = os.path.dirname(os.path.abspath(__file__))
-                    absolute_path = os.path.join(current_dir, drawing_path[2:])
-                else:
-                    absolute_path = os.path.abspath(drawing_path)
-                user_dict["Чертеж"] = InlineImage(doc, absolute_path, width=Mm(60)) 
+                # Читаем файл как bytes
+                with open(drawing_path, 'rb') as f:
+                    image_bytes = f.read()
+                
+                # Создаем InlineImage из bytes
+                from io import BytesIO
+                user_dict["Чертеж"] = InlineImage(doc, BytesIO(image_bytes), width=Mm(100))
+                # user_dict["Чертеж"] = InlineImage(doc, absolute_path, width=Mm(60)) 
             # user_dict.pop("Чертеж")
             print('***')
             #Переводит на латиницу
