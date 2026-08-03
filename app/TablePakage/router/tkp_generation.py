@@ -127,7 +127,7 @@ async def tkp_generation(
                 
                 # Создаем InlineImage из bytes
                 from io import BytesIO
-                user_dict["Чертеж"] = InlineImage(doc, BytesIO(image_bytes), width=Mm(100))
+                user_dict["Чертеж"] = InlineImage(doc, BytesIO(image_bytes), width=Mm(40))
                 # user_dict["Чертеж"] = InlineImage(doc, absolute_path, width=Mm(60)) 
             # user_dict.pop("Чертеж")
             print('***')
