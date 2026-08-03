@@ -411,6 +411,6 @@ async def get_product_files_zip(product_id: int, db: AsyncSession = Depends(get_
         zip_buffer,
         media_type="application/zip",
         headers={
-            "Content-Disposition": f"attachment; filename={request.archive_name}"
+            "Content-Disposition": f"attachment; filename={sertificates}"
         }
     )
