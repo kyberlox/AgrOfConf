@@ -1772,7 +1772,7 @@ class CodeParametr:
             res = self._set_params(res, counter_for_id, "Есть рычаг", response_value="Рычаг", sort=counter_for_sort, param_type='raschet')
         
         has_seal = select_formula_params.get('Тип уплотнения')
-        if has_device and has_device == 'сильфоновое':
+        if has_device and has_device == 'сильфонное':
             counter_for_id += 1
             counter_for_sort += 1
             res = self._set_params(res, counter_for_id, "Есть сильфон", response_value="Сильфон", sort=counter_for_sort, param_type='raschet')
