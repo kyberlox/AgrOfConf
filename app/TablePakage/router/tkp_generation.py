@@ -120,6 +120,10 @@ async def tkp_generation(
             doc = DocxTemplate(template_path)
             
             #Рендерим изображение
+            if not os.path.exists(drawing_path):
+                print(123)
+            else:
+                print(2323)
             if drawing_path:
                 user_dict["Чертеж"] = InlineImage(doc, drawing_path, width=Mm(140)) 
             print('***', drawing_path)
