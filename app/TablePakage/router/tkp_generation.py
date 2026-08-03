@@ -121,7 +121,13 @@ async def tkp_generation(
             
             #Рендерим изображение
             if drawing_path:
-                user_dict["Чертеж"] = InlineImage(doc, drawing_path, width=Mm(60)) 
+                if drawing_path.startswith('./'):
+                    # Преобразуем ./path/to/file.png в полный абсолютный путь
+                    current_dir = os.path.dirname(os.path.abspath(__file__))
+                    absolute_path = os.path.join(current_dir, drawing_path[2:])
+                else:
+                    absolute_path = os.path.abspath(drawing_path)
+                user_dict["Чертеж"] = InlineImage(doc, absolute_path, width=Mm(60)) 
             # user_dict.pop("Чертеж")
             print('***')
             #Переводит на латиницу
