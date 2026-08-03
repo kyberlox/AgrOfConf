@@ -122,16 +122,17 @@ async def tkp_generation(
             #Рендерим изображение
             if drawing_path:
                 user_dict["Чертеж"] = InlineImage(doc, drawing_path, width=Mm(140)) 
-            
+            print('***')
             #Переводит на латиницу
             new_user_dict = dict()
             for param, value in user_dict.items():
                 if KEY_MAPPING.get(param):
                     new_user_dict[KEY_MAPPING[param]] = value
+            print('***')
             # new_user_dict = {KEY_MAPPING[param]: value for param, value in user_dict.items()}
             # print(new_user_dict.get('cover_cap_bushing_material'), user_dict.get('Материал крышки, колпака и направляющей втулки'))
             doc.render(new_user_dict)
-
+            print('***')
             result_stream = BytesIO()
             doc.save(result_stream)
             result_stream.seek(0)
