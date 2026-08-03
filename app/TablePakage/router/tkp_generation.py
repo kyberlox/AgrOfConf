@@ -142,7 +142,7 @@ async def tkp_generation(
                 # Обязательно сохраняем в PNG или JPEG (в зависимости от того, что лучше для чертежа)
                 pil_image.save(new_buffer, format='PNG', dpi=(96, 96))
                 new_buffer.seek(0)
-                user_dict["Чертеж"] = InlineImage(doc, new_buffer, width=Mm(140))
+                user_dict["Чертеж"] = InlineImage(doc, new_buffer, width=Mm(120))
                 
             #Переводит на латиницу
             new_user_dict = dict()
@@ -151,7 +151,7 @@ async def tkp_generation(
                     new_user_dict[KEY_MAPPING[param]] = value
             
             doc.render(new_user_dict)
-            
+
             result_stream = BytesIO()
             doc.save(result_stream)
             result_stream.seek(0)
