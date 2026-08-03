@@ -128,10 +128,13 @@ async def tkp_generation(
             for param, value in user_dict.items():
                 if KEY_MAPPING.get(param):
                     new_user_dict[KEY_MAPPING[param]] = value
-            print('***', new_user_dict)
+            print('***')
             # new_user_dict = {KEY_MAPPING[param]: value for param, value in user_dict.items()}
             # print(new_user_dict.get('cover_cap_bushing_material'), user_dict.get('Материал крышки, колпака и направляющей втулки'))
-            doc.render(new_user_dict)
+            try:
+                doc.render(new_user_dict)
+            except Exception as e:
+                print(str(e))
             print('***')
             result_stream = BytesIO()
             doc.save(result_stream)
