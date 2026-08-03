@@ -1763,6 +1763,23 @@ class CodeParametr:
         counter_for_id = last_param['id']
         counter_for_sort = last_param['sort']
         res = self._set_params(selection_result, counter_for_id, "Чертеж", response_value=HOST + request, sort=counter_for_sort, param_type='raschet')
+        
+        #Смотрим наличие сильфона и рычага для чертежа
+        has_device = select_formula_params.get('Устройство принудительного открытия')
+        if has_device and has_device == 'требуется':
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Есть рычаг", response_value="Рычаг", sort=counter_for_sort, param_type='raschet')
+        
+        has_seal = select_formula_params.get('Тип уплотнения')
+        if has_device and has_device == 'сильфоновое':
+            counter_for_id += 1
+            counter_for_sort += 1
+            res = self._set_params(res, counter_for_id, "Есть сильфон", response_value="Сильфон", sort=counter_for_sort, param_type='raschet')
+
+        
+
+
         return {"total_change" : res}
     @timer
     async def agent_contacts(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
