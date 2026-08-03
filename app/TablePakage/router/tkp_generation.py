@@ -120,8 +120,9 @@ async def tkp_generation(
             doc = DocxTemplate(template_path)
             
             #Рендерим изображение
-            if drawing_path:
-                user_dict["Чертеж"] = InlineImage(doc, drawing_path, width=Mm(100)) 
+            # if drawing_path:
+            #     user_dict["Чертеж"] = InlineImage(doc, drawing_path, width=Mm(100)) 
+            user_dict.pop("Чертеж")
             print('***')
             #Переводит на латиницу
             new_user_dict = dict()
