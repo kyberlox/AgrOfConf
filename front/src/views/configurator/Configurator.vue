@@ -206,6 +206,7 @@ export default defineComponent({
 
         onUnmounted(() => {
             configuratorStore.$reset();
+            useNeuroOlData().$reset();
         })
 
         watch(neuroOlData, () => {
@@ -246,7 +247,6 @@ export default defineComponent({
         const setFreeConfig = (mode: boolean) => {
             configuratorStore.setFreeModeConfig(mode)
         }
-
 
         return {
             form,

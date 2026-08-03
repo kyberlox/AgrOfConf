@@ -229,7 +229,7 @@ export default defineComponent({
 
         const getOlList = async () => {
             if (props.id)
-                olList.value = await getTkpVariants(props.id)
+                olList.value = await getTkpVariants(props.id) || []
         }
 
         const deleteParam = () => {

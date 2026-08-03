@@ -17,6 +17,7 @@ export default defineComponent({
         InfoCircle,
         RequiredIcon,
     },
+    emits: ['descriptionClicked'],
     props: {
         needReq: {
             type: Boolean,

@@ -95,7 +95,7 @@
                 </div>
             </div>
         </div>
-        <div class="mt-[16px] bg-gray-100 bg-contain bg-no-repeat bg-center w-[294px] h-[120px] cursor-zoom-in"
+        <div class="mt-[16px] bg-gray-100 bg-contain bg-no-repeat bg-center w-[294px] h-[320px] cursor-zoom-in"
              @click="{ activeImageInModal = images[activeImgBlock]?.img; showImageModal = true }"
              :style="{ 'background-image': `url(${images[activeImgBlock]?.img})` }">
         </div>
@@ -107,12 +107,13 @@
             Прилагаемые документы
         </div>
         <div class="mt-[8px] flex flex-col border-b border-b-(--color-information-gray-100) py-[12px]">
-            <div class=" flex flex-row items-center flex-nowrap">
+            <div class="flex flex-row items-center flex-nowrap">
                 <span class="mr-[10px]">
                     <FileIcon />
                 </span>
                 <span class="truncate mr-[12px] font-normal!">Декларация о соответствии ТР ТС 010/2011</span>
-                <div class="p-[4px] bg-(--color-information-gray-50)">
+                <div
+                     class="p-[4px] bg-(--color-information-gray-50) hover:bg-(--color-information-gray-100) duration-100 rounded-md">
                     <DownloadIcon />
                 </div>
             </div>
@@ -148,6 +149,7 @@ export default defineComponent({
         UploadDocButton,
         ImageViewerModal
     },
+    emits: ['readyToUploadFile'],
     props: {},
     setup(_, { emit }) {
         const activeImgBlock = ref<number>(0);

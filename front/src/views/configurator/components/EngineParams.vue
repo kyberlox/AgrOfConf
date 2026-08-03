@@ -17,7 +17,7 @@
                  :gap="12">
         <template #default="{ item, index }">
             <div
-                 class="masonry-item rounded-[10px_10px_0_0] border border-[#EAECEF] transition-all  hover:shadow-lg hover:shadow-gray-200 hover:border-[#d4d4d4]">
+                 class="w-full rounded-[10px_10px_0_0] border border-[#EAECEF] transition-all  hover:shadow-lg hover:shadow-gray-200 hover:border-[#d4d4d4]">
                 <!-- Заголовок группы -->
                 <div class="text-[13px] px-[8px] py-[8px] rounded-[10px_10px_0_0] font-[600]  bg-cover bg-blend-multiply bg-right bg-(--color-information-gray-200) text-black uppercase tracking-[0.03em] mb-[2px] border-b border-[#EAECEF] bg-image bg-right"
                      :style="{ backgroundImage: `url(${backImage})`, backgroundPositionY: `${(index + 2) * 25}px` }">
@@ -118,9 +118,3 @@ export default defineComponent({
     }
 });
 </script>
-
-<style scoped>
-.masonry-item {
-    width: 100%;
-}
-</style>

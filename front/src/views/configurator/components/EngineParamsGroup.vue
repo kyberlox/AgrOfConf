@@ -94,7 +94,7 @@ export default defineComponent({
                     return Array.from(param?.all_values) || []
 
                 case false:
-                    return Array.from((!('filtered_values' in param) || !param?.filtered_values) ?
+                    return Array.from((!('filtered_values' in param) || !param?.filtered_values || param.response_value) ?
                         param?.all_values :
                         param?.filtered_values || [])
 
