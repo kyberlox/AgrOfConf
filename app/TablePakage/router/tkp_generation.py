@@ -142,23 +142,16 @@ async def tkp_generation(
                 # Обязательно сохраняем в PNG или JPEG (в зависимости от того, что лучше для чертежа)
                 pil_image.save(new_buffer, format='PNG', dpi=(96, 96))
                 new_buffer.seek(0)
-                user_dict["Чертеж"] = InlineImage(doc, new_buffer, width=Mm(160))
-                # user_dict["Чертеж"] = InlineImage(doc, absolute_path, width=Mm(60)) 
-            # user_dict.pop("Чертеж")
-            print('***')
+                user_dict["Чертеж"] = InlineImage(doc, new_buffer, width=Mm(140))
+                
             #Переводит на латиницу
             new_user_dict = dict()
             for param, value in user_dict.items():
                 if KEY_MAPPING.get(param):
                     new_user_dict[KEY_MAPPING[param]] = value
-            print('***')
-            # new_user_dict = {KEY_MAPPING[param]: value for param, value in user_dict.items()}
-            # print(new_user_dict.get('cover_cap_bushing_material'), user_dict.get('Материал крышки, колпака и направляющей втулки'))
-            try:
-                doc.render(new_user_dict)
-            except Exception as e:
-                print(str(e)) 
-            print('***')
+            
+            doc.render(new_user_dict)
+            
             result_stream = BytesIO()
             doc.save(result_stream)
             result_stream.seek(0)
