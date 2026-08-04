@@ -177,33 +177,33 @@ async def convert_ai_result(
         }
         total_params = res_params | agent_info
         start_all = time.time()
-        if user_promt:
-            messages = [
-            {
-                "role": "user",
-                "content": f"""
-                {VALIDATION_PROMPT} (см. выше)
+        # if user_promt:
+        #     messages = [
+        #     {
+        #         "role": "user",
+        #         "content": f"""
+        #         {VALIDATION_PROMPT} (см. выше)
 
-                RAW_MD:
+        #         RAW_MD:
 
-                {raw_md}
+        #         {raw_md}
 
-                TEMPLATE_JSON:
-                {json.dumps(total_params, ensure_ascii=False, indent=2)}
+        #         TEMPLATE_JSON:
+        #         {json.dumps(total_params, ensure_ascii=False, indent=2)}
 
-                RULES:
-                - Сопоставь ключи из Markdown с TEMPLATE_JSON по смыслу
-                - Выбери только допустимые значения из TEMPLATE_JSON
-                - Если точного совпадения нет — выбери ближайшее
-                - Пропусти параметры, которых нет в TEMPLATE_JSON
-                - Верни JSON в формате: {{"параметр": "значение"}}
-                - Размерность НЕ включай в результат
-                - {user_promt}
-                """
-                }
-            ]
-        else:
-             messages = [
+        #         RULES:
+        #         - Сопоставь ключи из Markdown с TEMPLATE_JSON по смыслу
+        #         - Выбери только допустимые значения из TEMPLATE_JSON
+        #         - Если точного совпадения нет — выбери ближайшее
+        #         - Пропусти параметры, которых нет в TEMPLATE_JSON
+        #         - Верни JSON в формате: {{"параметр": "значение"}}
+        #         - Размерность НЕ включай в результат
+        #         - {user_promt}
+        #         """
+        #         }
+        #     ]
+        # else:
+        messages = [
             {
                 "role": "user",
                 "content": f"""
@@ -219,8 +219,8 @@ async def convert_ai_result(
                 RULES_TABLE:
                 {RULES_TABLE}
                 """
-                }
-            ]
+            }
+        ]
         response = await client.chat.completions.create(
             model="deepseek/deepseek-v4-flash", 
             max_tokens=4000,
