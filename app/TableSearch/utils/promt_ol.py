@@ -1,4 +1,5 @@
 from typing import Dict, Any
+
 def get_promt(params: Dict[str, Any]) -> str:
     super_promt = f"""
     Мне нужно собрать json по шаблону:
@@ -12,7 +13,7 @@ def get_promt(params: Dict[str, Any]) -> str:
     в ответ пришли только json!
     """
     return super_promt
-    
+
 VALIDATION_PROMPT = """
 У тебя есть три входных данных:
 

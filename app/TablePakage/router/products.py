@@ -384,14 +384,26 @@ async def get_product_files(product_id: int, db: AsyncSession = Depends(get_db))
     return nodes
 
 @router.get("/get_product_files_zip/{product_id}")
-async def get_product_files_zip(product_id: int, db: AsyncSession = Depends(get_db)):
+async def get_product_files_zip(
+    product_id: int, 
+    load_valid: bool,
+    db: AsyncSession = Depends(get_db)
+):
     today = date.today()
-    stmt = await db.execute(
-        select(ProductFiles.file).where(
-            ProductFiles.product_id == product_id,
-            func.to_date(ProductFiles.date_to, 'DD.MM.YYYY') > today
+    if load_valid:
+        stmt = await db.execute(
+            select(ProductFiles.file).where(
+                ProductFiles.product_id == product_id,
+                func.to_date(ProductFiles.date_to, 'DD.MM.YYYY') > today
+            )
         )
-    )
+    else:
+        stmt = await db.execute(
+            select(ProductFiles.file).where(
+                ProductFiles.product_id == product_id,
+                func.to_date(ProductFiles.date_to, 'DD.MM.YYYY') < today
+            )
+        )
     nodes = stmt.scalars().all()
     if not nodes:
         return HTTPException(status_code=404, detail='Не найдены сертификаты для продукта')
