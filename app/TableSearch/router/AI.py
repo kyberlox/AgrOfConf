@@ -158,7 +158,7 @@ async def convert_ai_result(
     # raw_json: dict = Body(...)
     product_id: int,
     # ol_filename: str,
-    user_promt: Optional[str] = Body(None, embed=True),
+    # user_promt: Optional[str] = Body(None, embed=True),
     raw_md: str = Body(...),
     db: AsyncSession = Depends(get_db),
     user_id: Optional[int] = Depends(get_user_id_by_session_id) 
