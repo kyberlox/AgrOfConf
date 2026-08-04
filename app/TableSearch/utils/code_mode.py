@@ -1802,7 +1802,7 @@ class CodeParametr:
             "Организация Заказчика", 
             "Должность Заказчика",
             "Проектная организация",
-            "Комментарий",
+            "Примечание",
             "Адрес Заказчика"
         ]
         
@@ -1816,7 +1816,7 @@ class CodeParametr:
         counter += 1
         result = self._set_params(result, counter, "Проектная организация", sort=counter, param_type='user_input')
         counter += 1
-        result = self._set_params(result, counter, "Комментарий", sort=counter, param_type='user_input')
+        result = self._set_params(result, counter, "Примечание", sort=counter, param_type='user_input')
         counter += 1
         result = self._set_params(result, counter, "Должность Заказчика", sort=counter, param_type='user_input')
         counter += 1
