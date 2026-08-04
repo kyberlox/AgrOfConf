@@ -30,7 +30,7 @@ from app.StatisticsService.utils.deps import build_statistic_data
 from app.StatisticsService.router.recognition_router import get_recognition_router
 
 from ..utils.convert_ol_file import get_params_and_values_of_product, convert_file_to_jpeg_content
-from ..utils.promt_ol import get_promt, VALIDATION_PROMPT, UNIFIED_PROMPT
+from ..utils.promt_ol import get_promt, VALIDATION_PROMPT, UNIFIED_PROMPT, RULES_TABLE
 
 load_dotenv()
 #делаю изменения
@@ -216,13 +216,8 @@ async def convert_ai_result(
                 TEMPLATE_JSON:
                 {json.dumps(total_params, ensure_ascii=False, indent=2)}
 
-                RULES:
-                - Сопоставь ключи из Markdown с TEMPLATE_JSON по смыслу
-                - Выбери только допустимые значения из TEMPLATE_JSON
-                - Если точного совпадения нет — выбери ближайшее
-                - Пропусти параметры, которых нет в TEMPLATE_JSON
-                - Верни JSON в формате: {{"параметр": "значение"}}
-                - Размерность НЕ включай в результат
+                RULES_TABLE:
+                {RULES_TABLE}
                 """
                 }
             ]
