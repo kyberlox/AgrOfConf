@@ -15,6 +15,7 @@ def get_promt(params: Dict[str, Any]) -> str:
     return super_promt
 
 VALIDATION_PROMPT = """
+Ты инженер по подбору предохранительного клапана, сопоставь значения для параметров.
 У тебя есть три входных данных:
 
 1. **RAW_MD** — Markdown-таблица, извлечённая из документа vision-моделью.
