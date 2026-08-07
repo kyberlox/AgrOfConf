@@ -30,7 +30,7 @@ from app.StatisticsService.utils.deps import build_statistic_data
 from app.StatisticsService.router.recognition_router import get_recognition_router
 
 from ..utils.convert_ol_file import get_params_and_values_of_product, convert_file_to_jpeg_content
-from ..utils.promt_ol import get_promt, VALIDATION_PROMPT, UNIFIED_PROMPT
+from ..utils.promt_ol import get_promt, VALIDATION_PROMPT, UNIFIED_PROMPT, RULES_TABLE
 
 load_dotenv()
 #делаю изменения
@@ -158,6 +158,7 @@ async def convert_ai_result(
     # raw_json: dict = Body(...)
     product_id: int,
     # ol_filename: str,
+    # user_promt: Optional[str] = Body(None, embed=True),
     raw_md: str = Body(...),
     db: AsyncSession = Depends(get_db),
     user_id: Optional[int] = Depends(get_user_id_by_session_id) 
@@ -169,34 +170,59 @@ async def convert_ai_result(
         res_params = {key: value for key, value in params.items() if key not in ['Цена /шт. руб без НДС', 'Цена /шт. руб с НДС 22%']}
         
         agent_info = {
-            "Имя заказчика": '', 
-            "Телефон заказчика": '',
-            "Email заказчика": '',
-            "Организация заказчика": ''
+            "ФИО Заказчика": '', 
+            "Телефон Заказчика": '', 
+            "Email Заказчика": '', 
+            "Организация Заказчика": '', 
+            "Должность Заказчика": '',
+            "Проектная организация": '',
+            "Примечание": '',
+            "Адрес Заказчика": ''
         }
         total_params = res_params | agent_info
         start_all = time.time()
+        # if user_promt:
+        #     messages = [
+        #     {
+        #         "role": "user",
+        #         "content": f"""
+        #         {VALIDATION_PROMPT} (см. выше)
+
+        #         RAW_MD:
+
+        #         {raw_md}
+
+        #         TEMPLATE_JSON:
+        #         {json.dumps(total_params, ensure_ascii=False, indent=2)}
+
+        #         RULES:
+        #         - Сопоставь ключи из Markdown с TEMPLATE_JSON по смыслу
+        #         - Выбери только допустимые значения из TEMPLATE_JSON
+        #         - Если точного совпадения нет — выбери ближайшее
+        #         - Пропусти параметры, которых нет в TEMPLATE_JSON
+        #         - Верни JSON в формате: {{"параметр": "значение"}}
+        #         - Размерность НЕ включай в результат
+        #         - {user_promt}
+        #         """
+        #         }
+        #     ]
+        # else:
         messages = [
-        {
-            "role": "user",
-            "content": f"""
-            {VALIDATION_PROMPT} (см. выше)
+            {
+                "role": "user",
+                "content": f"""
+                {VALIDATION_PROMPT} (см. выше)
 
-            RAW_MD:
+                RAW_MD:
 
-            {raw_md}
+                {raw_md}
 
-            TEMPLATE_JSON:
-            {json.dumps(total_params, ensure_ascii=False, indent=2)}
+                TEMPLATE_JSON:
+                {json.dumps(total_params, ensure_ascii=False, indent=2)}
 
-            RULES:
-            - Сопоставь ключи из Markdown с TEMPLATE_JSON по смыслу
-            - Выбери только допустимые значения из TEMPLATE_JSON
-            - Если точного совпадения нет — выбери ближайшее
-            - Пропусти параметры, которых нет в TEMPLATE_JSON
-            - Верни JSON в формате: {{"параметр": "значение"}}
-            - Размерность НЕ включай в результат
-            """
+                RULES_TABLE:
+                {RULES_TABLE}
+                """
             }
         ]
         response = await client.chat.completions.create(

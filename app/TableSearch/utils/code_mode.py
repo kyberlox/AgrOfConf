@@ -1769,18 +1769,16 @@ class CodeParametr:
         if has_device and has_device == 'требуется':
             counter_for_id += 1
             counter_for_sort += 1
-            res = self._set_params(res, counter_for_id, "Есть рычаг", response_value="Рычаг", sort=counter_for_sort, param_type='raschet')
+            res = self._set_params(res, counter_for_id, "Есть рычаг", response_value="Рычаг", sort=counter_for_sort, param_type='raschet', visibility=False)
         
         has_seal = select_formula_params.get('Тип уплотнения')
         if has_seal and has_seal == 'сильфонное':
             counter_for_id += 1
             counter_for_sort += 1
-            res = self._set_params(res, counter_for_id, "Есть сильфон", response_value="Сильфон", sort=counter_for_sort, param_type='raschet')
-
-        
-
+            res = self._set_params(res, counter_for_id, "Есть сильфон", response_value="Сильфон", sort=counter_for_sort, param_type='raschet', visibility=False)
 
         return {"total_change" : res}
+
     @timer
     async def agent_contacts(self, selection_result, param_info, select_formula_params, db, column_to_param=[], product_id=None):
         """
@@ -1804,7 +1802,7 @@ class CodeParametr:
             "Организация Заказчика", 
             "Должность Заказчика",
             "Проектная организация",
-            "Комментарий",
+            "Примечание",
             "Адрес Заказчика"
         ]
         
@@ -1818,7 +1816,7 @@ class CodeParametr:
         counter += 1
         result = self._set_params(result, counter, "Проектная организация", sort=counter, param_type='user_input')
         counter += 1
-        result = self._set_params(result, counter, "Комментарий", sort=counter, param_type='user_input')
+        result = self._set_params(result, counter, "Примечание", sort=counter, param_type='user_input')
         counter += 1
         result = self._set_params(result, counter, "Должность Заказчика", sort=counter, param_type='user_input')
         counter += 1
