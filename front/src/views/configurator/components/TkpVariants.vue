@@ -4,10 +4,7 @@
         <h3>Выберите вариант ТКП</h3>
         <div v-if="tkpVariants.length"
              class="flex flex-col gap-[6px]">
-            <BaseSelect :propsId="'tkpVariants'"
-                        :props-placeholder="'...'"
-                        :propsClass="'select-primary'"
-                        :propsOptions="formatToSelect(tkpVariants)"
+            <BaseSelect :selectSettings="initSelectProps(tkpVariants)"
                         @valueChanged="(id: string) => chosenVariant = id" />
 
             <BaseButton :propsClass="'button-primary'"
@@ -59,8 +56,18 @@ export default defineComponent({
                 emit('downloadTkp', chosenVariant.value)
         }
 
+        const initSelectProps = (tkpVariants: ITkpVariant[]) => {
+            return {
+                id: 'tkpVariants',
+                placeholder: '...',
+                class: 'select-primary',
+                options: formatToSelect(tkpVariants)
+            }
+        }
+
         return {
             chosenVariant,
+            initSelectProps,
             formatToSelect,
             handleDownload
         }

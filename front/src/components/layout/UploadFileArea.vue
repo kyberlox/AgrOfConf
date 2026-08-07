@@ -53,12 +53,13 @@ export default defineComponent({
         };
 
         const uploadFile = (e: Event) => {
+            // больше 800 КБ ограничиваем
+            const maxFileSize = 800 * 1024;
             const target = e.target as HTMLInputElement;
             if (target.files && target.files.length > 0) {
                 if (!target.files[0]) return
-                // больше 800 мб ограничиваем
-                if (target.files[0].size > 838860800) {
-                    return toast.error('Файл слишком большой, сервис поддерживает файлы до 800 Мб')
+                if (target.files[0].size > maxFileSize) {
+                    return toast.error('Файл слишком большой, сервис поддерживает файлы до 800 Кб')
                 }
                 else
                     processFile(target.files[0] as File);

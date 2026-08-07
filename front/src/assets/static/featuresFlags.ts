@@ -3,7 +3,7 @@ export const featuresFlags = {
         mark: true,
         description: false,
         img: true,
-        docs: false,
+        docs: true,
         calcParams: true
     },
 }

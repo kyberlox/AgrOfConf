@@ -1,3 +1,13 @@
 .sidebar-block {
   @apply rounded-[12px] min-w-[344px] border border-[#EAECEF] p-[24px];
 }
+
+.sidebar-block__date__wrapper--warn .sidebar-block__date{
+  @apply text-amber-500;
+}
+.sidebar-block__date__wrapper--outdated .sidebar-block__date{
+  @apply text-red-500;
+}
+.sidebar-block__date__wrapper--actual .sidebar-block__date{
+  @apply text-green-500;
+}

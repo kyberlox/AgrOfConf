@@ -23,8 +23,7 @@
                    @valueChanged="(value: string | null) => $emit('valueChanged', value ?? '', param.name)" />
 
         <!-- выпадающий список -->
-        <BaseSelect v-else-if="(param.name !== 'sep')"
-                    :propsLabel="param.name"
+        <BaseSelect :propsLabel="param.name"
                     :propsId="param.name"
                     :propsClass="'select-params'"
                     :propsValue="(param as IFormattedData).response_value ? String((param as IFormattedData).response_value) : ''"
@@ -93,7 +92,7 @@ export default defineComponent({
                     count++;
                 }
                 else {
-                    rows.push({ name: 'sep' } as { name: string }, e)
+                    // rows.push({ name: 'sep' } as { name: string }, e)
                     count = 1;
                 }
             })

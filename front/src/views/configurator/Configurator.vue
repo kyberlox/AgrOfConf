@@ -55,7 +55,8 @@
                 </BaseButton>
             </div>
         </div>
-        <RightSidebar @readyToUploadFile="handleFileUpload" />
+        <RightSidebar :id="id"
+                      @readyToUploadFile="handleFileUpload" />
     </div>
 
     <!-- Модальное окно для TKP вариантов -->
@@ -93,6 +94,7 @@ import Loader from '@/components/layout/Loader.vue';
 import { getTkpVariants } from '@/utils/getTkpVariants.ts';
 import { toast } from 'vue3-toastify';
 import { watchDebounced } from '@vueuse/core';
+import { replaceSpotOrComma } from '@/utils/replaceSpotOrComma.ts';
 
 export default defineComponent({
     components: {
@@ -142,26 +144,37 @@ export default defineComponent({
         }
 
         watchDebounced(() => userInputs.value, async () => {
-            (Object.keys(userInputs.value).forEach(key => {
-                const formTarget = form.value.find(formEl => formEl.name == key)
-                if (!formTarget?.response_value || userInputs.value[key] !== formTarget?.response_value) {
-                    paramsUpdateRequest(userInputs.value)
-                }
-            }))
-        }, { debounce: 1000, maxWait: 5000, deep: true })
+            if (Object.keys(userInputs.value).length) {
+                Object.keys(userInputs.value).forEach(key => {
+                    const formTarget = form.value.find(formEl => formEl.name == key)
+                    if (!formTarget?.response_value || userInputs.value[key] !== formTarget?.response_value) {
+                        return paramsUpdateRequest(userInputs.value)
+                    }
+                })
+            } else paramsUpdateRequest({})
+        }, { debounce: 500, maxWait: 5000, deep: true })
 
-        const paramsUpdateRequest = async (body: Record<string, string> = {}) => {
-            if (freeConfigMode.value && Object.keys(body).length) {
-                return
-            }
+        const paramsUpdateRequest = async (body: Record<string, string | null> = {}) => {
             if (abortController) {
                 abortController.abort();
             }
+            let newBody = body;
+            if (freeConfigMode.value && Object.keys(newBody).length) {
+                return
+            }
             abortController = new AbortController();
             const signal = abortController.signal;
+            if (newBody && Object.keys(newBody).length) {
+                Object.keys(newBody)?.forEach(key => {
+                    newBody[key] = replaceSpotOrComma(newBody[key]!, 'comma');
+                })
+            }
             try {
                 paramsLoading.value = true;
-                const data = await Api.post(`/module_search/process_table_data?product_id=${props.id}`, body, {}, signal)
+                const data = await Api.post(`/module_search/process_table_data?product_id=${props.id}`, newBody, {}, signal)
+                if (data?.files) {
+                    configuratorStore.setDocs(data.files)
+                }
                 const errors: string[] = [];
                 let answeredCounter = 0;
                 let questionCounter = 0;
@@ -217,10 +230,13 @@ export default defineComponent({
         })
 
         const handleValueChanged = (value: string, key: keyof typeof userInputs.value) => {
-
-            if (value && userInputs.value[key] !== value) {
-                userInputs.value[key] = value;
-                paramsUpdate(userInputs.value)
+            // if (value === null) {
+            //     delete userInputs.value[key];
+            //     paramsUpdateRequest(userInputs.value)
+            // } else
+            if (value && userInputs.value[key] !== replaceSpotOrComma(value, 'spot')) {
+                userInputs.value[key] = replaceSpotOrComma(value, 'spot') || '';
+                paramsUpdate(userInputs.value);
             }
         }
 

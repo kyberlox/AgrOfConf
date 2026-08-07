@@ -30,6 +30,7 @@
                                    :type="type"
                                    :userParams="userParams"
                                    :paramsLoading="paramsLoading"
+                                   @resetValue="(param) => $emit('valueChanged', null, param)"
                                    @valueChanged="(value, param) => $emit('valueChanged', value, param)" />
             </div>
         </template>

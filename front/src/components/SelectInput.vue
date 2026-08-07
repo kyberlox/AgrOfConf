@@ -1,24 +1,14 @@
 <template>
 <div v-for="(item, index) in inputsCount"
-     class="flex flex-col gap-[24px] col-span-full w-full">
+     class="flex flex-col gap-[24px] col-span-full w-full"
+     :key="'count' + item">
     <div class="flex flex-row justify-between w-full gap-[8px]">
-        <BaseSelect :propsClass="'select-params'"
-                    :props-options="param.all_values"
-                    :props-label="'Компонент'"
-                    :props-placeholder="'Выберите компонент'"
-                    :error="'error' in param && choices.some(e => e.name && e.value) && index == 0 ? param.error : ''"
+        <BaseSelect :selectSettings="initSelectProps(param, index)"
                     @value-changed="(x: string) => handleValueChange(x, index, 'select')">
             <AlertCircle />
         </BaseSelect>
 
-        <BaseInput :propsClass="'input-select'"
-                   :props-type="'number'"
-                   :props-placeholder="'в %'"
-                   :propsName="param.name + (index + 1)"
-                   :props-label="'Мольная доля, %'"
-                   :min="Number(0)"
-                   :max="Number(100)"
-                   :error="'error' in param ? param.error : ''"
+        <BaseInput :input-settings="initInputProps(param, index)"
                    @valueChanged="(x: string) => handleValueChange(x, index, 'input')" />
     </div>
     <div v-if="index !== item - 1"
@@ -76,10 +66,35 @@ export default defineComponent({
             })))
         }
 
+        const initSelectProps = (param: { all_values: string[] }, index: string | number) => {
+            return {
+                class: 'select-params',
+                options: param.all_values,
+                label: 'Компонент',
+                placeholder: 'Выберите компонент',
+                error: 'error' in param && choices.value.some(e => e.name && e.value) && Number(index) == 0 ? param.error as string : ''
+            }
+        }
+
+        const initInputProps = (param: IFormattedData, index: number) => {
+            return {
+                class: 'input-select',
+                type: 'number',
+                placeholder: 'в %',
+                name: param.name + (index + 1),
+                label: 'Мольная доля, %',
+                min: 0,
+                max: 100,
+                error: 'error' in param ? param.error : ''
+            }
+        }
+
         return {
             inputsCount,
             choices,
-            handleValueChange
+            handleValueChange,
+            initSelectProps,
+            initInputProps
         }
     }
 });

@@ -12,34 +12,18 @@
         <!-- свободный текстовый инпут -->
         <BaseInput v-else-if="(param as IFormattedData).required_type == 'user_input'"
                    :class="{ 'input-param__wrapper--no-response': (userParams && !userParams[param.name as keyof typeof userParams]) }"
-                   :propsClass="'input-param'"
-                   :props-placeholder="paramsLoading ? '...' : 'Впишите значение'"
-                   :propsValue="userParams && userParams[param.name as keyof typeof userParams] ? userParams[param.name as keyof typeof userParams] : ''"
-                   :propsName="param.name + (index + 1)"
-                   :props-label="param.name"
-                   :error="'error' in param ? (param as IFormattedData).error : ''"
-                   :disabled="paramsLoading"
+                   :inputSettings="initInputSettings(param, index)"
                    @valueChanged="(value: string | null) => $emit('valueChanged', value ?? '', param.name)" />
 
         <!-- выпадающий список -->
-        <BaseSelect v-else-if="(param.name !== 'sep')"
-                    :class="{ 'select-params__wrapper--no-response': (userParams && !userParams[param.name as keyof typeof userParams]) }"
-                    :propsLabel="param.name"
-                    :propsId="param.name"
-                    :propsClass="'select-params'"
-                    :propsValue="userParams ? userParams[param.name as keyof typeof userParams] : param?.response_value || ''"
-                    :propsOptions="checkParams(param as IFormattedData)"
-                    :propsPlaceholder="!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param ? '' : 'Выберите значение'"
-                    :needReq="true"
-                    :labelIcon="createLabelIconsComponent(param as IFormattedData, () => console.log('testComp'))"
-                    :error="'error' in param ? (param as IFormattedData).error : ''"
-                    :errorIcon="AlertCircle"
-                    :disabled="(((!(param as IFormattedData).filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')) && type == 'auto') || paramsLoading"
+        <BaseSelect :class="{ 'select-params__wrapper--no-response': (userParams && !userParams[param.name as keyof typeof userParams]) }"
+                    :selectSetting="initSelectSettings(param)"
                     @valueChanged="(value: string) => $emit('valueChanged', value, param.name)" />
 
         <!-- Статус вопроса -->
         <QuestionStatus v-if="type == 'auto'"
-                        :status="paramsLoading ? 'loading' : param.error ? 'canceled' : param.response_value ? 'checked' : ''" />
+                        :status="paramsLoading ? 'loading' : param.error ? 'canceled' : param.response_value ? 'checked' : ''"
+                        @resetValue="$emit('resetValue', param.name)" />
     </div>
 </div>
 </template>
@@ -52,6 +36,7 @@ import { useConfiguratorStore } from '@/stores/configurator';
 import { createLabelIconsComponent } from '@/composables/createComponent';
 import AlertCircle from '@/assets/icons/AlertCircle.svg?component';
 import QuestionStatus from '@/components/layout/QuestionStatus.vue';
+import { replaceSpotOrComma } from '@/utils/replaceSpotOrComma';
 
 export default defineComponent({
     components: {
@@ -62,7 +47,7 @@ export default defineComponent({
         QuestionStatus,
         AlertCircle
     },
-    emits: ['valueChanged'],
+    emits: ['valueChanged', 'resetValue'],
     props: {
         items: {
             type: Array as PropType<IFormattedData[]>,
@@ -84,29 +69,70 @@ export default defineComponent({
             type: Object as PropType<Record<string, string>>
         }
     },
-    setup() {
+    setup(props) {
         const freeConfigMode = computed(() => configurator.getFreeModeConfig);
         const configurator = useConfiguratorStore();
 
         const checkParams = (param: IFormattedData) => {
             switch (freeConfigMode.value) {
                 case true:
-                    return Array.from(param?.all_values) || []
+                    return Array.from(param?.all_values.map(e => replaceSpotOrComma(e, 'spot'))) || []
 
                 case false:
                     return Array.from((!('filtered_values' in param) || !param?.filtered_values || param.response_value) ?
-                        param?.all_values :
-                        param?.filtered_values || [])
-
+                        (param?.all_values.map(e => replaceSpotOrComma(e, 'spot'))) :
+                        (param?.filtered_values.map(e => replaceSpotOrComma(e, 'spot'))) || [])
                 default:
                     return []
             }
         }
+
+        type keyofUserParams = keyof typeof props.userParams;
+        const setPropsValue = (param: IFormattedData): string => {
+            if (props.userParams && props.userParams[param.name as keyofUserParams]) {
+                return replaceSpotOrComma(props.userParams[param.name as keyofUserParams]!, 'spot') || ''
+            }
+            else if (param?.response_value)
+                return replaceSpotOrComma(param?.response_value, 'spot') || ''
+            else return ''
+        }
+
+        const initSelectSettings = (param: IFormattedData) => {
+            return {
+                label: param.name,
+                id: param.name,
+                class: 'select-params',
+                value: setPropsValue(param),
+                options: checkParams(param),
+                placeholder: !param.filtered_values?.length && 'filtered_values' in param ? '' : 'Выберите значение',
+                needReq: true,
+                labelIcon: createLabelIconsComponent(param, () => console.log('testComp')),
+                error: 'error' in param ? param.error : '',
+                errorIcon: AlertCircle,
+                disabled: (((!param.filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')) && props.type == 'auto') || props.paramsLoading
+            }
+        }
+
+        const initInputSettings = (param: IFormattedData, index: number | string) => {
+            return {
+                class: 'input-param',
+                placeholder: props.paramsLoading ? '...' : 'Впишите значение',
+                value: setPropsValue(param),
+                name: param.name + (Number(index) + 1),
+                label: param.name,
+                error: 'error' in param ? (param as IFormattedData).error : '',
+                disabled: props.paramsLoading
+            }
+        }
+
         return {
             freeConfigMode,
             AlertCircle,
+            setPropsValue,
             createLabelIconsComponent,
-            checkParams
+            checkParams,
+            initSelectSettings,
+            initInputSettings
         }
     }
 });

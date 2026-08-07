@@ -46,7 +46,7 @@
     <!-- Блок расчетных параметров -->
     <div v-if="featuresFlags.rightSidebar.calcParams && calcParams.length"
          class="sidebar-block p-[24px] max-w-[505px]">
-        <div class="text-[13px]">Расчетные параметры</div>
+        <div class="text-[16px] text-(--text-secondary)">Расчетные параметры</div>
         <div class="divider mt-[10px]!"></div>
         <div class="flex max-w-full w-full flex-nowrap gap-[10px] overflow-x-auto">
             <div v-for="(group, index) in formatCalcParams(calcParams)"
@@ -101,29 +101,11 @@
         </div>
     </div>
     <!-- Блок с документами -->
-    <div v-if="featuresFlags.rightSidebar.docs"
-         class="sidebar-block p-[24px]">
-        <div class="text-13 text-[#343B4C] font-semibold">
-            Прилагаемые документы
-        </div>
-        <div class="mt-[8px] flex flex-col border-b border-b-(--color-information-gray-100) py-[12px]">
-            <div class="flex flex-row items-center flex-nowrap">
-                <span class="mr-[10px]">
-                    <FileIcon />
-                </span>
-                <span class="truncate mr-[12px] font-normal!">Декларация о соответствии ТР ТС 010/2011</span>
-                <div
-                     class="p-[4px] bg-(--color-information-gray-50) hover:bg-(--color-information-gray-100) duration-100 rounded-md">
-                    <DownloadIcon />
-                </div>
-            </div>
-        </div>
-        <BaseButton class="mt-[24px] flex flex-row items-center"
-                    propsClass="button-secondary">
-            <DownloadIcon class="w-[24px] h-[24px]" />
-            <span>Скачать все</span>
-        </BaseButton>
-    </div>
+    <RightSidebarDocs v-if="featuresFlags.rightSidebar.docs && docs.length"
+                      v-for="status in (['actual', 'outdated'] as const)"
+                      :docs
+                      :type="status"
+                      @downloadZip="downloadZip(status)" />
     <!-- Модальное окно с изображением -->
     <ImageViewerModal v-if="showImageModal && activeImageInModal"
                       :imageSrc="activeImageInModal"
@@ -140,6 +122,10 @@ import { featuresFlags } from '@/assets/static/featuresFlags.ts';
 import UploadDocButton from '@/views/homeView/components/recognition/UploadDocButton.vue';
 import type { IFormattedData } from '@/assets/interfaces/IForm';
 import ImageViewerModal from './ImageViewerModal.vue';
+import { checkDateStatus } from '@/utils/checkDateStatus.ts';
+import RightSidebarDocs from './RightSidebarDocs.vue';
+import Api from '@/utils/Api.ts';
+import { downloadFile } from '@/utils/downloadFile.ts';
 
 export default defineComponent({
     components: {
@@ -147,11 +133,17 @@ export default defineComponent({
         DownloadIcon,
         FileIcon,
         UploadDocButton,
-        ImageViewerModal
+        ImageViewerModal,
+        RightSidebarDocs
     },
     emits: ['readyToUploadFile'],
-    props: {},
-    setup(_, { emit }) {
+    props: {
+        id: {
+            type: String,
+            required: true
+        }
+    },
+    setup(props, { emit }) {
         const activeImgBlock = ref<number>(0);
         const activeGroupBlock = ref<number>(0);
         const configuratorStore = useConfiguratorStore();
@@ -177,7 +169,12 @@ export default defineComponent({
                 ++iteration;
                 if (calcParams.slice(index, index + splitNum).length < splitNum) break;
             }
-            return formattedParams;
+            return formattedParams.concat(formattedParams);
+        }
+
+        const downloadZip = async (status: 'outdated' | 'actual') => {
+            const zipUrl = await Api.get(`products/get_product_files_zip/${props.id}?load_valid=${status !== 'outdated'}`, { responseType: 'blob' });
+            await downloadFile(zipUrl, status == 'outdated' ? 'Истекшие документы.zip' : 'Актуальные документы.zip');
         }
 
         return {
@@ -197,9 +194,12 @@ export default defineComponent({
             errorStatus: computed(() => configuratorStore.getErrorStatus),
             status: computed(() => configuratorStore.getStatus),
             images: computed(() => configuratorStore.getImages),
+            docs: computed(() => configuratorStore.getDocs),
+            checkDateStatus,
             handleFileUpload,
             formatCalcParams,
-            handleImageClick
+            handleImageClick,
+            downloadZip
         }
     }
 });
