@@ -2,3 +2,56 @@
 @import './input/input-product.css';
 @import './input/input-select.css';
 @import './input/input-param.css';
+
+/* временное решение, удалить!!!!!! */
+.input-param--no-group__wrapper {
+    @apply flex flex-col gap-[4px] w-full ;
+}
+
+.input-param--no-group__label {
+    @apply text-[14px] font-[400] text-(--color-information-gray-600);
+}
+
+.input-param--no-group {
+    @apply w-full px-[10px] py-[10px] text-[14px] font-[400] rounded-[8px] border border-(--color-information-gray-300) outline-0 bg-white transition-all duration-100;
+}
+
+.input-param--no-group:hover {
+    @apply border-(--color-information-gray-500);
+}
+
+.input-param--no-group:focus {
+    @apply border-(--color-information-orange);
+}
+
+.input-param--no-group__error {
+    @apply text-red-600 text-[13px];
+}
+
+.input-param--no-group__wrapper:has(.input-param--no-group__error) .input-param--no-group {
+    @apply border-red-600;
+}
+
+.select-params--no-group__wrapper {
+    @apply flex flex-col gap-[4px] w-full;
+}
+
+.select-params--no-group__label {
+    @apply text-[14px] font-[400] text-(--color-information-gray-600);
+}
+
+.select-params--no-group {
+    @apply w-full px-[10px] py-[10px] text-[14px] font-[400] rounded-[8px] border border-(--color-information-gray-300) outline-0 bg-white cursor-pointer transition-all duration-100;
+}
+
+.select-params--no-group:hover {
+    @apply border-(--color-information-gray-500);
+}
+
+.select-params--no-group__error {
+    @apply text-red-600 text-[13px];
+}
+
+.select-params--no-group__wrapper:has(.select-params--no-group__error) .select-params--no-group {
+    @apply border-red-600;
+}

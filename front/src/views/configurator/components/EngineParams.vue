@@ -36,10 +36,13 @@
         </template>
     </MasonryWall>
     <!-- Параметры скопом -->
-    <EngineParamsNoGroup v-else
-                         :form="form"
+    <EngineParamsNoGroup v-else-if="form"
+                         :items="form"
+                         :gridCols="gridCols"
                          :type="type"
+                         :userParams="userParams"
                          :paramsLoading="paramsLoading"
+                         @resetValue="(param) => $emit('valueChanged', null, param)"
                          @valueChanged="(value, param) => $emit('valueChanged', value, param)" />
 </div>
 </template>
@@ -71,7 +74,7 @@ export default defineComponent({
     },
     props: {
         form: {
-            type: Array<IFormattedData>,
+            type: Array as PropType<IFormattedData[]>,
             requied: true
         },
         type: {
