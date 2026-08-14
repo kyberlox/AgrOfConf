@@ -4,11 +4,11 @@
      :key="'count' + item">
     <div class="flex flex-row justify-between w-full gap-[8px]">
         <BaseSelect :selectSettings="initSelectProps(param, index)"
-                    @value-changed="(x: string) => handleValueChange(x, index, 'select')">
+                    @valueChanged="(x: string) => handleValueChange(x, index, 'select')">
             <AlertCircle />
         </BaseSelect>
 
-        <BaseInput :input-settings="initInputProps(param, index)"
+        <BaseInput :inputSettings="initInputProps(param, index)"
                    @valueChanged="(x: string) => handleValueChange(x, index, 'input')" />
     </div>
     <div v-if="index !== item - 1"
@@ -32,6 +32,10 @@ export default defineComponent({
         param: {
             type: Object as PropType<IFormattedData>,
             required: true
+        },
+        disabled: {
+            type: Boolean,
+            default: false
         }
     },
     emits: ['changeSelectInputValue'],
@@ -72,6 +76,7 @@ export default defineComponent({
                 options: param.all_values,
                 label: 'Компонент',
                 placeholder: 'Выберите компонент',
+                disabled: props.disabled,
                 error: 'error' in param && choices.value.some(e => e.name && e.value) && Number(index) == 0 ? param.error as string : ''
             }
         }

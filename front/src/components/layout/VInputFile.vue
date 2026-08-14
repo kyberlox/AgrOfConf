@@ -3,18 +3,17 @@
     <input class="hidden"
            ref=fileInput
            type="file"
-           :value="fileValue"
+           :value="newFileName"
            @change="handleFileUpload" />
 
-    <BaseButton :props-class="buttonClass"
-                :props-title="needFileNameInTitle ? fileName : 'Загрузить'"
-                :disabled="isLoading"
+    <BaseButton :buttonSettings="{ class: buttonClass, disabled: isLoading }"
                 @clicked="handleClick">
         <span v-if="!isLoading">{{ fileName }}</span>
         <Loader v-else />
     </BaseButton>
 </div>
 </template>
+
 <script lang='ts'>
 import { defineComponent, ref, watch } from 'vue';
 import { BaseButton } from 'beans-ui-kit';
@@ -46,7 +45,7 @@ export default defineComponent({
     emits: ['fileUpload'],
     setup(props, { emit }) {
         const fileInput = ref();
-        const fileName = ref();
+        const newFileName = ref();
 
         const handleClick = () => {
             if (fileInput.value)
@@ -55,7 +54,7 @@ export default defineComponent({
 
         const handleFileUpload = () => {
             if (!fileInput.value || !fileInput.value.files.length) return
-            fileName.value = fileInput.value.files[0].name;
+            newFileName.value = fileInput.value.files[0].name;
             emit('fileUpload', fileInput.value.files[0])
         }
 
@@ -67,13 +66,13 @@ export default defineComponent({
 
         watch(() => props.fileName, () => {
             if (props.fileName) {
-                fileName.value = props.fileName
+                newFileName.value = props.fileName
             }
         }, { immediate: true })
 
         return {
             fileInput,
-            fileName,
+            newFileName,
             handleClick,
             handleFileUpload
         }

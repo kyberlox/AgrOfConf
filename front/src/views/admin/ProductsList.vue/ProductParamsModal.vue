@@ -9,14 +9,11 @@
                         @fileUpload="(image: string) => updateUserInputs('image', image)" />
 
             <BaseInput v-else
-                       :propsClass="'input-product-edit'"
-                       :propsPlaceholder="param"
-                       :propsLabel="param"
-                       :propsValue="userInputs[param as keyof IProduct]"
-                       @valueChanged="(x: string) => updateUserInputs(param as keyof IProduct, x)" />
+                       :inputSettings="initInputProps(param as keyof IProduct)"
+                       @valueChanged="(val: string) => updateUserInputs(param as keyof IProduct, val)" />
         </div>
         <div class="flex justify-start">
-            <BaseButton :props-class="'button-primary'"
+            <BaseButton :button-settings="{ class: 'button-primary' }"
                         @click="$emit('changeProduct', type, product.id ?? null, userInputs)">
                 <div class="w-[20px] h-[20px]"
                      v-if="isLoading">
@@ -84,10 +81,20 @@ export default defineComponent({
         }
         const params = ref(Object.keys(userInputs.value));
 
+        const initInputProps = (param: keyof IProduct) => {
+            return {
+                class: 'input-product-edit',
+                placeholder: param,
+                label: param,
+                value: userInputs.value[param]
+            }
+        }
+
         return {
             params,
             userInputs,
-            updateUserInputs
+            updateUserInputs,
+            initInputProps
         }
     }
 });

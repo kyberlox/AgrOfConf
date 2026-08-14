@@ -2,7 +2,7 @@
 <div class="flex flex-col gap-[4px] mt-[4px] pb-[12px]">
     <BaseSelect v-for="(tab, index) in tabs"
                 :key="'leftSideNav' + index"
-                :select-settings="initSelectProps(tab)"
+                :selectSettings="initSelectProps(tab)"
                 @value-changed="(value: string) => handleFilterChange(value, tab.name)" />
 </div>
 </template>
@@ -31,7 +31,7 @@ export default defineComponent({
         const initSelectProps = (tab: { name: string, title: string }) => {
             return {
                 name: tab.name,
-                title: tab.title,
+                label: tab.title,
                 options: ['Все', '1', '2'],
                 placeholder: 'Выберите значение',
                 class: 'sidebar__filter',

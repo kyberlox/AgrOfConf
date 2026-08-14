@@ -7,7 +7,7 @@
             <BaseSelect :selectSettings="initSelectProps(tkpVariants)"
                         @valueChanged="(id: string) => chosenVariant = id" />
 
-            <BaseButton :propsClass="'button-primary'"
+            <BaseButton :button-settings="{ class: 'button-primary' }"
                         @clicked=handleDownload>
                 Скачать
             </BaseButton>

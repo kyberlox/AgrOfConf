@@ -1,5 +1,5 @@
 <template>
-<div class="dropzone-container cursor-pointer w-[480px] max-w-full border border-(--color-information-orange-200) hover:bg-(--color-information-orange-200) transition-all duration-300 cursor-pointer border-dotted flex flex-col gap-[4px] rounded-[12px] text-center"
+<div class="dropzone-container h-[75px] cursor-pointer w-[480px] max-w-full border-2 border-(--color-information-orange-200) hover:bg-(--color-information-orange-200) transition-all duration-300 cursor-pointer border-dotted  rounded-[12px] text-center"
      :class="[{ 'bg-gray-300 hover:bg-gray-300! cursor-not-allowed! border-none': disabled }, { 'bg-(--color-information-green-50) hover:bg-(--color-information-green-150)!': !empty },
     isDragOver && !empty ? 'bg-(--color-information-orange-200)' : isDragOver && !empty ? 'bg-(--color-information-green-150)!' : '']"
      @dragover.prevent
@@ -15,8 +15,8 @@
            :disabled="disabled"
            @change="uploadFile" />
 
-    <div @click="handleClick"
-         class="p-[20px]">
+    <div class="h-full w-full p-[14px]"
+         @click="handleClick">
         <slot></slot>
     </div>
 </div>

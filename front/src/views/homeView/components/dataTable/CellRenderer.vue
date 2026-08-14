@@ -1,7 +1,7 @@
 <template>
 <div class="flex items-center">
     <span :class="[
-        'truncate max-w-[200px] inline-block',
+        'truncate max-w-[200px] inline-block peer',
         isFirst ? 'underline cursor-pointer hover:text-orange-500 transition-colors duration-300' : ''
     ]">
         {{ displayValue }}

@@ -1,9 +1,8 @@
 <template>
 <div class="h-[88vh] bg-white p-[32px] rounded-lg w-full">
     <div class="flex justify-end">
-        <BaseButton @click="showAddModal = true"
-                    :propsClass="'button-primary'"
-                    :propsTitle="'Добавить'">
+        <BaseButton :buttonSettings="{ class: 'button-primary' }"
+                    @click="showAddModal = true">
             Добавить
         </BaseButton>
     </div>

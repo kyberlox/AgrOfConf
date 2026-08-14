@@ -1,55 +1,54 @@
 <template>
 <div class="p-[32px] w-full bg-[#FDFDFD] ml-auto border border-gray-200 rounded-xl min-h-[86vh]">
-    <div class="flex flex-row gap-[24px] h-full flex-wrap md:flex-wrap lg:flex-nowrap">
-        <div class="flex flex-col gap-[24px] w-full">
+    <div class="flex flex-row gap-[24px] h-full flex-wrap md:flex-wrap lg:flex-nowrap"
+         v-if="form.length">
+        <div class="flex flex-col gap-[16px] w-full">
             <div
-                 class="flex flex-row items-start justify-between lg:flex-wrap xl:flex-wrap xxl:flex-nowrap w-full gap-y-[20px] ">
-                <div class="flex flex-row gap-[16px] items-center w-full max-w-[650px]">
+                 class="flex flex-row items-start justify-between gap-[20px] max-w-full content-stretch flex-wrap md:flex-wrap lg:flex-wrap xxl:flex-nowrap">
+                <div class="flex flex-row gap-[16px] items-center w-full max-w-fit">
                     <RouterLink :to="{ name: 'homeview' }"
                                 class="w-[24px] h-[24px] rounded-[16px] bg-[#F6F7F9] cursor-pointer flex self-start mt-[7px]">
                         <ArrowLeft class="w-full m-auto max-h-[12px]" />
                     </RouterLink>
-                    <h1 class="block">{{ productName }}</h1>
+                    <h1 class="inline-block w-fit max-w-[500px]">{{ productName }}</h1>
+                </div>
+                <div class="flex flex-col-reverse justify-center">
+                    <div v-if="!Object.keys(neuroOlData).length"
+                         class="flex flex-row gap-[11px] mt-[10px] items-center">
+                        <div class="font-normal w-fit">
+                            Свободный режим
+                        </div>
+                        <div class=" rounded-[49px] px-[4px] w-[48px] h-[24px] flex flex-start items-center cursor-pointer transition-all duration-300"
+                             :class="[freeConfigMode ? ' bg-[#F36E3C]' : ' bg-[#B4BCC8]']"
+                             @click="setFreeConfig(!freeConfigMode)">
+                            <div class="bg-white rounded-[100px] w-[18px] h-[18px] transition-all duration-300"
+                                 :class="[freeConfigMode ? 'translate-x-[22px]' : '']"></div>
+                        </div>
+                    </div>
                     <div
-                         class="rounded-[16px] mt-[10px] self-start flex flex-row items-center gap-[4px] bg-[#FFF2E5] pl-[8px] py-[4px] min-w-[104px] font-medium text-[#752209]">
+                         class="rounded-[16px]  self-start flex flex-row items-center gap-[4px] bg-[#FFF2E5] pl-[8px] py-[4px] min-w-[104px] font-medium text-[#752209]">
                         <Ellipse />
                         <span>Черновик</span>
                     </div>
                 </div>
-
-                <div v-if="!Object.keys(neuroOlData).length"
-                     class="flex flex-row gap-[11px] mt-[10px] items-center ml-auto">
-                    <div class="font-normal">
-                        Свободный режим
-                    </div>
-                    <div class=" rounded-[49px] px-[4px] w-[48px] h-[24px] flex flex-start items-center cursor-pointer transition-all duration-300"
-                         :class="[freeConfigMode ? ' bg-[#F36E3C]' : ' bg-[#B4BCC8]']"
-                         @click="setFreeConfig(!freeConfigMode)">
-                        <div class="bg-white rounded-[100px] w-[18px] h-[18px] transition-all duration-300"
-                             :class="[freeConfigMode ? 'translate-x-[22px]' : '']"></div>
-                    </div>
-                </div>
+                <UploadDocButton class="grow"
+                                 @readyToUploadFile="(file, fileName) => handleFileUpload(file, fileName)" />
             </div>
-            <EngineParams v-if="form.length"
-                          :form="form"
+            <EngineParams :form="form"
                           :paramsGroups="paramsGroups"
                           :paramsLoading="freeConfigMode ? false : paramsLoading"
                           :type="freeConfigMode ? 'free' : 'auto'"
                           :key="paramsRenderKey"
                           :userParams="userInputs"
                           @valueChanged="(value: string, key: string) => handleValueChanged(value, key)" />
-            <div v-else
-                 class="engine-params__loader">
-                <Loader />
-            </div>
             <div class="flex flex-row justify-end gap-[8px] flex-wrap mt-0">
-                <BaseButton :propsClass="'button-secondary'">
+                <BaseButton :buttonSettings="{ class: 'button-secondary' }">
                     <span class="block px-[40px] flex flex-row items-center gap-[4px]">
                         <FavoriteIcon />
                         Удалить из Избранных ОЛ
                     </span>
                 </BaseButton>
-                <BaseButton :propsClass="'button-primary'"
+                <BaseButton :buttonSettings="{ class: 'button-primary' }"
                             @clicked="tkpModalIsVisible = true">
                     Создать
                 </BaseButton>
@@ -57,6 +56,10 @@
         </div>
         <RightSidebar :id="id"
                       @readyToUploadFile="handleFileUpload" />
+    </div>
+    <div v-else
+         class="engine-params__loader">
+        <Loader />
     </div>
 
     <!-- Модальное окно для TKP вариантов -->
@@ -69,9 +72,11 @@
     <PromptModal :promptModalVisible="promptModalVisible"
                  :formData="olFormData"
                  :uploadedFileName="newFileName || ''"
+                 :key="promptModalKey"
                  @closeModal="promptModalVisible = false" />
 </div>
 </template>
+
 <script lang='ts'>
 import { defineComponent, onMounted, ref, computed, watch, onUnmounted } from 'vue';
 import { BaseButton } from 'beans-ui-kit';
@@ -95,6 +100,7 @@ import { getTkpVariants } from '@/utils/getTkpVariants.ts';
 import { toast } from 'vue3-toastify';
 import { watchDebounced } from '@vueuse/core';
 import { replaceSpotOrComma } from '@/utils/replaceSpotOrComma.ts';
+import { clone } from 'chart.js/helpers';
 
 export default defineComponent({
     components: {
@@ -134,6 +140,8 @@ export default defineComponent({
         const paramsLoading = ref(false);
         const paramsGroups = ref<Record<string, Array<string>>>();
         let abortController: AbortController | null = null;
+        const priorityParam = ref<string>();
+        const promptModalKey = ref(1);
 
         const paramsUpdate = (body: Record<string, string> | null) => {
             if (!body) {
@@ -158,15 +166,17 @@ export default defineComponent({
             if (abortController) {
                 abortController.abort();
             }
-            let newBody = body;
+            let newBody = clone(body);
             if (freeConfigMode.value && Object.keys(newBody).length) {
                 return
             }
             abortController = new AbortController();
             const signal = abortController.signal;
             if (newBody && Object.keys(newBody).length) {
-                Object.keys(newBody)?.forEach(key => {
+                Object.keys(newBody)?.forEach((key, index) => {
                     newBody[key] = replaceSpotOrComma(newBody[key]!, 'comma');
+                    if (priorityParam.value)
+                        newBody.priority = priorityParam.value;
                 })
             }
             try {
@@ -230,12 +240,9 @@ export default defineComponent({
         })
 
         const handleValueChanged = (value: string, key: keyof typeof userInputs.value) => {
-            // if (value === null) {
-            //     delete userInputs.value[key];
-            //     paramsUpdateRequest(userInputs.value)
-            // } else
             if (value && userInputs.value[key] !== replaceSpotOrComma(value, 'spot')) {
                 userInputs.value[key] = replaceSpotOrComma(value, 'spot') || '';
+                priorityParam.value = String(key);
                 paramsUpdate(userInputs.value);
             }
         }
@@ -255,9 +262,11 @@ export default defineComponent({
         }
 
         const handleFileUpload = (file: FormData, fileName: string) => {
+            console.log(file.get('file'))
             promptModalVisible.value = true;
             olFormData.value = file;
             newFileName.value = fileName;
+            promptModalKey.value++;
         }
 
         const setFreeConfig = (mode: boolean) => {
@@ -279,6 +288,7 @@ export default defineComponent({
             paramsLoading,
             paramsGroups,
             userInputs,
+            promptModalKey,
             handleValueChanged,
             handleDownloadTkp,
             handleFileUpload,

@@ -1,6 +1,6 @@
 <template>
 <div class="flex flex-col gap-[16px] lg:max-w-[344px] md:max-w-fit">
-    <UploadDocButton @readyToUploadFile="(file, fileName) => handleFileUpload(file, fileName)" />
+    <!-- <UploadDocButton @readyToUploadFile="(file, fileName) => handleFileUpload(file, fileName)" /> -->
     <!-- Блок параметров запроса -->
     <div v-if="featuresFlags.rightSidebar.description"
          class="sidebar-block">
@@ -101,15 +101,18 @@
         </div>
     </div>
     <!-- Блок с документами -->
-    <RightSidebarDocs v-if="featuresFlags.rightSidebar.docs && docs.length"
-                      v-for="status in (['actual', 'outdated'] as const)"
-                      :docs
-                      :type="status"
-                      @downloadZip="downloadZip(status)" />
+    <template v-if="featuresFlags.rightSidebar.docs && docs.length">
+        <RightSidebarDocs v-for="status in (['actual', 'outdated'] as const)"
+                          :key="'docStatus' + status"
+                          :docs
+                          :type="status"
+                          @downloadZip="downloadZip(status)" />
+    </template>
     <!-- Модальное окно с изображением -->
-    <ImageViewerModal v-if="showImageModal && activeImageInModal"
-                      :imageSrc="activeImageInModal"
-                      @closeModal="showImageModal = false" />
+    <template v-if="showImageModal && activeImageInModal">
+        <ImageViewerModal :imageSrc="activeImageInModal"
+                          @closeModal="showImageModal = false" />
+    </template>
 </div>
 </template>
 <script lang='ts'>
@@ -157,6 +160,7 @@ export default defineComponent({
         }
 
         const handleFileUpload = (file: FormData, fileName: string) => {
+            console.log(file.get('file'))
             emit('readyToUploadFile', file, fileName);
         }
 

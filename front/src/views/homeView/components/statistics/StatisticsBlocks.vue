@@ -1,5 +1,5 @@
 <template>
-<div class="grow"
+<div class="grow min-w-fit"
      :class="{ 'border-r border-[#EAECEF] pr-[32px]': type == 'ol' }">
     <div class="flex flex-row gap-[16px] items-center max-w-full">
         <div class="min-w-fit text-[16px] font-[700] leading-[120%] text-(--text-text-primary)">
@@ -7,10 +7,10 @@
         </div>
         <div class="divider"></div>
     </div>
-    <div class="mt-[16px] grid grid-cols-2 gap-[16px] max-w-full">
+    <div class="mt-[16px] grid md:grid-cols-2 gap-[16px] max-w-full">
         <div v-for="(block, index) in statBlocks"
              :key="'olBlock' + index"
-             class="h-[160px] rounded-[16px] p-[24px] border border-(--color-information-gray-200) min-w-fit sm:min-w-fit  3xl:min-w-[271px]"
+             class="h-[160px]  rounded-[16px] p-[24px] border border-(--color-information-gray-200) min-w-fit sm:min-w-fit  3xl:min-w-[271px]"
              :class="{ 'border-(--color-information-orange-200) bg-[linear-gradient(140deg,#fff_0%,#fff2e5_100%)]': index == 0 }">
             <div class="flex flex-row items-center justify-between">
                 <div class="font-bold text-[14px] text-(--color-information-gray-400)"

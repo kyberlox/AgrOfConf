@@ -1,6 +1,5 @@
 <template>
-<div class="grid grid-rows-[auto_1fr] h-[100vh]">
-  <VHeader />
+<div class="grid grid-rows-[auto_1fr] h-[100vh] bg-[#F6F7F9]">
   <div class="p-[24px] bg-[#F6F7F9] flex flex-row gap-[32px]">
     <LeftSidebar />
     <div class="max-w-[calc(100%-114px)] ml-auto grow">
@@ -16,11 +15,13 @@ import LeftSidebar from './components/layout/LeftSidebar.vue';
 import { type IUser } from './assets/interfaces/IUser.ts';
 import Api from './utils/Api.ts';
 import { useUserStore } from './stores/user.ts';
+import LogoIcon from '@/assets/img/logo.svg?component';
 
 export default defineComponent({
   components: {
     VHeader,
-    LeftSidebar
+    LeftSidebar,
+    LogoIcon
   },
   props: {},
   setup() {

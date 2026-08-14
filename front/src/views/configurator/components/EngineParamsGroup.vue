@@ -16,8 +16,9 @@
                    @valueChanged="(value: string | null) => $emit('valueChanged', value ?? '', param.name)" />
 
         <!-- выпадающий список -->
-        <BaseSelect :class="{ 'select-params__wrapper--no-response': (userParams && !userParams[param.name as keyof typeof userParams]) }"
-                    :selectSetting="initSelectSettings(param)"
+        <BaseSelect v-else
+                    :class="{ 'select-params__wrapper--no-response': (userParams && !userParams[param.name as keyof typeof userParams]) }"
+                    :selectSettings="initSelectSettings(param)"
                     @valueChanged="(value: string) => $emit('valueChanged', value, param.name)" />
 
         <!-- Статус вопроса -->

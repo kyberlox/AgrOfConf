@@ -8,8 +8,9 @@
                           :isSearchResult="isSearchResult" />
     </div>
     <div v-else-if="tableData.length && tableReady"
-         class="w-full">
-        <AgGridVue :rowData="rowData"
+         class="w-full relative">
+        <AgGridVue class="w-full"
+                   :rowData="rowData"
                    :columnDefs="columnDefs"
                    :defaultColDef="defaultColDef"
                    :theme="theme"
@@ -18,9 +19,10 @@
                    :domLayout="'autoHeight'"
                    :reactiveCustomComponents="true"
                    :autoSizeStrategy="autoSizeStrategy"
+                   :tooltipShowMode="'whenTruncated'"
+                   :tooltipShowDelay="10"
                    @grid-ready="onGridReady"
-                   @grid-size-changed="autoSize"
-                   class="w-full" />
+                   @grid-size-changed="autoSize" />
         <Pagination />
     </div>
     <div v-else
@@ -30,7 +32,7 @@
 </div>
 </template>
 <script lang="ts">
-import { defineComponent, type PropType, computed, shallowRef, watch } from 'vue';
+import { defineComponent, type PropType, computed, shallowRef } from 'vue';
 import { AgGridVue } from 'ag-grid-vue3';
 import {
     ModuleRegistry,
@@ -42,7 +44,8 @@ import {
     ColumnAutoSizeModule,
     ValidationModule,
     themeAlpine,
-    CellStyleModule
+    CellStyleModule,
+    TooltipModule
 } from 'ag-grid-community';
 import EmptyHistoryPlug from '@/components/EmptyHistoryPlug.vue';
 import CellRenderer from './CellRenderer.vue';
@@ -50,19 +53,21 @@ import { useUserStore } from '@/stores/user.ts';
 import { historyTableTheme } from '@/assets/static/historyThemeAdGrid.ts';
 import Pagination from './TablePagination.vue';
 import Loader from '@/components/layout/Loader.vue';
+import TextTooltip from '@/components/layout/TextTooltip.vue';
 
 ModuleRegistry.registerModules([
     ClientSideRowModelModule,
     ColumnAutoSizeModule,
     ValidationModule,
-    CellStyleModule
+    CellStyleModule,
+    TooltipModule
 ]);
 const theme = themeAlpine
     .withParams(historyTableTheme);
 
 export default defineComponent({
     name: 'HistoryTable',
-    components: { AgGridVue, EmptyHistoryPlug, CellRenderer, Pagination, Loader },
+    components: { AgGridVue, EmptyHistoryPlug, CellRenderer, Pagination, Loader, TextTooltip },
     emits: ['createOl'],
     props: {
         currentTableNav: {
@@ -135,6 +140,8 @@ export default defineComponent({
                 cellRendererParams: {
                     colDefs: props.tableHead
                 },
+                tooltipValueGetter: (params) => params.value,
+                tooltipComponent: "TextTooltip",
                 sortable: true,
                 minWidth: columnMinWidths[header],
                 maxWidth: columnMaxWidths[header],

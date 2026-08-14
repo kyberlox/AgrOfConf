@@ -1,10 +1,10 @@
 <template>
 <div class="mt-[24px] px-[24px] flex-wrap">
-    <section class="flex flex-row gap-[32px] justify-between">
-        <StatisticsBlocks :statBlocks="statBlocks"
+    <section class="flex flex-row gap-[32px] justify-between overflow-x-auto">
+        <StatisticsBlocks :statBlocks="monthDataSet"
                           :type="'ol'" />
         <StatisticsPie />
-        <StatisticsBlocks :statBlocks="statBlocks"
+        <StatisticsBlocks :statBlocks="monthDataSet"
                           :type="'requests'" />
 
     </section>
@@ -12,7 +12,7 @@
     <section class="mt-[24px] py-[24px] rounded-[16px] border border-[#D3D7DF]"
              v-if="monthes.length">
         <StatisticsChart :monthes="monthes"
-                         :yearsDataset="yearsDataset" />
+                         :yearsDataset="{ current_year: yearsDataset.current_year, previous_year: yearsDataset.previous_year }" />
     </section>
 </div>
 </template>
@@ -43,9 +43,11 @@ export default defineComponent({
     },
     props: {},
     setup() {
+        const userStore = useUserStore();
         const userId = computed(() => useUserStore().getId);
-        const monthes = ref<string[]>([]);
-        const yearsDataset = ref({ current: [], previous: [] });
+        const monthes = computed(() => Object.keys(yearsDataset.value.current_year || {}))
+        const yearsDataset = computed(() => userStore.getYearMetrics);
+        const monthDataSet = computed(() => userStore.getMonthMetrics);
 
         const statBlocks = ref<IStatisticBlock[]>([
             { name: 'month', title: 'за тек. месяц', value: null, icon: markRaw(ThunderIcon), undertext: 'к предыдущему месяцу', comparsion: null },
@@ -54,9 +56,12 @@ export default defineComponent({
             { name: 'total', title: 'за все время', value: null, icon: markRaw(CalendarIcon), undertext: 'с начала работы', comparsion: null }
         ]);
 
-        watch(() => userId.value, async () => {
-            if (!userId.value) return;
-            try {
+        watch((() => userId.value), async () => {
+            if (!Object.keys(yearsDataset.value).length) {
+                const data = await Api.get(`selection_statistic/monthly_comparison?user_id=${userId.value}`)
+                userStore.setYearMetrics(data)
+            }
+            if (!monthDataSet.value.length) {
                 const res: IStatisticResponse = await Api.get(`selection_statistic/metrics?user_id=${userId.value}`)
                 Object.keys(res).forEach(key => {
                     const target = statBlocks.value.find(block => block.name === key);
@@ -65,27 +70,15 @@ export default defineComponent({
                     target.value = typeof val == 'object' && 'current' in val ? val.current : val || 0;
                     target.comparsion = typeof val == 'object' && 'diff' in val ? val.diff : val || 0;
                 })
-            } catch (error) {
-                console.error('Error fetching statistics:', error);
+                userStore.setMonthMetrics(statBlocks.value)
             }
         }, { immediate: true })
-
-        onMounted(async () => {
-            try {
-                const data = await Api.get(`selection_statistic/monthly_comparison?user_id=${userId.value}`)
-                monthes.value = Object.keys(data.current_year)
-                yearsDataset.value.current = Object.values(data.current_year);
-                yearsDataset.value.previous = Object.values(data.previous_year);
-            }
-            catch (error) {
-                console.error(error);
-            }
-        })
 
         return {
             statBlocks,
             monthes,
-            yearsDataset
+            yearsDataset,
+            monthDataSet
         }
     }
 });

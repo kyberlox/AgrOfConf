@@ -3,7 +3,7 @@
     <div class="text-13 text-[#343B4C] font-semibold"
          v-html="displayTitle">
     </div>
-    <a :href="apiUrl + doc.file_url"
+    <a :href="apiUrl + doc.file_url.replace('/api', '')"
        target="_blank"
        class="mt-[8px] relative grid grid-cols-[1fr] items-center gap-[6px] border-b border-b-(--color-information-gray-100) py-[12px]"
        :class="'sidebar-block__date__wrapper--' + doc.status"
@@ -17,10 +17,8 @@
             <span class="truncate block mr-[12px] font-normal! grow relative peer">
                 {{ doc.name }}
             </span>
-            <div
-                 class="absolute max-w-full top-[50px] z-10 whitespace-normal invisible bg-white text-black text-sm shadow-[0_0_8px_0] rgba(180, 188, 200, 0.5) px-[16px] py-[8px] rounded-[5px] group-hover:visible!">
-                {{ doc.name }}
-            </div>
+            <TextTooltip class="invisible! peer-hover:visible!"
+                         :params="{ value: doc.name }" />
             <div
                  class="p-[4px] bg-(--color-information-gray-50) group-hover:bg-(--color-information-gray-100) duration-100 rounded-md">
                 <DownloadIcon />
@@ -32,7 +30,7 @@
         </div>
     </a>
     <BaseButton class="mt-[12px] flex flex-row items-center"
-                propsClass="button-secondary"
+                :buttonSettings="{ class: 'button-secondary' }"
                 @clicked="$emit('downloadZip')">
         <DownloadIcon class="w-[24px] h-[24px]" />
         <span>Скачать все</span>
@@ -46,23 +44,27 @@ import { checkDateStatus } from '@/utils/checkDateStatus';
 import DownloadIcon from '@/assets/icons/DownloadIcon.svg?component';
 import FileIcon from '@/assets/icons/FileIcon.svg?component';
 import { BaseButton } from 'beans-ui-kit';
+import TextTooltip from '@/components/layout/TextTooltip.vue';
+
+type docType = { id: number, name: string, date_to: string, file_url: string };
 
 export default defineComponent({
     emits: ['downloadZip'],
+    components: {
+        BaseButton,
+        TextTooltip,
+        DownloadIcon,
+        FileIcon
+    },
     props: {
         docs: {
-            type: Object as PropType<{ id: number, name: string, date_to: string, file_url: string }[]>,
+            type: Object as PropType<docType[]>,
             required: true
         },
         type: {
             type: String as PropType<"actual" | "outdated">,
             required: true
         }
-    },
-    components: {
-        BaseButton,
-        DownloadIcon,
-        FileIcon
     },
     setup(props) {
         const apiUrl = import.meta.env.VITE_API_URL;

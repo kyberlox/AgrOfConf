@@ -20,9 +20,8 @@
                 <div class="text-lg w-full">
                     Excell
                 </div>
-                <BaseButton @click="downloadExcell"
-                            :propsClass="'button-primary'"
-                            :disabled="excellDownloading">
+                <BaseButton :buttonSettings="{ class: 'button-primary', disabled: excellDownloading }"
+                            @click="downloadExcell">
                     <Loader v-if=excellDownloading />
                     <span v-else>Скачать</span>
                 </BaseButton>
@@ -36,7 +35,7 @@
         <div class="w-fit m-auto">
             <Transition name="fade-btn">
                 <BaseButton v-if="sortChanged"
-                            :propsClass="'button - primary'"
+                            :buttonSettings="{ class: 'button=primary' }"
                             @clicked="sendNewSort">
                     Принять сортировку
                 </BaseButton>
@@ -47,7 +46,7 @@
         <div class="mt-[20px] max-w-[250px] w-[250px]"
              v-for="(item, index) in actionButtons"
              :key="item.name + index">
-            <BaseButton propsClass="button-secondary"
+            <BaseButton :buttonSettings="{ class: 'button-secondary' }"
                         @clicked="item.name == 'tkp' ? olListModalOpen = true : tablesModalIsOpen = true">
                 {{ item.title }}
             </BaseButton>
