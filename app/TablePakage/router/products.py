@@ -5,18 +5,21 @@ import re
 
 from fastapi import APIRouter, Depends, File, HTTPException, Form, Body
 from fastapi import UploadFile
+from fastapi.responses import StreamingResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import text
-
+from sqlalchemy import text, select, func, cast, Date
+import zipfile
+import io
 import uuid
 from pathlib import Path
 import imghdr
-
+from datetime import date
 from ..model.database import get_db
 from ..model.product import Product
 from ..model.product_drawing import ProductDrawing
+from ..model.product_files import ProductFiles
 from ..schema.product import ProductUpdate, ProductResponse
 
 router = APIRouter(prefix="/products", tags=["Products"])
@@ -26,6 +29,9 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 DRAWING_DIR = "./static/product_drawings"
 os.makedirs(DRAWING_DIR, exist_ok=True)
+
+FILES_DIR = "./static/product_files"
+os.makedirs(FILES_DIR, exist_ok=True)
 
 # Настройки
 MAX_FILE_SIZE = 35 * 1024 * 1024  # 35 МБ
@@ -267,7 +273,7 @@ async def upload_product_drawing(
         with open(file_path, "wb") as f:
             f.write(await image.read())
 
-        file_url = f"/api/files/product_drawings/{new_filename}"
+        file_url = f"/files/product_drawings/{new_filename}"
 
         new_product_drawing = ProductDrawing(
             product_id=product_id,
@@ -311,3 +317,112 @@ async def get_product_drawings(product_id: int, db: AsyncSession = Depends(get_d
     stmt = await db.execute(select(ProductDrawing).where(ProductDrawing.product_id == product_id))
     nodes = stmt.scalars().all()
     return nodes
+
+#Загрузка сертификатов для продукта
+@router.post("/upload_product_file", description="Загрузка сертификатов для продукта", status_code=201)
+async def upload_product_file(
+    product_id: int,
+    name: str, 
+    date_to: str,
+    image: UploadFile = File(None),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        original_filename = image.filename
+        file_type = Path(original_filename).suffix
+        new_filename = f"{name}{file_type}"
+        
+        file_path = os.path.join(FILES_DIR, new_filename)
+        with open(file_path, "wb") as f:
+            f.write(await image.read())
+
+        file_url = f"/files/product_files/{new_filename}"
+
+        new_product_drawing = ProductFiles(
+            product_id=product_id,
+            name=name,
+            file=file_path,
+            file_url=file_url,
+            date_to=date_to
+        )
+        db.add(new_product_drawing)
+        await db.commit()
+        await db.refresh(new_product_drawing)
+
+        return new_product_drawing
+
+    except Exception as e:
+        await db.rollback()
+        return {'error': f"Ошибка добавления сертификатов к продукту: {e}"}
+
+@router.delete("/delete_product_file/{id}", description="Удаление сертификатов для продукта", status_code=201)
+async def delete_product_files(
+    id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        stmt = await db.execute(select(ProductFiles).where(ProductFiles.id == id))
+        node = stmt.scalar_one_or_none()
+        if not node:
+            raise HTTPException(status_code=404, detail=f"Не найден сертификат с id = {id}")
+
+        await db.delete(node)
+        await db.commit()
+
+        if node.file and os.path.exists(node.file):
+            os.remove(node.file)
+        
+        return True
+    except Exception as e:
+        await db.rollback()
+        return {'error': f"Ошибка добавления сертификатов к продукту: {e}"}
+
+@router.get("/get_product_files/{product_id}")
+async def get_product_files(product_id: int, db: AsyncSession = Depends(get_db)):
+    stmt = await db.execute(select(ProductFiles).where(ProductFiles.product_id == product_id))
+    nodes = stmt.scalars().all()
+    return nodes
+
+@router.get("/get_product_files_zip/{product_id}")
+async def get_product_files_zip(
+    product_id: int, 
+    load_valid: bool,
+    db: AsyncSession = Depends(get_db)
+):
+    today = date.today()
+    if load_valid:
+        stmt = await db.execute(
+            select(ProductFiles.file).where(
+                ProductFiles.product_id == product_id,
+                func.to_date(ProductFiles.date_to, 'DD.MM.YYYY') > today
+            )
+        )
+    else:
+        stmt = await db.execute(
+            select(ProductFiles.file).where(
+                ProductFiles.product_id == product_id,
+                func.to_date(ProductFiles.date_to, 'DD.MM.YYYY') < today
+            )
+        )
+    nodes = stmt.scalars().all()
+    if not nodes:
+        return HTTPException(status_code=404, detail='Не найдены сертификаты для продукта')
+     # Создаём ZIP в памяти
+    zip_buffer = io.BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for file_path in nodes:
+            # Добавляем файл в архив с его именем
+            file_name = os.path.basename(file_path)
+            zip_file.write(file_path, file_name)
+    
+    # Подготавливаем ответ
+    zip_buffer.seek(0)
+    
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f"attachment; filename=sertificates"
+        }
+    )

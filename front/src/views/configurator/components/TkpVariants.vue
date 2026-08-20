@@ -1,16 +1,13 @@
 <template>
 <SlotModal v-if="tkpModalIsVisible">
-    <div class="min-w-[250px] p-[24px] flex flex-col gap-[24px]">
+    <div class="min-w-[250px] p-[24px] flex flex-col gap-[12px]">
         <h3>Выберите вариант ТКП</h3>
         <div v-if="tkpVariants.length"
              class="flex flex-col gap-[6px]">
-            <BaseSelect :propsId="'tkpVariants'"
-                        :props-placeholder="'Выберите варианты ТКП'"
-                        :propsClass="'select-params'"
-                        :propsOptions="formatToSelect(tkpVariants)"
+            <BaseSelect :selectSettings="initSelectProps(tkpVariants)"
                         @valueChanged="(id: string) => chosenVariant = id" />
 
-            <BaseButton :propsClass="'button-primary'"
+            <BaseButton :button-settings="{ class: 'button-primary' }"
                         @clicked=handleDownload>
                 Скачать
             </BaseButton>
@@ -59,8 +56,18 @@ export default defineComponent({
                 emit('downloadTkp', chosenVariant.value)
         }
 
+        const initSelectProps = (tkpVariants: ITkpVariant[]) => {
+            return {
+                id: 'tkpVariants',
+                placeholder: '...',
+                class: 'select-primary',
+                options: formatToSelect(tkpVariants)
+            }
+        }
+
         return {
             chosenVariant,
+            initSelectProps,
             formatToSelect,
             handleDownload
         }

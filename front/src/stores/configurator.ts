@@ -5,6 +5,15 @@ interface ISketch {
     img: string,
     title: string
 }
+interface IDoc {
+    created_at: string,
+    date_to: string,
+    file: string,
+    file_url: string,
+    id: number,
+    name: string,
+    product_id: number
+}
 
 export const useConfiguratorStore = defineStore('configuratorStore', {
     state: () => ({
@@ -19,6 +28,7 @@ export const useConfiguratorStore = defineStore('configuratorStore', {
         },
         sketch: [] as ISketch[],
         calcParams: [] as IFormattedData[],
+        docs: [] as IDoc[],
         freeModeConfig: false
     }),
     actions: {
@@ -51,6 +61,9 @@ export const useConfiguratorStore = defineStore('configuratorStore', {
             this.sketch.length = 0;
             this.sketch.push(sketch);
         },
+        setDocs(docs: IDoc[]) {
+            this.docs = docs;
+        },
         setCalcParams(params: IFormattedData[]) {
             const markKey = 'Маркировка';
             const sketchKey = 'Чертеж';
@@ -72,6 +85,7 @@ export const useConfiguratorStore = defineStore('configuratorStore', {
         getStatus: (state) => state.status,
         getFreeModeConfig: (state) => state.freeModeConfig,
         getCalcParams: (state) => state.calcParams,
-        getImages: (state) => state.sketch
+        getImages: (state) => state.sketch,
+        getDocs: (state) => state.docs
     }
 })

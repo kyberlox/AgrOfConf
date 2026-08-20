@@ -1,12 +1,18 @@
 <template>
 <SlotModal v-if="showDeleteModal">
     <div class="flex flex-col gap-2 p-4">
-        <h1 class="mt-2">Вы уверены, что хотите удалить это изделие?</h1>
+        <h1 class="mt-2">
+            Вы уверены, что хотите удалить это изделие?
+        </h1>
         <div class="flex flex-row justify-between mt-2">
-            <BaseButton :props-class="'button-primary'"
-                        @click.stop.prevent="$emit('closeAllModals')">Нет</BaseButton>
-            <BaseButton :props-class="'button-primary'"
-                        @click.stop.prevent="$emit('deleteProduct', product.id)">Да</BaseButton>
+            <BaseButton :buttonSettings="{ class: 'button-secondary' }"
+                        @click.stop.prevent="$emit('closeAllModals')">
+                Нет
+            </BaseButton>
+            <BaseButton :buttonSettings="{ class: 'button-primary' }"
+                        @click.stop.prevent="$emit('deleteProduct', product.id)">
+                Да
+            </BaseButton>
         </div>
     </div>
 </SlotModal>

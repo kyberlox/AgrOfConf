@@ -25,3 +25,21 @@ export interface IStatisticResponse {
     },
     "total": number
 }
+
+export interface IMonthMetricInner {
+    current: number,
+    previous: number,
+    diff: number
+}
+
+export interface IMonthMetric {
+    day: IMonthMetricInner,
+    month: IMonthMetricInner,
+    year: IMonthMetricInner,
+    total: number
+}
+
+export interface IYearMetric {
+    current_year: { [key: string]: number },
+    previous_year: { [key: string]: number }
+}

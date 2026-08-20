@@ -1,13 +1,9 @@
 <template>
 <div class="flex flex-col gap-[4px] mt-[4px] pb-[12px]">
-    <BaseSelect v-for="(item, index) in tabs"
+    <BaseSelect v-for="(tab, index) in tabs"
                 :key="'leftSideNav' + index"
-                :propsLabel="item.title"
-                :props-options="(['Все', '1', '2'])"
-                :props-placeholder="'Выберите значение'"
-                :propsClass="'sidebar__filter'"
-                :props-id="'sidebar__filter' + index"
-                @value-changed="(value: string) => handleFilterChange(value, item.name)" />
+                :selectSettings="initSelectProps(tab)"
+                @value-changed="(value: string) => handleFilterChange(value, tab.name)" />
 </div>
 </template>
 
@@ -32,7 +28,19 @@ export default defineComponent({
             router.push({ name: props.link, query: filtersQuery.value })
         }
 
+        const initSelectProps = (tab: { name: string, title: string }) => {
+            return {
+                name: tab.name,
+                label: tab.title,
+                options: ['Все', '1', '2'],
+                placeholder: 'Выберите значение',
+                class: 'sidebar__filter',
+                id: `sidebar__filter_${tab.name}`
+            }
+        }
+
         return {
+            initSelectProps,
             handleFilterChange
         }
     }

@@ -11,15 +11,16 @@
     </div>
     <div class="border-t border-[#EAECEF] w-full max-w-full mb-[20px]"></div>
     <!-- Группы параметров  -->
-    <MasonryWall v-if="Object.keys(paramsGroups).length"
+    <MasonryWall v-if="paramsGroups && Object.keys(paramsGroups).length"
                  :items="Object.keys(paramsGroups)"
                  :columnWidth="400"
                  :gap="12">
-        <template #default="{ item }">
-            <div class="masonry-item rounded-[10px_10px_0_0] border border-[#EAECEF] transition-all duration-200">
+        <template #default="{ item, index }">
+            <div
+                 class="w-full rounded-[10px_10px_0_0] border border-[#EAECEF] transition-all  hover:shadow-lg hover:shadow-gray-200 hover:border-[#d4d4d4]">
                 <!-- Заголовок группы -->
-                <div
-                     class="text-[13px] px-[8px] py-[8px] rounded-[10px_10px_0_0] font-[600] bg-(--color-information-gray-200) text-black uppercase tracking-[0.03em] mb-[2px] border-b border-[#EAECEF]">
+                <div class="text-[13px] px-[8px] py-[8px] rounded-[10px_10px_0_0] font-[600] h-full bg-cover bg-blend-multiply bg-right bg-(--color-information-gray-200) text-black uppercase tracking-[0.03em] mb-[2px] border-b border-[#EAECEF] bg-image bg-right"
+                     :style="{ backgroundImage: `url(${backImage})`, backgroundPositionY: `${(index + 2) * 25}px` }">
                     {{ item }}
                 </div>
                 <!-- Параметры группы -->
@@ -29,15 +30,19 @@
                                    :type="type"
                                    :userParams="userParams"
                                    :paramsLoading="paramsLoading"
+                                   @resetValue="(param) => $emit('valueChanged', null, param)"
                                    @valueChanged="(value, param) => $emit('valueChanged', value, param)" />
             </div>
         </template>
     </MasonryWall>
     <!-- Параметры скопом -->
-    <EngineParamsNoGroup v-else
-                         :form="form"
+    <EngineParamsNoGroup v-else-if="form"
+                         :items="form"
+                         :gridCols="gridCols"
                          :type="type"
+                         :userParams="userParams"
                          :paramsLoading="paramsLoading"
+                         @resetValue="(param) => $emit('valueChanged', null, param)"
                          @valueChanged="(value, param) => $emit('valueChanged', value, param)" />
 </div>
 </template>
@@ -53,7 +58,8 @@ import { BaseInput, BaseSelect } from 'beans-ui-kit';
 import { screenMixins } from '@/assets/static/screenMixins';
 import EngineParamsGroup from './EngineParamsGroup.vue';
 import EngineParamsNoGroup from './EngineParamsNoGroup.vue';
-import { MasonryWall } from '@yeger/vue-masonry-wall'
+import { MasonryWall } from '@yeger/vue-masonry-wall';
+import backImage from '@/assets/img/test.jpg';
 
 export default defineComponent({
     components: {
@@ -68,7 +74,7 @@ export default defineComponent({
     },
     props: {
         form: {
-            type: Array<IFormattedData>,
+            type: Array as PropType<IFormattedData[]>,
             requied: true
         },
         type: {
@@ -108,6 +114,7 @@ export default defineComponent({
         return {
             gridCols,
             screenMixins,
+            backImage,
             getParamsGroup,
             createLabelIconsComponent,
             paramsFilter: (e: IFormattedData) => e.visibility && e.required_type !== 'raschet' && (e.required_type == 'select-input' ? e.all_values : true)
@@ -115,9 +122,3 @@ export default defineComponent({
     }
 });
 </script>
-
-<style scoped>
-.masonry-item {
-    width: 100%;
-}
-</style>

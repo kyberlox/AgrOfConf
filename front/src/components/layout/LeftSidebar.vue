@@ -1,72 +1,76 @@
 <template>
-<div class="rounded-[16px] select-none  p-[16px] gap-[8px] flex flex-col z-10 border border-[#EAECEF] bg-[#FDFDFD] h-max-content fixed min-h-[446px] min-w-[100px] max-h-full"
-     :class="{ 'shadow-lg': !isSidebarRolled }">
-    <div v-if="isLogin"
-         class="rounded-[8px]  w-full p-[12px] flex flex-row justify-between items-center border border-[#EAECEF] hover:border-orange-500 transition duration-300 cursor-pointer w-fit"
-         :class="isSidebarRolled ? 'w-fit' : 'min-w-[283px]'"
-         @click="layoutStore.toggleSidebar">
-        <div class="flex flex-row gap-[12px] items-center max-w-fit w-full">
-            <!-- <span>{{ userAvatar }}</span> -->
-            <div class="w-[40px] h-[40px] min-h-[40px] rounded-[8px] bg-cover"
-                 :style="{ backgroundImage: `url('${userAvatar}')` }">
+<div class="select-none gap-[8px] z-10 h-max-content fixed  min-w-[100px] max-h-full ">
+    <RouterLink :to="{ name: 'homeview' }">
+        <LogoIcon class="w-full cursor-pointer ml-[16px] hover:scale-105 duration-200 transition-all" />
+    </RouterLink>
+    <div class="flex rounded-[16px]  flex-col gap-[8px] border border-[#EAECEF] bg-[#FDFDFD] w-full p-[16px] mt-[10px] min-h-[446px]"
+         :class="{ 'shadow-lg': !isSidebarRolled }">
+        <div v-if="isLogin"
+             class="rounded-[8px] w-full p-[12px] flex flex-row justify-between items-center border border-[#EAECEF] hover:border-orange-500 transition duration-300 cursor-pointer w-fit"
+             :class="isSidebarRolled ? 'w-fit' : 'min-w-[283px]'"
+             @click="layoutStore.toggleSidebar">
+            <div class="flex flex-row gap-[12px] items-center max-w-fit w-full">
+                <!-- <span>{{ userAvatar }}</span> -->
+                <div class="w-[40px] h-[40px] min-h-[40px] rounded-[8px] bg-cover"
+                     :style="{ backgroundImage: `url('${userAvatar}')` }">
+                </div>
+                <div class="flex flex-col gap-[4px] transition-all duration-300 ease-in-out"
+                     v-if="!isSidebarRolled"
+                     :class="isSidebarRolled
+                        ? 'opacity-0 -translate-x-0 max-w-0 overflow-hidden '
+                        : 'opacity-100 translate-x-0 max-w-[200px] max-w-fit!'">
+                    <span class="text-[13px] text-(--text-primary) whitespace-nowrap">
+                        {{ userFio?.split(' ')[0] }}
+                    </span>
+                    <span class="text-[11px] text-(--text-secondary) whitespace-nowrap">
+                        {{ user.work_position }}
+                    </span>
+                </div>
             </div>
-            <div class="flex flex-col gap-[4px] transition-all duration-300 ease-in-out"
-                 v-if="!isSidebarRolled"
-                 :class="isSidebarRolled
-                    ? 'opacity-0 -translate-x-0 max-w-0 overflow-hidden '
-                    : 'opacity-100 translate-x-0 max-w-[200px] max-w-fit!'">
-                <span class="text-[13px] text-(--text-primary) whitespace-nowrap">
-                    {{ userFio?.split(' ')[0] }}
+            <ArrowLeft v-if="!isSidebarRolled"
+                       class="min-w-[5px] max-w-[5px] text-(--icon-secondary)" />
+        </div>
+        <div v-for="(link, index) in sidebarLinks.filter(e => checkRights(e.name as string, requestsData))"
+             :key="'side' + index"
+             class="text-(--icon-secondary) hover:text-(--icon-primary) p-[12px] cursor-pointer rounded-[8px] transition-all duration-300 w-fit"
+             :class="[{ 'bg-[#FFF2E5] text-(--icon-primary)!': activeTab == link.route }, { 'w-full': !isSidebarRolled }]"
+             @mousedown="mouseTab = link.name"
+             @mouseup="mouseTab = ''">
+            <div class="flex flex-row w-full items-center border rounded-[8px] px-[8px] py-[6px] border-transparent hover:border-[#F36E3C]  transition-all duration-300"
+                 :class="{ 'bg-[#FFF2E5] border-transparent!': mouseTab == link.name }"
+                 @click.stop.prevent="handleRoute(link.route)">
+                <div>
+                    <Component :is="link.icon"
+                               class="w-[24px] h-[24px]" />
+                </div>
+                <div class="ml-[8px] text-[14px] font-[500]"
+                     :class="{ 'hidden': isSidebarRolled }">
+                    {{ link.title }}
+                </div>
+                <div class="ml-auto"
+                     v-if="!link.route"
+                     :class="{ 'hidden': isSidebarRolled }">
+                    <ArrowDown />
+                </div>
+            </div>
+            <LeftSidebarFilters :class="{ 'hidden': isSidebarRolled }"
+                                v-if="(link.name == 'myRequests' || link.name == 'koRequests') && activeTab == link.route"
+                                :tabs="tabsCheck(link)"
+                                :link="link.route" />
+        </div>
+        <!-- Кнопка выйти -->
+        <BaseButton class="mt-auto"
+                    :buttonSettings="{ class: 'button-secondary' }"
+                    @clicked="handleLoginClick">
+            <div class="flex flex-row items-center justify-center "
+                 :class="{ 'min-w-[283px]': !isSidebarRolled }">
+                <LogoutIcon />
+                <span :class="{ 'hidden': isSidebarRolled }">
+                    {{ isLogin ? 'Выйти' : 'Войти' }}
                 </span>
-                <span class="text-[11px] text-(--text-secondary) whitespace-nowrap">
-                    {{ user.work_position }}
-                </span>
             </div>
-        </div>
-        <ArrowLeft v-if="!isSidebarRolled"
-                   class="min-w-[5px] max-w-[5px] text-(--icon-secondary)" />
+        </BaseButton>
     </div>
-    <div v-if="isLogin"
-         v-for="(link, index) in sidebarLinks.filter(e => checkRights(e.name as string, requestsData))"
-         :key="'side' + index"
-         class="text-(--icon-secondary) hover:text-(--icon-primary) p-[12px] cursor-pointer rounded-[8px] transition-all duration-300 w-fit"
-         :class="[{ 'bg-[#FFF2E5] text-(--icon-primary)!': activeTab == link.route }, { 'w-full': !isSidebarRolled }]"
-         @mousedown="mouseTab = link.name"
-         @mouseup="mouseTab = ''">
-        <div class="flex flex-row w-full items-center border rounded-[8px] px-[8px] py-[6px] border-transparent hover:border-[#F36E3C]  transition-all duration-300"
-             :class="{ 'bg-[#FFF2E5] border-transparent!': mouseTab == link.name }"
-             @click.stop.prevent="handleRoute(link.route)">
-            <div>
-                <Component :is="link.icon"
-                           class="w-[24px] h-[24px]" />
-            </div>
-            <div class="ml-[8px] text-[14px] font-[500]"
-                 :class="{ 'hidden': isSidebarRolled }">
-                {{ link.title }}
-            </div>
-            <div class="ml-auto"
-                 v-if="!link.route"
-                 :class="{ 'hidden': isSidebarRolled }">
-                <ArrowDown />
-            </div>
-        </div>
-        <LeftSidebarFilters :class="{ 'hidden': isSidebarRolled }"
-                            v-if="(link.name == 'myRequests' || link.name == 'koRequests') && activeTab == link.route"
-                            :tabs="tabsCheck(link)"
-                            :link="link.route" />
-    </div>
-    <!-- Кнопка выйти -->
-    <BaseButton class="mt-auto"
-                :propsClass="'button-secondary'"
-                @clicked="handleLoginClick">
-        <div class="flex flex-row items-center justify-center "
-             :class="{ 'min-w-[283px]': !isSidebarRolled }">
-            <LogoutIcon />
-            <span :class="{ 'hidden': isSidebarRolled }">
-                {{ isLogin ? 'Выйти' : 'Войти' }}
-            </span>
-        </div>
-    </BaseButton>
 </div>
 </template>
 
@@ -83,12 +87,14 @@ import LeftSidebarFilters from './LeftSidebarFilters.vue';
 import { useUserStore } from '@/stores/user.ts';
 import { useRouter, useRoute } from 'vue-router';
 import { useLayoutStore } from '@/stores/layout.ts';
+import LogoIcon from '@/assets/img/logo.svg?component';
 
 export default defineComponent({
     components: {
         ArrowLeft,
         ArrowDown,
         LogoutIcon,
+        LogoIcon,
         LeftSidebarFilters,
         BaseButton,
     },

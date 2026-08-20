@@ -2,8 +2,7 @@
 <UploadFileArea :formats="formats"
                 :empty="empty"
                 @readyToUploadFile="(formData, fileName) => $emit('readyToUploadFile', formData, fileName)">
-    <div v-if="empty"
-         class="dz-message p-[20px]">
+    <div v-if="empty">
         <span class="text-[16px] font-semibold text-(--color-information-orange-800)">
             Распознать ОЛ
         </span>
@@ -11,15 +10,16 @@
             {{ formats }}
         </span>
         <span class="text-[12px] text-(--text-text-tertiary) block mt-2">
-            Перетащите файл сюда или нажмите для выбора
+            Перетащите файл (до 800кб) сюда или нажмите для выбора
         </span>
     </div>
 
     <div v-else
-         class="flex flex-row items-center justify-between">
+         class="flex flex-row gap-[16px] items-center justify-between">
         <div class="flex flex-col gap-[4px] text-left">
-            <span class="text-[16px] font-semibold text-(--text-text-primary)">
-                Поля {{ ' ' + storedFileName + ' ' }} Распознаны
+            <span class="text-[14px] font-semibold text-(--text-text-primary)"
+                  v-if="storedFileName">
+                Поля {{ '"' + storedFileName + '"' }} Распознаны
             </span>
             <span class="text-[13px] font-normal text-(--text-text-secondary) block">
                 Перепроверьте

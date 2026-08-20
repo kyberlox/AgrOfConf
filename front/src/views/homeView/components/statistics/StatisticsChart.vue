@@ -4,12 +4,13 @@
     <Line :data="chartData"
           :options="chartOptions" />
     <div v-if="customTooltip.visible"
-         class="absolute pointer-events-none z-50"
+         class="absolute pointer-events-none z-50 "
          :style="{ left: customTooltip.x + 'px', top: customTooltip.y + 'px', opacity: customTooltip.opacity }">
         <div
              class="bg-white  py-[16px] px-[24px] text-[12px] rounded-[16px] font-[700] shadow-[0_0_8px_0_rgba(180,188,200,0.5)]">
             <div>{{ customTooltip.title }}</div>
-            <div v-for="(item) in customTooltip.items"
+            <div v-for="(item, index) in customTooltip.items"
+                 :key="'charttooltip' + index"
                  class="flex flex-row justify-between items-center text-[12px]">
                 <span class="w-[6px] h-[6px] rounded-full"
                       :style="{ backgroundColor: item.color }"></span>
@@ -22,6 +23,7 @@
 
 <script lang='ts'>
 import { defineComponent, ref, onMounted, computed, type PropType } from 'vue';
+import { type IYearMetric } from '@/assets/interfaces/IStatistic';
 import { Line } from 'vue-chartjs';
 import {
     Chart as ChartJS,
@@ -45,13 +47,12 @@ export default defineComponent({
             required: true
         },
         yearsDataset: {
-            type: Object as PropType<{ current: Array<number>, previous: Array<number> }>,
+            type: Object as PropType<IYearMetric>,
             required: true
         }
     },
     setup(props) {
         ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip);
-
         const customTooltip = ref({ visible: false, x: 0, y: 0, title: '', items: [] as { label: string; value: number; color: string }[], opacity: 0 });
 
         const chartData = {
@@ -60,7 +61,7 @@ export default defineComponent({
             datasets: [
                 {
                     label: 'За текущий год',
-                    data: props.yearsDataset?.current,
+                    data: Object.values(props.yearsDataset?.current_year),
                     borderColor: '#F36E3C',
                     tension: 0.4,
                     pointRadius: 5,
@@ -72,7 +73,7 @@ export default defineComponent({
                 },
                 {
                     label: 'За прошлый год',
-                    data: props.yearsDataset?.previous,
+                    data: Object.values(props.yearsDataset?.previous_year),
                     borderColor: '#8E99A8',
                     tension: 0.4,
                     pointRadius: 5,
@@ -106,8 +107,8 @@ export default defineComponent({
 
                         const position = chart.canvas.getBoundingClientRect()
                         customTooltip.value.visible = true
-                        customTooltip.value.x = position.left + tooltip.caretX
-                        customTooltip.value.y = position.top + tooltip.caretY
+                        customTooltip.value.x = position.left + tooltip.caretX - 32
+                        customTooltip.value.y = position.bottom - 32
                         customTooltip.value.title = tooltip.title?.[0] || ''
                         customTooltip.value.items = tooltip.dataPoints.map((point: TooltipItem<'line'>) => ({
                             label: point.dataset.label ?? '',

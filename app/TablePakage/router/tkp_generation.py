@@ -28,6 +28,8 @@ import requests
 from openpyxl.drawing.image import Image as XLImage
 from ..utils.kir_param_to_latin import KEY_MAPPING
 
+from PIL import Image
+import io
 
 router = APIRouter(prefix="/tkp_generation", tags=["TKP"])
 
@@ -64,7 +66,7 @@ async def convert_data(user_dict: dict, db_info: dict) -> dict:
 async def tkp_generation(
         file_id: int,
         product_id: int,
-        ol_filename: Optional[str],
+        # ol_filename: Optional[str],
         user_dict: dict,
         db: AsyncSession = Depends(get_db),
         user_id: Optional[int] = Depends(get_user_id_by_session_id),
@@ -78,7 +80,7 @@ async def tkp_generation(
         if not file_info:
             raise HTTPException(status_code=404, detail="Файл не найден")
         template_path = file_info.file
-        contact_info = ["ФИО Заказчика", "Маркировка"]
+        contact_info = ["Маркировка"]
         if not all(key in user_dict for key in contact_info):
             raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
 
@@ -114,28 +116,46 @@ async def tkp_generation(
             drawing_path = stmt.scalar_one_or_none()
         else:
             drawing_path = None
-        
+        filename = f"TKP+TO_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}_{user_dict.get('id', '')}"
         if template_path.endswith(".docx"):
             
             doc = DocxTemplate(template_path)
             
             #Рендерим изображение
             if drawing_path:
-                user_dict["Чертеж"] = InlineImage(doc, drawing_path, width=Mm(140)) 
-            
+                # Читаем файл как bytes
+                with open(drawing_path, 'rb') as f:
+                    image_bytes = f.read()
+                
+                # Создаем InlineImage из bytes
+                pil_image = Image.open(BytesIO(image_bytes))
+
+                # 2. Сбрасываем DPI в 96 (это стандарт для Word) и сохраняем в новый буфер
+                # Убираем цветовой профиль, нормализуем формат (превращаем в RGB, если был CMYK или оттенки серого)
+                if pil_image.mode != 'RGB':
+                    pil_image = pil_image.convert('RGB')
+
+                # Устанавливаем DPI в 96
+                pil_image.info['dpi'] = (96, 96)
+
+                new_buffer = BytesIO()
+                # Обязательно сохраняем в PNG или JPEG (в зависимости от того, что лучше для чертежа)
+                pil_image.save(new_buffer, format='PNG', dpi=(96, 96))
+                new_buffer.seek(0)
+                user_dict["Чертеж"] = InlineImage(doc, new_buffer, width=Mm(120))
+                
             #Переводит на латиницу
             new_user_dict = dict()
             for param, value in user_dict.items():
                 if KEY_MAPPING.get(param):
                     new_user_dict[KEY_MAPPING[param]] = value
-            # new_user_dict = {KEY_MAPPING[param]: value for param, value in user_dict.items()}
-            # print(new_user_dict.get('cover_cap_bushing_material'), user_dict.get('Материал крышки, колпака и направляющей втулки'))
+            
             doc.render(new_user_dict)
 
             result_stream = BytesIO()
             doc.save(result_stream)
             result_stream.seek(0)
-            filename = f"TKP+TO_{to_sql_name_lat(user_dict['ФИО Заказчика'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
+            
             return StreamingResponse(
                 result_stream,
                 media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -197,7 +217,7 @@ async def tkp_generation(
             #         print(f"Не удалось вставить изображение: {img_err}")
             # else:
             #     print('Не найден файл по заданной маркировке')
-            filename = f"TKP_{to_sql_name_lat(user_dict['ФИО Заказчика'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
+            # filename = f"TKP_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}"
             result_stream = BytesIO()
             workbook.save(result_stream)
             result_stream.seek(0)
@@ -313,7 +333,7 @@ async def add_tkp_file(
         with open(file_path, "wb") as f:
             f.write(await file.read())
 
-        file_url = f"/api/files/tkp_files/{safe_filename}"
+        file_url = f"/files/tkp_files/{safe_filename}"
 
         tkp_sample = TKP(
             name=filename,

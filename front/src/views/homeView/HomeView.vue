@@ -32,6 +32,7 @@
                        :propsClass="'searchInput'"
                        :propsPlaceholder="'Поиск'"
                        :type="'search'"
+                       :inputSettings="{ class: 'searchInput', placeholder: 'Поиск', type: 'search' }"
                        @value-changed="search">
                 <template #input-icon>
                     <SearchIcon />
@@ -42,7 +43,7 @@
         <!-- Создать запрос -->
         <div v-if="tableData.length && !(currentTableNav == 'statistics')"
              class="flex items-center justify-end w-full px-[24px]">
-            <BaseButton :props-class="'button-primary'"
+            <BaseButton :buttonSettings="{ class: 'button-primary' }"
                         @clicked="showEngineModal = true">
                 <Blank class="w-[24px] h-[24px]" />
                 <span>Создать ОЛ</span>

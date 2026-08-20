@@ -1,20 +1,20 @@
 <template>
 <SlotModal v-if="promptModalVisible"
-           @closeModal="$emit('closeModal')">
+           @closeModal="convertAiIsLoading || docIsLoading ? '' : $emit('closeModal')">
     <div class="pb-[15px]">
-        <div v-if="!wasRecognized"
-             class="prompt-area__actions  flex flex-col gap-[15px] w-[80vh] h-[80vh] justify-center px-[25px]">
+        <div v-if="!imagesUrl?.length"
+             class="prompt-area__actions  flex flex-col gap-[15px] w-[90vh] h-[80vh] justify-center px-[25px]">
             <h3 class="text-left mt-[15px]">Дополните промпт или отправьте без изменений</h3>
             <span>Нередактируемый промпт</span>
             <pre class="bg-blue-50 border border-gray-400 rounded-[16px] p-[25px] max-h-full overflow-auto"
                  v-html="defaultPromptToOCR"></pre>
             <span>Если необходимо дополнить, заполните поле ниже</span>
-            <BaseTextarea :propsClass="'prompt-area'"
+            <BaseTextarea :textareaSettings="{ class: 'prompt-area' }"
                           @valueChanged="(newVal: string) => promptVal = newVal" />
-            <BaseButton :propsClass="'button-primary'"
-                        :disabled="docIsLoading"
+            <BaseButton :buttonSettings="{ class: 'button-primary', disabled: docIsLoading }"
                         @clicked="sendToServer">
-                Отправить
+                <span v-if="!docIsLoading"> Отправить</span>
+                <Loader v-else />
             </BaseButton>
         </div>
         <RecognitionCompare v-else
@@ -29,7 +29,7 @@
 <script lang='ts'>
 import SlotModal from '@/components/layout/SlotModal.vue';
 import { BaseButton, BaseTextarea } from 'beans-ui-kit';
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, onUnmounted } from 'vue';
 import Api from '@/utils/Api';
 import { useRoute, useRouter } from 'vue-router';
 import { useNeuroOlData } from '@/stores/neuroOl';
@@ -37,13 +37,15 @@ import { defaultPromptToOCR } from '@/assets/static/defaultPromptToNeuroOl';
 import { copyFormData } from '@/utils/copyFormData';
 import { Marked } from '@ts-stack/markdown';
 import RecognitionCompare from './RecognitionCompare.vue';
+import Loader from '@/components/layout/Loader.vue';
 
 export default defineComponent({
     components: {
         SlotModal,
         BaseTextarea,
         BaseButton,
-        RecognitionCompare
+        RecognitionCompare,
+        Loader
     },
     props: {
         formData: {
@@ -72,7 +74,9 @@ export default defineComponent({
 
         const sendToServer = async () => {
             const newFormData = copyFormData(props.formData);
-            newFormData.append('user_promt', promptVal.value);
+            if (promptVal.value) {
+                newFormData.append('user_promt', promptVal.value);
+            }
             docIsLoading.value = true;
             try {
                 const data = await Api.post(`AI/upload_OL?product_id=${route.params.id}`, newFormData)

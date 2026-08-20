@@ -20,7 +20,7 @@
   @apply text-gray-200!;
 }
 .input-param__wrapper {
-  @apply flex flex-row justify-between items-center gap-[12px] py-[4px] w-full h-full border-b border-b-(--color-information-gray-100) ;
+  @apply flex flex-row relative justify-between items-center gap-[12px] py-[4px] w-full h-full border-b border-b-(--color-information-gray-100) ;
 }
 
 .input-param__label {

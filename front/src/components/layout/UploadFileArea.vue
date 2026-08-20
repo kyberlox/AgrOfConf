@@ -1,5 +1,5 @@
 <template>
-<div class="dropzone-container w-[480px] max-w-full border border-(--color-information-orange-200) hover:bg-(--color-information-orange-200) transition-all duration-300 cursor-pointer border-dotted flex flex-col gap-[4px] rounded-[12px] text-center"
+<div class="dropzone-container h-[75px] cursor-pointer w-[480px] max-w-full border-2 border-(--color-information-orange-200) hover:bg-(--color-information-orange-200) transition-all duration-300 cursor-pointer border-dotted  rounded-[12px] text-center"
      :class="[{ 'bg-gray-300 hover:bg-gray-300! cursor-not-allowed! border-none': disabled }, { 'bg-(--color-information-green-50) hover:bg-(--color-information-green-150)!': !empty },
     isDragOver && !empty ? 'bg-(--color-information-orange-200)' : isDragOver && !empty ? 'bg-(--color-information-green-150)!' : '']"
      @dragover.prevent
@@ -15,8 +15,8 @@
            :disabled="disabled"
            @change="uploadFile" />
 
-    <div @click="handleClick"
-         class="p-[20px]">
+    <div class="h-full w-full p-[14px]"
+         @click="handleClick">
         <slot></slot>
     </div>
 </div>
@@ -24,6 +24,7 @@
 
 <script lang='ts'>
 import { defineComponent, ref } from 'vue';
+import { toast } from 'vue3-toastify';
 
 export default defineComponent({
     name: 'UploadDocButton',
@@ -52,9 +53,16 @@ export default defineComponent({
         };
 
         const uploadFile = (e: Event) => {
+            // больше 800 КБ ограничиваем
+            const maxFileSize = 800 * 1024;
             const target = e.target as HTMLInputElement;
             if (target.files && target.files.length > 0) {
-                processFile(target.files[0] as File);
+                if (!target.files[0]) return
+                if (target.files[0].size > maxFileSize) {
+                    return toast.error('Файл слишком большой, сервис поддерживает файлы до 800 Кб')
+                }
+                else
+                    processFile(target.files[0] as File);
                 target.value = '';
             }
         };
@@ -87,17 +95,3 @@ export default defineComponent({
     }
 });
 </script>
-
-<style>
-.dropzone-container {
-    cursor: pointer !important;
-}
-
-.dz-message {
-    margin: 0 !important;
-}
-
-.hidden {
-    display: none !important;
-}
-</style>

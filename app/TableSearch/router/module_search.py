@@ -2,11 +2,12 @@ import re
 
 from fastapi import APIRouter, Depends, Body, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+from sqlalchemy import text, select
 import time
 from collections import defaultdict
 
 from app.TablePakage.model.database import get_db
+from app.TablePakage.model.product_files import ProductFiles
 from app.TableSearch.utils.dm_search import ensure_dm_exists, get_full_search_from_dm
 from ..utils.formula_search import search_formula
 
@@ -144,6 +145,7 @@ async def find_search_errors_multi_table(
         db: AsyncSession,
         tables_map: dict[str, list[dict]],
         selected_params: dict[str, str | int | list],
+        priority=None,
 ):
     """
     Проверяет ошибки подбора отдельно по каждой таблице.
@@ -176,13 +178,9 @@ async def find_search_errors_multi_table(
 
         if not row_all or row_all["matched_rows"] == 0:
             # Комбинация всех параметров невалидна — ищем конкретный проблемный параметр
-            ordered_table_params = sorted(
+            ordered_table_params = get_ordered_table_params(
                 table_params,
-                key=lambda item: (
-                    item.get("sort")
-                    if item.get("sort") is not None
-                    else float(item["id"])
-                )
+                priority
             )
 
             incremental_selected = {}
@@ -243,6 +241,7 @@ async def get_available_values_for_error_param(
         table_params: list[dict],
         error_param_name: str,
         selected_params: dict[str, str | int | list],
+        priority=None
 ):
     """
     Возвращает допустимые значения для ошибочного параметра.
@@ -260,21 +259,18 @@ async def get_available_values_for_error_param(
     if error_param is None:
         return []
 
-    error_position = (
-        error_param.get("sort")
-        if error_param.get("sort") is not None
-        else float(error_param["id"])
+    ordered_params = get_ordered_table_params(
+        table_params,
+        priority
     )
 
-    params_before_error = {
-        item["name"]
-        for item in table_params
-        if (
-               item.get("sort")
-               if item.get("sort") is not None
-               else float(item["id"])
-           ) < error_position
-    }
+    params_before_error = []
+
+    for param in ordered_params:
+        if param["name"] == error_param_name:
+            break
+
+        params_before_error.append(param["name"])
 
     selected_before_error = {
         key: value
@@ -333,9 +329,9 @@ async def get_available_values_for_param(
             break
 
     if target_column is None or not row:
-        return None#[]
+        return None  # []
 
-    values = row[target_column] or None#[]
+    values = row[target_column] or None  # []
     if not values:
         return None
 
@@ -343,6 +339,36 @@ async def get_available_values_for_param(
         {str(value) for value in values},
         key=natural_sort_key
     )
+
+
+def get_ordered_table_params(
+        table_params: list[dict],
+        priority: str | None = None
+):
+    ordered = sorted(
+        table_params,
+        key=lambda item: (
+            item.get("sort")
+            if item.get("sort") is not None
+            else float(item["id"])
+        )
+    )
+
+    if priority:
+        priority_param = next(
+            (
+                item
+                for item in ordered
+                if item["name"] == priority
+            ),
+            None
+        )
+
+        if priority_param:
+            ordered.remove(priority_param)
+            ordered.insert(0, priority_param)
+
+    return ordered
 
 
 @router.post(
@@ -355,7 +381,9 @@ async def process_table_data(
         db: AsyncSession = Depends(get_db),
 ):
     start_time = time.perf_counter()
-    selected_params = selected_params or {}
+    selected_params = dict(selected_params or {})
+
+    priority = selected_params.pop("priority", None)
 
     product_name_result = await db.execute(
         text("""
@@ -455,6 +483,12 @@ async def process_table_data(
     # Если параметры выбраны — делаем подбор отдельно по каждой таблице
     allowed_params = {item["name"] for item in full_info}
 
+    if priority is not None and priority not in allowed_params:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Неизвестный priority: {priority}"
+        )
+
     # unknown_params = [
     #     param_name
     #     for param_name in selected_params
@@ -467,7 +501,6 @@ async def process_table_data(
     #         detail=f"Неизвестные параметры: {unknown_params}"
     #     )
 
-    merged_filtered_values = defaultdict(set)
     total_matched_rows = 0
 
     for table_name, table_params in tables_map.items():
@@ -497,29 +530,11 @@ async def process_table_data(
         matched_rows = row["matched_rows"] or 0
         total_matched_rows += matched_rows
 
-        for col, param_name in table_column_to_param.items():
-            values = row[col]
-
-            if not values:
-                continue
-
-            for value in values:
-                merged_filtered_values[param_name].add(str(value))
-
-    parameters_for_response = {}
-
-    for param_name, values in merged_filtered_values.items():
-        sorted_values = sorted(values, key=natural_sort_key)
-
-        if len(sorted_values) == 1:
-            parameters_for_response[param_name] = sorted_values[0]
-        else:
-            parameters_for_response[param_name] = sorted_values
-
     errors = await find_search_errors_multi_table(
         db=db,
         tables_map=tables_map,
         selected_params=selected_params,
+        priority=priority,
     )
 
     error_by_key = {
@@ -528,27 +543,35 @@ async def process_table_data(
     }
 
     # Определяем позицию первой ошибки выбора пользователя В РАМКАХ КАЖДОЙ ТАБЛИЦЫ
-
+    param_position_by_table = {}
     first_error_position_by_table = {}
 
     for table_name, table_params in tables_map.items():
-        table_error_positions = []
 
-        for item in full_info:
-            if item["table_name"] != table_name:
-                continue
+        # Получаем порядок параметров:
+        # priority будет первым, остальные идут по обычному sort
+        ordered_table_params = get_ordered_table_params(
+            table_params=table_params,
+            priority=priority
+        )
 
-            key = (item["table_name"], item["name"])
+        # Сохраняем фактическую позицию каждого параметра
+        for position, param in enumerate(ordered_table_params):
+            param_position_by_table[(table_name, param["name"])] = position
+
+        # Ищем позиции ошибочных параметров
+        error_positions = []
+
+        for param in ordered_table_params:
+            key = (table_name, param["name"])
 
             if key in error_by_key:
-                table_error_positions.append(
-                    item.get("sort")
-                    if item.get("sort") is not None
-                    else float(item["id"])
+                error_positions.append(
+                    param_position_by_table[key]
                 )
 
-        if table_error_positions:
-            first_error_position_by_table[table_name] = min(table_error_positions)
+        if error_positions:
+            first_error_position_by_table[table_name] = min(error_positions)
 
     error_filtered_values = {}
 
@@ -567,6 +590,7 @@ async def process_table_data(
             table_params=table_params,
             error_param_name=param_name,
             selected_params=selected_params,
+            priority=priority,
         )
 
         if available_values is not None:
@@ -578,10 +602,8 @@ async def process_table_data(
         name = item["name"]
         table_name = item["table_name"]
 
-        current_position = (
-            item.get("sort")
-            if item.get("sort") is not None
-            else float(item["id"])
+        current_position = param_position_by_table.get(
+            (table_name, name)
         )
 
         selected_value = selected_params.get(name)
@@ -600,8 +622,10 @@ async def process_table_data(
 
         # Ошибка учитывается только в рамках своей таблицы
         first_error_in_table = first_error_position_by_table.get(table_name)
+
         is_after_error = (
                 first_error_in_table is not None
+                and current_position is not None
                 and current_position > first_error_in_table
         )
 
@@ -623,16 +647,15 @@ async def process_table_data(
             filtered_value = error_filtered_values.get((table_name, name))
 
             if filtered_value is None:
-                filtered_value = all_values or None#[]
+                filtered_value = all_values or None  # []
 
         # После первой ошибки в ТОЙ ЖЕ ТАБЛИЦЕ незаполненные параметры пока недоступны
-        elif is_after_error and not is_selected:
-            # ТУТ ПРОБЛЕМА, не понятно из-за чего возникла ошибка
-            filtered_value = None#[]
+        elif is_after_error:
+            filtered_value = None
 
         # Обычный fallback применяется только до ошибки
         elif filtered_value is None:
-            filtered_value = all_values or None#[]
+            filtered_value = all_values or None  # []
 
         response_value = None
 
@@ -673,26 +696,38 @@ async def process_table_data(
 
         response_params.append(param_info)
     time_before_fromula = time.perf_counter()
-    
+
     formula_params = await search_formula(
         db,
         response_params,
         table_name_params=list(tables_map.keys()),
         select_formula_params=selected_params,
-        column_to_param=all_column_to_param, 
+        column_to_param=all_column_to_param,
         product_id=product_id
     )
+
+    # Получаем файлы продукта
+    stmt_product_files = await db.execute(select(ProductFiles).where(ProductFiles.product_id == product_id))
+    product_files = stmt_product_files.scalars().all()
+    # product_files = [dict(row) for row in rows]  
+    # print(type(product_files), 'че получимли')
     # print(formula_params, 'че получили')
     response_params = sorted(
         formula_params,
-        key=lambda param: param.get("sort") or param["id"]
+        key=lambda param: (
+            param["sort"]
+            if param.get("sort") is not None
+            else param["id"]
+        )
     )
     time_after_formula = time.perf_counter() - time_before_fromula
-    print(f'Время формульного подбора {time_after_formula}, Время табличного подбора: {time_before_fromula - start_time}')
+    print(
+        f'Время формульного подбора {time_after_formula}, Время табличного подбора: {time_before_fromula - start_time}')
     # total_res = [param for param in response_params if ]
     return {
         "product_id": product_id,
         "product_name": product_name,
+        "files": product_files,
         "parameters": response_params,
         "matched_rows": total_matched_rows,
         "request_time": time.perf_counter() - start_time,

@@ -15,7 +15,7 @@
                 `Войдите в систему, чтобы пользоваться историей и статистикой`
         }}
     </div>
-    <BaseButton :props-class="'button-primary'"
+    <BaseButton :button-settings="{ class: 'button-primary' }"
                 @clicked="$emit('createOl')">
         <ClipPlus />
         Создать ОЛ

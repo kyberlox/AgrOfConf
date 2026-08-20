@@ -18,10 +18,8 @@
         </div>
         <div class="mt-[15px] flex flex-col gap-[15px] border border-gray-200 rounded-[16px] p-[20px] max-w-[500px]">
             <span>Для добавления нового документа - заполните название и нажмите "добавить"</span>
-            <BaseInput :propsClass="'input-admin'"
-                       :propsPlaceholder="'Введите название документа'"
-                       :disabled="isLoading"
-                       :propsValue="fileName" />
+            <BaseInput :inputSettings="initInputProps()"
+                       @value-changed="(value) => fileName = value" />
             <UploadFileArea :disabled="!fileName"
                             :formats="'.xlsx,.docx'"
                             @ready-to-upload-file="uploadOlToProduct">
@@ -75,8 +73,18 @@ export default defineComponent({
             fileName.value = '';
         }
 
+        const initInputProps = () => {
+            return {
+                class: 'input-admin',
+                placeholder: "'Введите название документа'",
+                disabled: props.isLoading,
+                value: fileName.value
+            }
+        }
+
         return {
             fileName,
+            initInputProps,
             uploadOlToProduct
         }
     }
