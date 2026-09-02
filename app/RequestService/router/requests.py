@@ -24,8 +24,8 @@ router = APIRouter(
 
 
 async def get_active_user_id(
-    user_id: int = Depends(get_user_id_by_session_id),
-    db: AsyncSession = Depends(get_db),
+        user_id: int = Depends(get_user_id_by_session_id),
+        db: AsyncSession = Depends(get_db),
 ) -> int:
     result = await db.execute(
         select(Users.id, Users.is_active).where(Users.id == user_id)
@@ -53,9 +53,9 @@ async def get_active_user_id(
     status_code=201,
 )
 async def create_request(
-    payload: RequestCreate,
-    user_id: int = Depends(get_active_user_id),
-    db: AsyncSession = Depends(get_db),
+        payload: RequestCreate,
+        user_id: int = Depends(get_active_user_id),
+        db: AsyncSession = Depends(get_db),
 ):
     try:
         # 1. Получаем существующего либо создаём нового заказчика
@@ -75,41 +75,61 @@ async def create_request(
                     ),
                 )
         else:
+            if payload.customer is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=(
+                        "Если customer_id не передан, "
+                        "необходимо передать customer"
+                    ),
+                )
+
             customer = Customer(
                 **payload.customer.model_dump(exclude_none=True)
             )
 
             db.add(customer)
-
-            # INSERT выполняется, но транзакция ещё не подтверждается.
-            # После flush у customer появляется id.
             await db.flush()
 
-        # 2. Проверяем organization_id, если он передан
+        # 2. Получаем существующую либо создаём новую организацию
         if payload.organization_id is not None:
             organization_result = await db.execute(
-                select(Customer.id).where(
+                select(Customer).where(
                     Customer.id == payload.organization_id
                 )
             )
-            organization_exists = (
-                organization_result.scalar_one_or_none()
-            )
+            organization = organization_result.scalar_one_or_none()
 
-            if organization_exists is None:
+            if organization is None:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=(
-                        "Организация с "
-                        f"id={payload.organization_id} не найдена"
+                        f"Организация с id={payload.organization_id} не найдена"
                     ),
                 )
+
+        else:
+            if payload.organization is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=(
+                        "Если organization_id не передан, "
+                        "необходимо передать organization"
+                    ),
+                )
+
+            organization = Customer(
+                **payload.organization.model_dump(exclude_none=True)
+            )
+
+            db.add(organization)
+            await db.flush()
 
         # 3. Создаём запрос
         db_request = Request(
             user_id=user_id,
             customer_id=customer.id,
-            organization_id=payload.organization_id,
+            organization_id=organization.id,
             request_purpose=payload.request_purpose,
             description=payload.description,
             construction_project=payload.construction_project,
@@ -137,6 +157,7 @@ async def create_request(
             await db.flush()
 
         await db.refresh(customer)
+        await db.refresh(organization)
         await db.refresh(db_request)
 
         for contact in created_contacts:
@@ -156,49 +177,37 @@ async def create_request(
             contacts=created_contacts,
         )
 
-        # Коммит выполняется последним: ошибка формирования ответа не оставит
-        # в БД частично созданные данные.
         await db.commit()
+
         return response
 
     except HTTPException:
         await db.rollback()
         raise
 
-
     except IntegrityError as exc:
-
-        await db.rollback()
-
-        logger.exception("Ошибка целостности при создании запроса")
-
-        raise HTTPException(
-
-            status_code=409,
-
-            detail="Не удалось создать запрос из-за конфликта данных",
-
-        ) from exc
-
-
-    except Exception as exc:
-
         await db.rollback()
 
         logger.exception(
-
-            "Ошибка создания запроса: %s",
-
-            exc,
-
+            "Ошибка целостности при создании запроса"
         )
 
         raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Не удалось создать запрос из-за конфликта данных",
+        ) from exc
 
-            status_code=500,
+    except Exception as exc:
+        await db.rollback()
 
+        logger.exception(
+            "Ошибка создания запроса: %s",
+            exc,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Ошибка при создании запроса",
-
         ) from exc
 
 
