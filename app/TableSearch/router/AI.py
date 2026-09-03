@@ -229,7 +229,7 @@ async def convert_ai_result(
         response = await client.chat.completions.create(
             # model="deepseek/deepseek-v4-flash", 
             # model='deepseek/deepseek-v4-pro',
-            model='z-ai/glm-5.3-flash-max',
+            model='qwen/qwen3.8-27b-thinking-high',
             max_tokens=4000,
             messages=messages,
             response_format={"type": "json_object"}
