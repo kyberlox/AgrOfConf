@@ -125,7 +125,8 @@ async def upload_OL(
         content.append({"type": "text", "text": PROMT})
 
         response = await client.chat.completions.create(
-            model=model_type,
+            # model=model_type,
+            model='deepseek/deepseek-v4-flash-vision-exp',
             max_tokens=8000,
             messages=[{"role": "user", "content": content}],
             # response_format={"type": "json_object"}
