@@ -115,7 +115,6 @@ async def upload_OL(
         В ответе пришли ТОЛЬКО Markdown-таблицу, без пояснений.
         """
         if not user_promt:
-            print(123)
             PROMT = UNIFIED_PROMPT
         
         content = await convert_file_to_jpeg_content(file)
