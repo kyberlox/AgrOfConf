@@ -202,7 +202,7 @@ export default defineComponent({
                     }
                     questionCounter++
                 })
-                configuratorStore.setCalcParams(data.parameters.filter((e: IFormattedData) => e.required_type == 'raschet' && e.response_value));
+                configuratorStore.setCalcParams(data.parameters.filter((e: IFormattedData) => e.required_type == 'raschet' && e.response_value && e.visibility));
                 configuratorStore.setCovered(Number(answeredCounter));
                 configuratorStore.setAllQuestions(Number(questionCounter));
                 if (errors.length) {
