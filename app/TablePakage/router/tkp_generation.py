@@ -185,6 +185,7 @@ async def tkp_generation(
             new_user_dict = dict()
             for param, value in user_dict.items():
                 if KEY_MAPPING.get(param):
+                    #ДЕЛАЮ ЕБАНЫЕ ДВА НУЛЯ ТОЛЬКО РАДИ ЦЕНЫ
                     if param == "Цена /шт. руб без НДС" or param == "Цена /шт. руб с НДС 22%":
                         value = f"{float(value):.2f}".replace('.', ',')
                     new_user_dict[KEY_MAPPING[param]] = value
@@ -196,39 +197,39 @@ async def tkp_generation(
                             pattern = re.compile(r'\{\{\s*([^}]+)\s*\}\}')
                             
                             # # Заменяем все плейсхолдеры
-                            # cell.value = pattern.sub(replace_match, cell.value)
-                            def replace_match(match):
-                                key = match.group(1).strip()
-                                value = new_user_dict.get(key, '')
-                                
-                                # Если значение отсутствует – возвращаем пустую строку
-                                if value == '':
-                                    return ''
-                                
-                                # Если значение – число (int или float)
-                                if isinstance(value, (int, float)):
-                                    return str(value).replace('.', ',')
-                                
-                                # Если значение – строка
-                                if isinstance(value, str):
-                                    stripped = value.strip()
-                                    try:
-                                        # Пытаемся преобразовать строку в число (поддерживает точки)
-                                        if key == "Цена /шт. руб без НДС" or key == "Цена /шт. руб с НДС 22%":
-                                            float_val = f"{float(stripped):.2f}" # float(stripped)
-                                            print(float_val, 'какого хуя не меняет на запятую НЕНАВИЖУ ОСИПОВА')
-                                        else:
-                                            float_val = int(stripped) if int(stripped) % 1 == 0 else float(stripped)
-                                        # Если успешно – возвращаем с запятой
-                                        return str(float_val).replace('.', ',')
-                                    except ValueError:
-                                        # Не число – оставляем без изменений
-                                        return value
-                                
-                                # Для остальных типов (bool, None и т.п.) – просто строковое представление
-                                return str(value)
-                            
                             cell.value = pattern.sub(replace_match, cell.value)
+                            # def replace_match(match):
+                            #     key = match.group(1).strip()
+                            #     value = new_user_dict.get(key, '')
+                                
+                            #     # Если значение отсутствует – возвращаем пустую строку
+                            #     if value == '':
+                            #         return ''
+                                
+                            #     # Если значение – число (int или float)
+                            #     if isinstance(value, (int, float)):
+                            #         return str(value).replace('.', ',')
+                                
+                            #     # Если значение – строка
+                            #     if isinstance(value, str):
+                            #         stripped = value.strip()
+                            #         try:
+                            #             # Пытаемся преобразовать строку в число (поддерживает точки)
+                            #             if key == "Цена /шт. руб без НДС" or key == "Цена /шт. руб с НДС 22%":
+                            #                 float_val = f"{float(stripped):.2f}" # float(stripped)
+                            #                 print(float_val, 'какого хуя не меняет на запятую НЕНАВИЖУ ОСИПОВА')
+                            #             else:
+                            #                 float_val = int(stripped) if int(stripped) % 1 == 0 else float(stripped)
+                            #             # Если успешно – возвращаем с запятой
+                            #             return str(float_val).replace('.', ',')
+                            #         except ValueError:
+                            #             # Не число – оставляем без изменений
+                            #             return value
+                                
+                            #     # Для остальных типов (bool, None и т.п.) – просто строковое представление
+                            #     return str(value)
+                            
+                            # cell.value = pattern.sub(replace_match, cell.value)
 
              # Вставка изображения "Чертеж" на второй лист
             
