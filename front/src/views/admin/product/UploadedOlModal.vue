@@ -10,9 +10,17 @@
                 <div>
                     {{ ol.name }}
                 </div>
-                <div class="text-[12px] underline text-red-600 cursor-pointer hover:text-red-400"
-                     @click="$emit('removeOl', ol.id)">
-                    Удалить
+                <div class="flex flex-row gap-[20px] max-h-content">
+                    <a :href="apiUrl + ol.file_url"
+                       download
+                       class="text-[12px] underline text-green-600 cursor-pointer hover:text-green-800"
+                       @click="$emit('removeOl', ol.id)">
+                        Скачать
+                    </a>
+                    <div class="text-[12px] underline text-red-600 cursor-pointer hover:text-red-800"
+                         @click="$emit('removeOl', ol.id)">
+                        Удалить
+                    </div>
                 </div>
             </div>
         </div>
@@ -85,7 +93,8 @@ export default defineComponent({
         return {
             fileName,
             initInputProps,
-            uploadOlToProduct
+            uploadOlToProduct,
+            apiUrl: import.meta.env.VITE_API_URL
         }
     }
 });
