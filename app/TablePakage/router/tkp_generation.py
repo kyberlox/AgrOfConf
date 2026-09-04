@@ -193,81 +193,39 @@ async def tkp_generation(
                             # Находим все плейсхолдеры в ячейке
                             pattern = re.compile(r'\{\{\s*([^}]+)\s*\}\}')
                             
+                            # # Заменяем все плейсхолдеры
+                            # cell.value = pattern.sub(replace_match, cell.value)
                             def replace_match(match):
                                 key = match.group(1).strip()
                                 value = new_user_dict.get(key, '')
                                 
+                                # Если значение отсутствует – возвращаем пустую строку
                                 if value == '':
                                     return ''
                                 
-                                # Вспомогательная функция для форматирования числа
-                                def format_number(num, force_two_decimals=False):
-                                    if force_two_decimals:
-                                        # Всегда два знака после запятой, разделитель – запятая
-                                        return f"{num:.2f}".replace('.', ',')
-                                    else:
-                                        # Если число целое – возвращаем без десятичной части
-                                        if num == int(num):
-                                            return str(int(num))
-                                        else:
-                                            # Иначе – убираем лишние нули в дробной части и заменяем точку на запятую
-                                            s = str(num)
-                                            if '.' in s:
-                                                s = s.rstrip('0').rstrip('.')
-                                            return s.replace('.', ',')
-                                
-                                # Обработка числовых типов
+                                # Если значение – число (int или float)
                                 if isinstance(value, (int, float)):
-                                    num = value
-                                    is_special = key in SPECIAL_KEYS
-                                    return format_number(num, force_two_decimals=is_special)
+                                    return str(value).replace('.', ',')
                                 
-                                # Обработка строк, которые могут быть числами
+                                # Если значение – строка
                                 if isinstance(value, str):
                                     stripped = value.strip()
                                     try:
-                                        num = float(stripped)
-                                        is_special = key in SPECIAL_KEYS
-                                        return format_number(num, force_two_decimals=is_special)
+                                        # Пытаемся преобразовать строку в число (поддерживает точки)
+                                        if param == "Цена /шт. руб без НДС" or param == "Цена /шт. руб с НДС 22%":
+                                            float_val = f"{float(stripped):.2f}".replace('.', ',') # float(stripped)
+                                        else:
+                                            float_val = int(stripped) if int(stripped) % 1 == 0 else float(stripped)
+                                        # Если успешно – возвращаем с запятой
+                                        return str(float_val).replace('.', ',')
                                     except ValueError:
-                                        # Не число – возвращаем как есть
+                                        # Не число – оставляем без изменений
                                         return value
                                 
-                                # Для остальных типов (bool, None и т.д.)
+                                # Для остальных типов (bool, None и т.п.) – просто строковое представление
                                 return str(value)
                             
                             cell.value = pattern.sub(replace_match, cell.value)
-                            
-                            # # Заменяем все плейсхолдеры
-                            # cell.value = pattern.sub(replace_match, cell.value)
-                            # def replace_match(match):
-                            #     key = match.group(1).strip()
-                            #     value = new_user_dict.get(key, '')
-                                
-                            #     # Если значение отсутствует – возвращаем пустую строку
-                            #     if value == '':
-                            #         return ''
-                                
-                            #     # Если значение – число (int или float)
-                            #     if isinstance(value, (int, float)):
-                            #         return str(value).replace('.', ',')
-                                
-                            #     # Если значение – строка
-                            #     if isinstance(value, str):
-                            #         stripped = value.strip()
-                            #         try:
-                            #             # Пытаемся преобразовать строку в число (поддерживает точки)
-                            #             float_val = float(stripped)
-                            #             # Если успешно – возвращаем с запятой
-                            #             return str(float_val).replace('.', ',')
-                            #         except ValueError:
-                            #             # Не число – оставляем без изменений
-                            #             return value
-                                
-                            #     # Для остальных типов (bool, None и т.п.) – просто строковое представление
-                            #     return str(value)
-                            
-                            # cell.value = pattern.sub(replace_match, cell.value)
 
              # Вставка изображения "Чертеж" на второй лист
             
