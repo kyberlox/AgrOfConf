@@ -708,10 +708,25 @@ async def process_table_data(
 
     # Получаем файлы продукта
     stmt_product_files = await db.execute(select(ProductFiles).where(ProductFiles.product_id == product_id))
-    product_files = stmt_product_files.scalars().all()
+    product_files_db = stmt_product_files.scalars().all()
     # product_files = [dict(row) for row in rows]  
     # print(type(product_files), 'че получимли')
     # print(formula_params, 'че получили')
+    product_files = []
+
+    for product_file in product_files_db:
+        file_data = {
+            column.name: getattr(product_file, column.name)
+            for column in ProductFiles.__table__.columns
+        }
+
+        file_url = file_data.get("file_url")
+
+        if isinstance(file_url, str):
+            file_data["file_url"] = file_url.removeprefix("/api")
+
+        product_files.append(file_data)
+
     response_params = sorted(
         formula_params,
         key=lambda param: (
