@@ -148,6 +148,17 @@ async def tkp_generation(
             new_user_dict = dict()
             for param, value in user_dict.items():
                 if KEY_MAPPING.get(param):
+                    #У числовых значений заменяем точку на запятую
+                    if isinstance(value, (int, float)):
+                        value = str(value).replace('.', ',')
+                    elif isinstance(value, str):
+                        stripped = value.strip()
+                        try:
+                            float_val = float(stripped)
+                            value = str(float_val).replace('.', ',')
+                        except ValueError:
+                            pass
+
                     new_user_dict[KEY_MAPPING[param]] = value
             
             doc.render(new_user_dict)
