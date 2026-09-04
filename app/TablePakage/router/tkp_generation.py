@@ -148,45 +148,23 @@ async def tkp_generation(
             #Переводит на латиницу
             new_user_dict = dict()
             for param, value in user_dict.items():
-                mapped_key = KEY_MAPPING.get(param)
-                if mapped_key:
-                    # Вспомогательная функция форматирования числа
-                    def format_number(num, force_two_decimals=False):
-                        if force_two_decimals:
-                            # Всегда два знака после запятой, разделитель – запятая
-                            return f"{num:.2f}".replace('.', ',')
-                        else:
-                            # Если число целое – возвращаем без десятичной части
-                            if num == int(num):
-                                return str(int(num))
-                            else:
-                                # Иначе – убираем лишние нули в дробной части и заменяем точку на запятую
-                                s = str(num)
-                                if '.' in s:
-                                    s = s.rstrip('0').rstrip('.')
-                                return s.replace('.', ',')
-                    
-                    # Обработка значения в зависимости от типа
+                if KEY_MAPPING.get(param):
+                    #У числовых значений заменяем точку на запятую
                     if isinstance(value, (int, float)):
-                        num = value
-                        is_special = param in SPECIAL_KEYS
-                        formatted_value = format_number(num, force_two_decimals=is_special)
+                        value = str(value).replace('.', ',')
                     elif isinstance(value, str):
                         stripped = value.strip()
                         try:
-                            num = float(stripped)
-                            is_special = param in SPECIAL_KEYS
-                            formatted_value = format_number(num, force_two_decimals=is_special)
+                            if param == "Цена /шт. руб без НДС" or param == "Цена /шт. руб с НДС 22%"
+                                float_val = float(stripped)
+                            else:
+                                float_val = int(stripped)
+                            value = str(float_val).replace('.', ',')
                         except ValueError:
-                            # Не число – оставляем строку как есть
-                            formatted_value = value
-                    else:
-                        # Другие типы (bool, None и т.п.) – просто строковое представление
-                        formatted_value = str(value)
-                    
-                    new_user_dict[mapped_key] = formatted_value if formatted_value is not None else ''
-            for k, v in new_user_dict.items():
-                print(f"{k}: {type(v)} = {v}")
+                            pass
+
+                    new_user_dict[KEY_MAPPING[param]] = value
+            
             doc.render(new_user_dict)
 
             result_stream = BytesIO()
