@@ -155,7 +155,7 @@ async def tkp_generation(
                     elif isinstance(value, str):
                         stripped = value.strip()
                         try:
-                            if param == "Цена /шт. руб без НДС" or param == "Цена /шт. руб с НДС 22%"
+                            if param == "Цена /шт. руб без НДС" or param == "Цена /шт. руб с НДС 22%":
                                 float_val = float(stripped)
                             else:
                                 float_val = int(stripped)
