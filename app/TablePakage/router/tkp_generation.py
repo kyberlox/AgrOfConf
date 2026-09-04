@@ -117,6 +117,7 @@ async def tkp_generation(
         else:
             drawing_path = None
         filename = f"TKP+TO_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}_{user_dict.get('id', '')}"
+        SPECIAL_KEYS = {"Цена /шт. руб без НДС", "Цена /шт. руб с НДС 22%"}
         if template_path.endswith(".docx"):
             
             doc = DocxTemplate(template_path)
@@ -148,6 +149,23 @@ async def tkp_generation(
             new_user_dict = dict()
             for param, value in user_dict.items():
                 if KEY_MAPPING.get(param):
+                    #У числовых значений заменяем точку на запятую, А У ЕБАНОЙ ЦЕНЫ ПО ТРЕБОВАНИЮ МАРАЗМАТИКА ОСИПОВА МЫ ДЕЛАЕМ 2 НУЛЯ
+                    if isinstance(value, (int, float)):
+                        value = str(value).replace('.', ',')
+                    elif isinstance(value, str):
+                        stripped = value.strip()
+                        try:
+                            if param == "Цена /шт. руб без НДС" or param == "Цена /шт. руб с НДС 22%":
+                                float_val = f"{float(stripped):.2f}" # float(stripped)
+                            else:
+                                float_val = float(stripped)
+                                if float_val % 1 == 0:
+                                    float_val = int(float_val)
+                            value = str(float_val).replace('.', ',')
+                        except ValueError:
+                            pass
+                    
+                    # print(param, value, 'че дампим')
                     new_user_dict[KEY_MAPPING[param]] = value
             
             doc.render(new_user_dict)
@@ -167,16 +185,21 @@ async def tkp_generation(
         elif template_path.endswith(".xlsx"):
             workbook = load_workbook(template_path, data_only=True)
 
-            # for sheet in workbook.worksheets:
-            #     for row in sheet.iter_rows():
-            #         for cell in row:
-            #             if isinstance(cell.value, str):
-            #                 for key, value in user_dict.items():
-            #                     pattern = re.compile(r'\{\{\s*' + re.escape(key) + r'\s*\}\}')
-            #                     cell.value = pattern.sub(str(value), cell.value)
             new_user_dict = dict()
             for param, value in user_dict.items():
                 if KEY_MAPPING.get(param):
+                    #ДЕЛАЮ ЕБАНЫЕ ДВА НУЛЯ ТОЛЬКО РАДИ ЦЕНЫ
+                    if param == "Цена /шт. руб без НДС" or param == "Цена /шт. руб с НДС 22%":
+                        value = f"{float(value):.2f}".replace('.', ',')
+                    else:
+                        stripped = value.strip()
+                        try:
+                            float_val = float(stripped)
+                            if float_val % 1 == 0:
+                                float_val = int(float_val)
+                            value = str(float_val).replace('.', ',')
+                        except ValueError:
+                            pass
                     new_user_dict[KEY_MAPPING[param]] = value
             for sheet in workbook.worksheets:
                 for row in sheet.iter_rows():
@@ -184,15 +207,13 @@ async def tkp_generation(
                         if isinstance(cell.value, str):
                             # Находим все плейсхолдеры в ячейке
                             pattern = re.compile(r'\{\{\s*([^}]+)\s*\}\}')
-                            
                             def replace_match(match):
                                 key = match.group(1).strip()
                                 # Если ключ есть в словаре - возвращаем значение, иначе - пустую строку
                                 return str(new_user_dict.get(key, ''))
-                            
-                            # Заменяем все плейсхолдеры
+                            # # Заменяем все плейсхолдеры
                             cell.value = pattern.sub(replace_match, cell.value)
-
+   
              # Вставка изображения "Чертеж" на второй лист
             
             # if len(workbook.worksheets) > 1 and drawing_path:
