@@ -149,15 +149,17 @@ async def tkp_generation(
             new_user_dict = dict()
             for param, value in user_dict.items():
                 if KEY_MAPPING.get(param):
-                    #У числовых значений заменяем точку на запятую
+                    #У числовых значений заменяем точку на запятую, А У ЕБАНОЙ ЦЕНЫ ПО ТРЕБОВАНИЮ МАРАЗМАТИКА ОСИПОВА МЫ ДЕЛАЕМ 2 НУЛЯ
                     if isinstance(value, (int, float)):
                         value = str(value).replace('.', ',')
+                        print(12312312)
                     elif isinstance(value, str):
                         stripped = value.strip()
                         try:
                             if param == "Цена /шт. руб без НДС" or param == "Цена /шт. руб с НДС 22%":
-                                float_val = f"{float(stripped):.2f}".replace('.', ',') # float(stripped)
+                                float_val = f"{float(stripped):.2f}" # float(stripped)
                             else:
+                                print('sadfasfasfa')
                                 float_val = int(stripped) if int(stripped) % 1 == 0 else float(stripped)
                             value = str(float_val).replace('.', ',')
                         except ValueError:
@@ -201,39 +203,7 @@ async def tkp_generation(
                                 return str(new_user_dict.get(key, ''))
                             # # Заменяем все плейсхолдеры
                             cell.value = pattern.sub(replace_match, cell.value)
-                            # def replace_match(match):
-                            #     key = match.group(1).strip()
-                            #     value = new_user_dict.get(key, '')
-                                
-                            #     # Если значение отсутствует – возвращаем пустую строку
-                            #     if value == '':
-                            #         return ''
-                                
-                            #     # Если значение – число (int или float)
-                            #     if isinstance(value, (int, float)):
-                            #         return str(value).replace('.', ',')
-                                
-                            #     # Если значение – строка
-                            #     if isinstance(value, str):
-                            #         stripped = value.strip()
-                            #         try:
-                            #             # Пытаемся преобразовать строку в число (поддерживает точки)
-                            #             if key == "Цена /шт. руб без НДС" or key == "Цена /шт. руб с НДС 22%":
-                            #                 float_val = f"{float(stripped):.2f}" # float(stripped)
-                            #                 print(float_val, 'какого хуя не меняет на запятую НЕНАВИЖУ ОСИПОВА')
-                            #             else:
-                            #                 float_val = int(stripped) if int(stripped) % 1 == 0 else float(stripped)
-                            #             # Если успешно – возвращаем с запятой
-                            #             return str(float_val).replace('.', ',')
-                            #         except ValueError:
-                            #             # Не число – оставляем без изменений
-                            #             return value
-                                
-                            #     # Для остальных типов (bool, None и т.п.) – просто строковое представление
-                            #     return str(value)
-                            
-                            # cell.value = pattern.sub(replace_match, cell.value)
-
+   
              # Вставка изображения "Чертеж" на второй лист
             
             # if len(workbook.worksheets) > 1 and drawing_path:
