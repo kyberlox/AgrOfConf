@@ -165,7 +165,7 @@ async def tkp_generation(
                         except ValueError:
                             pass
                     
-                
+                    print(param, value, 'че дампим')
                     new_user_dict[KEY_MAPPING[param]] = value
             
             doc.render(new_user_dict)
