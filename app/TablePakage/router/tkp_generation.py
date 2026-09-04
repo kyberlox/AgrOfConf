@@ -212,7 +212,7 @@ async def tkp_generation(
                                     stripped = value.strip()
                                     try:
                                         # Пытаемся преобразовать строку в число (поддерживает точки)
-                                        if param == "Цена /шт. руб без НДС" or param == "Цена /шт. руб с НДС 22%":
+                                        if key == "Цена /шт. руб без НДС" or key == "Цена /шт. руб с НДС 22%":
                                             float_val = f"{float(stripped):.2f}" # float(stripped)
                                             print(float_val, 'какого хуя не меняет на запятую НЕНАВИЖУ ОСИПОВА')
                                         else:
