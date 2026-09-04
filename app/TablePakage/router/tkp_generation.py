@@ -195,7 +195,10 @@ async def tkp_generation(
                         if isinstance(cell.value, str):
                             # Находим все плейсхолдеры в ячейке
                             pattern = re.compile(r'\{\{\s*([^}]+)\s*\}\}')
-                            
+                            def replace_match(match):
+                                key = match.group(1).strip()
+                                # Если ключ есть в словаре - возвращаем значение, иначе - пустую строку
+                                return str(new_user_dict.get(key, ''))
                             # # Заменяем все плейсхолдеры
                             cell.value = pattern.sub(replace_match, cell.value)
                             # def replace_match(match):
