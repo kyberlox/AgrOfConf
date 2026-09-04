@@ -117,6 +117,7 @@ async def tkp_generation(
         else:
             drawing_path = None
         filename = f"TKP+TO_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}_{user_dict.get('id', '')}"
+        SPECIAL_KEYS = {"Цена /шт. руб без НДС", "Цена /шт. руб с НДС 22%"}
         if template_path.endswith(".docx"):
             
             doc = DocxTemplate(template_path)
@@ -147,19 +148,43 @@ async def tkp_generation(
             #Переводит на латиницу
             new_user_dict = dict()
             for param, value in user_dict.items():
-                if KEY_MAPPING.get(param):
-                    #У числовых значений заменяем точку на запятую
+                mapped_key = KEY_MAPPING.get(param)
+                if mapped_key:
+                    # Вспомогательная функция форматирования числа
+                    def format_number(num, force_two_decimals=False):
+                        if force_two_decimals:
+                            # Всегда два знака после запятой, разделитель – запятая
+                            return f"{num:.2f}".replace('.', ',')
+                        else:
+                            # Если число целое – возвращаем без десятичной части
+                            if num == int(num):
+                                return str(int(num))
+                            else:
+                                # Иначе – убираем лишние нули в дробной части и заменяем точку на запятую
+                                s = str(num)
+                                if '.' in s:
+                                    s = s.rstrip('0').rstrip('.')
+                                return s.replace('.', ',')
+                    
+                    # Обработка значения в зависимости от типа
                     if isinstance(value, (int, float)):
-                        value = str(value).replace('.', ',')
+                        num = value
+                        is_special = param in SPECIAL_KEYS
+                        formatted_value = format_number(num, force_two_decimals=is_special)
                     elif isinstance(value, str):
                         stripped = value.strip()
                         try:
-                            float_val = float(stripped)
-                            value = str(float_val).replace('.', ',')
+                            num = float(stripped)
+                            is_special = param in SPECIAL_KEYS
+                            formatted_value = format_number(num, force_two_decimals=is_special)
                         except ValueError:
-                            pass
-
-                    new_user_dict[KEY_MAPPING[param]] = value
+                            # Не число – оставляем строку как есть
+                            formatted_value = value
+                    else:
+                        # Другие типы (bool, None и т.п.) – просто строковое представление
+                        formatted_value = str(value)
+                    
+                    new_user_dict[mapped_key] = formatted_value
             
             doc.render(new_user_dict)
 
@@ -178,13 +203,6 @@ async def tkp_generation(
         elif template_path.endswith(".xlsx"):
             workbook = load_workbook(template_path, data_only=True)
 
-            # for sheet in workbook.worksheets:
-            #     for row in sheet.iter_rows():
-            #         for cell in row:
-            #             if isinstance(cell.value, str):
-            #                 for key, value in user_dict.items():
-            #                     pattern = re.compile(r'\{\{\s*' + re.escape(key) + r'\s*\}\}')
-            #                     cell.value = pattern.sub(str(value), cell.value)
             new_user_dict = dict()
             for param, value in user_dict.items():
                 if KEY_MAPPING.get(param):
@@ -196,41 +214,81 @@ async def tkp_generation(
                             # Находим все плейсхолдеры в ячейке
                             pattern = re.compile(r'\{\{\s*([^}]+)\s*\}\}')
                             
-                            # def replace_match(match):
-                            #     key = match.group(1).strip()
-                            #     # Если ключ есть в словаре - возвращаем значение, иначе - пустую строку
-                            #     return str(new_user_dict.get(key, ''))
-                            
-                            # # Заменяем все плейсхолдеры
-                            # cell.value = pattern.sub(replace_match, cell.value)
                             def replace_match(match):
                                 key = match.group(1).strip()
                                 value = new_user_dict.get(key, '')
                                 
-                                # Если значение отсутствует – возвращаем пустую строку
                                 if value == '':
                                     return ''
                                 
-                                # Если значение – число (int или float)
-                                if isinstance(value, (int, float)):
-                                    return str(value).replace('.', ',')
+                                # Вспомогательная функция для форматирования числа
+                                def format_number(num, force_two_decimals=False):
+                                    if force_two_decimals:
+                                        # Всегда два знака после запятой, разделитель – запятая
+                                        return f"{num:.2f}".replace('.', ',')
+                                    else:
+                                        # Если число целое – возвращаем без десятичной части
+                                        if num == int(num):
+                                            return str(int(num))
+                                        else:
+                                            # Иначе – убираем лишние нули в дробной части и заменяем точку на запятую
+                                            s = str(num)
+                                            if '.' in s:
+                                                s = s.rstrip('0').rstrip('.')
+                                            return s.replace('.', ',')
                                 
-                                # Если значение – строка
+                                # Обработка числовых типов
+                                if isinstance(value, (int, float)):
+                                    num = value
+                                    is_special = key in SPECIAL_KEYS
+                                    return format_number(num, force_two_decimals=is_special)
+                                
+                                # Обработка строк, которые могут быть числами
                                 if isinstance(value, str):
                                     stripped = value.strip()
                                     try:
-                                        # Пытаемся преобразовать строку в число (поддерживает точки)
-                                        float_val = float(stripped)
-                                        # Если успешно – возвращаем с запятой
-                                        return str(float_val).replace('.', ',')
+                                        num = float(stripped)
+                                        is_special = key in SPECIAL_KEYS
+                                        return format_number(num, force_two_decimals=is_special)
                                     except ValueError:
-                                        # Не число – оставляем без изменений
+                                        # Не число – возвращаем как есть
                                         return value
                                 
-                                # Для остальных типов (bool, None и т.п.) – просто строковое представление
+                                # Для остальных типов (bool, None и т.д.)
                                 return str(value)
                             
                             cell.value = pattern.sub(replace_match, cell.value)
+                            
+                            # # Заменяем все плейсхолдеры
+                            # cell.value = pattern.sub(replace_match, cell.value)
+                            # def replace_match(match):
+                            #     key = match.group(1).strip()
+                            #     value = new_user_dict.get(key, '')
+                                
+                            #     # Если значение отсутствует – возвращаем пустую строку
+                            #     if value == '':
+                            #         return ''
+                                
+                            #     # Если значение – число (int или float)
+                            #     if isinstance(value, (int, float)):
+                            #         return str(value).replace('.', ',')
+                                
+                            #     # Если значение – строка
+                            #     if isinstance(value, str):
+                            #         stripped = value.strip()
+                            #         try:
+                            #             # Пытаемся преобразовать строку в число (поддерживает точки)
+                            #             float_val = float(stripped)
+                            #             # Если успешно – возвращаем с запятой
+                            #             return str(float_val).replace('.', ',')
+                            #         except ValueError:
+                            #             # Не число – оставляем без изменений
+                            #             return value
+                                
+                            #     # Для остальных типов (bool, None и т.п.) – просто строковое представление
+                            #     return str(value)
+                            
+                            # cell.value = pattern.sub(replace_match, cell.value)
 
              # Вставка изображения "Чертеж" на второй лист
             
