@@ -185,7 +185,8 @@ async def tkp_generation(
                         formatted_value = str(value)
                     
                     new_user_dict[mapped_key] = formatted_value if formatted_value is not None else ''
-            
+            for k, v in new_user_dict.items():
+                print(f"{k}: {type(v)} = {v}")
             doc.render(new_user_dict)
 
             result_stream = BytesIO()
