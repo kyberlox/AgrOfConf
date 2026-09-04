@@ -185,12 +185,40 @@ async def tkp_generation(
                             # Находим все плейсхолдеры в ячейке
                             pattern = re.compile(r'\{\{\s*([^}]+)\s*\}\}')
                             
+                            # def replace_match(match):
+                            #     key = match.group(1).strip()
+                            #     # Если ключ есть в словаре - возвращаем значение, иначе - пустую строку
+                            #     return str(new_user_dict.get(key, ''))
+                            
+                            # # Заменяем все плейсхолдеры
+                            # cell.value = pattern.sub(replace_match, cell.value)
                             def replace_match(match):
                                 key = match.group(1).strip()
-                                # Если ключ есть в словаре - возвращаем значение, иначе - пустую строку
-                                return str(new_user_dict.get(key, ''))
+                                value = new_user_dict.get(key, '')
+                                
+                                # Если значение отсутствует – возвращаем пустую строку
+                                if value == '':
+                                    return ''
+                                
+                                # Если значение – число (int или float)
+                                if isinstance(value, (int, float)):
+                                    return str(value).replace('.', ',')
+                                
+                                # Если значение – строка
+                                if isinstance(value, str):
+                                    stripped = value.strip()
+                                    try:
+                                        # Пытаемся преобразовать строку в число (поддерживает точки)
+                                        float_val = float(stripped)
+                                        # Если успешно – возвращаем с запятой
+                                        return str(float_val).replace('.', ',')
+                                    except ValueError:
+                                        # Не число – оставляем без изменений
+                                        return value
+                                
+                                # Для остальных типов (bool, None и т.п.) – просто строковое представление
+                                return str(value)
                             
-                            # Заменяем все плейсхолдеры
                             cell.value = pattern.sub(replace_match, cell.value)
 
              # Вставка изображения "Чертеж" на второй лист
