@@ -186,7 +186,7 @@ async def tkp_generation(
             for param, value in user_dict.items():
                 if KEY_MAPPING.get(param):
                     if param == "Цена /шт. руб без НДС" or param == "Цена /шт. руб с НДС 22%":
-                        value = f"{float(stripped):.2f}".replace('.', ',')
+                        value = f"{float(value):.2f}".replace('.', ',')
                     new_user_dict[KEY_MAPPING[param]] = value
             for sheet in workbook.worksheets:
                 for row in sheet.iter_rows():
