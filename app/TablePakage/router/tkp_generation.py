@@ -214,6 +214,7 @@ async def tkp_generation(
                                         # Пытаемся преобразовать строку в число (поддерживает точки)
                                         if param == "Цена /шт. руб без НДС" or param == "Цена /шт. руб с НДС 22%":
                                             float_val = f"{float(stripped):.2f}" # float(stripped)
+                                            print(float_val, 'какого хуя не меняет на запятую НЕНАВИЖУ ОСИПОВА')
                                         else:
                                             float_val = int(stripped) if int(stripped) % 1 == 0 else float(stripped)
                                         # Если успешно – возвращаем с запятой
