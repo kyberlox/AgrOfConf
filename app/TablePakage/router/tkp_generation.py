@@ -152,18 +152,17 @@ async def tkp_generation(
                     #У числовых значений заменяем точку на запятую, А У ЕБАНОЙ ЦЕНЫ ПО ТРЕБОВАНИЮ МАРАЗМАТИКА ОСИПОВА МЫ ДЕЛАЕМ 2 НУЛЯ
                     if isinstance(value, (int, float)):
                         value = str(value).replace('.', ',')
-                        print(param, value, 'изначально число')
                     elif isinstance(value, str):
                         stripped = value.strip()
                         try:
                             if param == "Цена /шт. руб без НДС" or param == "Цена /шт. руб с НДС 22%":
                                 float_val = f"{float(stripped):.2f}" # float(stripped)
                             else:
-                                float_val = int(stripped) if int(stripped) % 1 == 0 else float(stripped)
+                                float_val = float(stripped)
+                                if float_val % 1 == 0:
+                                    float_val = int(float_val)
                             value = str(float_val).replace('.', ',')
-                            print(param, value, 'сделали из числа норм')
                         except ValueError:
-                            print(param, value, 'ОШИБКА')
                             pass
                     
                     # print(param, value, 'че дампим')
