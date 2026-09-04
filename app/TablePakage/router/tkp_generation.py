@@ -161,11 +161,12 @@ async def tkp_generation(
                             else:
                                 float_val = int(stripped) if int(stripped) % 1 == 0 else float(stripped)
                             value = str(float_val).replace('.', ',')
-                            print(param, value)
+                            print(param, value, 'сделали из числа норм')
                         except ValueError:
+                            print(param, value, 'ОШИБКА')
                             pass
                     
-                    print(param, value, 'че дампим')
+                    # print(param, value, 'че дампим')
                     new_user_dict[KEY_MAPPING[param]] = value
             
             doc.render(new_user_dict)
