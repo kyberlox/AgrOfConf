@@ -191,6 +191,15 @@ async def tkp_generation(
                     #ДЕЛАЮ ЕБАНЫЕ ДВА НУЛЯ ТОЛЬКО РАДИ ЦЕНЫ
                     if param == "Цена /шт. руб без НДС" or param == "Цена /шт. руб с НДС 22%":
                         value = f"{float(value):.2f}".replace('.', ',')
+                    else:
+                        stripped = value.strip()
+                        try:
+                            float_val = float(stripped)
+                            if float_val % 1 == 0:
+                                float_val = int(float_val)
+                            value = str(float_val).replace('.', ',')
+                        except ValueError:
+                            pass
                     new_user_dict[KEY_MAPPING[param]] = value
             for sheet in workbook.worksheets:
                 for row in sheet.iter_rows():
