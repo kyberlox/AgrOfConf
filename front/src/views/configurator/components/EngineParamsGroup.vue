@@ -28,6 +28,7 @@
     </div>
 </div>
 </template>
+
 <script lang='ts'>
 import type { IFormattedData } from '@/assets/interfaces/IForm';
 import { defineComponent, type PropType, computed } from 'vue';

@@ -3,7 +3,7 @@
     <input class="hidden"
            ref=fileInput
            type="file"
-           :value="newFileName"
+           :value="fileValue"
            @change="handleFileUpload" />
 
     <BaseButton :buttonSettings="{ class: buttonClass, disabled: isLoading }"
