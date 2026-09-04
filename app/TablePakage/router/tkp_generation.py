@@ -184,7 +184,7 @@ async def tkp_generation(
                         # Другие типы (bool, None и т.п.) – просто строковое представление
                         formatted_value = str(value)
                     
-                    new_user_dict[mapped_key] = formatted_value
+                    new_user_dict[mapped_key] = formatted_value if formatted_value is not None else ''
             
             doc.render(new_user_dict)
 
