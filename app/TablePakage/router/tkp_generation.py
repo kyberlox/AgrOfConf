@@ -152,6 +152,7 @@ async def tkp_generation(
                     #У числовых значений заменяем точку на запятую, А У ЕБАНОЙ ЦЕНЫ ПО ТРЕБОВАНИЮ МАРАЗМАТИКА ОСИПОВА МЫ ДЕЛАЕМ 2 НУЛЯ
                     if isinstance(value, (int, float)):
                         value = str(value).replace('.', ',')
+                        print(param, value, 'изначально число')
                     elif isinstance(value, str):
                         stripped = value.strip()
                         try:
