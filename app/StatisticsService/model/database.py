@@ -6,7 +6,7 @@
 все роутеры StatisticsService будут использовать новый клиент автоматически.
 """
 
-from ..model.el_connect import elastic_client
+from ..model.el_connect import get_elastic_client
 
 
 def get_statistic_db():
@@ -20,4 +20,4 @@ def get_statistic_db():
         async with AsyncSessionLocal() as session:
             yield session
     """
-    return elastic_client
+    return get_elastic_client()

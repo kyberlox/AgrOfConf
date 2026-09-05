@@ -106,20 +106,18 @@ async def create_product(
         name: str = Form(...),
         description: str = Form(None),
         manufacturer: str = Form(None),
-        image: UploadFile = File(None),
+        # Изображение приходит как base64-строка (data:image/...;base64,...)
+        # от фронтенда (VInputFile). Принимается в Form-поле.
+        image: str | None = Form(None),
         db: AsyncSession = Depends(get_db)
 ):
     image_path = None
     image_url = None
 
     if image:
-        validate_image(image)
-        unique_filename = generate_unique_filename(image.filename)
-        file_path = os.path.join(UPLOAD_DIR, unique_filename)
-        with open(file_path, "wb") as f:
-            f.write(await image.read())
-        image_path = file_path
-        image_url = f"/api/files/images/{unique_filename}"
+        filename = save_base64_image(image)
+        image_path = os.path.join(UPLOAD_DIR, filename)
+        image_url = f"/api/files/images/{filename}"
 
     db_product = Product(
         name=name,

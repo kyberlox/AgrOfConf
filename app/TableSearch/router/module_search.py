@@ -10,6 +10,7 @@ from app.TablePakage.model.database import get_db
 from app.TablePakage.model.product_files import ProductFiles
 from app.TableSearch.utils.dm_search import ensure_dm_exists, get_full_search_from_dm
 from ..utils.formula_search import search_formula
+from app.formulas.integration import apply_new_and_legacy_formulas
 
 router = APIRouter(prefix="/module_search", tags=["Module_search"])
 
@@ -410,6 +411,7 @@ async def process_table_data(
                 measuring_unit,
                 table_name,
                 visibility,
+                editable,
                 required_type,
                 sort
             FROM parameter_schemas
@@ -448,6 +450,23 @@ async def process_table_data(
             name = item["name"]
 
             all_values = full_value_parameters.get(name)
+
+            # Если datamart не отдал значения для колонки (например, для «Тип среды»),
+            # получаем их напрямую из таблицы, иначе параметр невозможно выбрать.
+            if not all_values:
+                try:
+                    avail = await get_available_values_for_param(
+                        db=db,
+                        table_name=item["table_name"],
+                        table_params=tables_map[item["table_name"]],
+                        target_param_name=name,
+                        selected_params={},
+                    )
+                    if avail:
+                        all_values = avail
+                except Exception:  # noqa: BLE001
+                    all_values = all_values or None
+
             response_value = None
 
             if isinstance(all_values, list) and len(all_values) == 1:
@@ -461,14 +480,20 @@ async def process_table_data(
                 "all_values": all_values,
                 "response_value": response_value,
                 "visibility": item["visibility"],
+                "editable": item["editable"],
                 "required_type": item["required_type"],
                 "sort": item["sort"],
             })
-        formula_params = await search_formula(db, response_params, table_name_params=list(tables_map.keys()),
-                                              column_to_param=all_column_to_param, product_id=product_id)
+        response_params = await apply_new_and_legacy_formulas(
+            db,
+            response_params,
+            {},
+            list(tables_map.keys()),
+            product_id,
+        )
 
         response_params = sorted(
-            formula_params,
+            response_params,
             key=lambda param: param.get("sort") or param["id"]
         )
 
@@ -483,11 +508,11 @@ async def process_table_data(
     # Если параметры выбраны — делаем подбор отдельно по каждой таблице
     allowed_params = {item["name"] for item in full_info}
 
+    # priority может указывать на формульный входной параметр (например «Диаметр»),
+    # которого нет среди табличных параметров. Такой priority на порядок внутри
+    # таблицы не влияет, поэтому игнорируем его, а не падаем с ошибкой.
     if priority is not None and priority not in allowed_params:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Неизвестный priority: {priority}"
-        )
+        priority = None
 
     # unknown_params = [
     #     param_name
@@ -639,6 +664,11 @@ async def process_table_data(
             selected_params=selected_params,
         )
 
+        # Если datamart не отдал значения (например, для «Тип среды») —
+        # используем варианты, полученные из таблицы, иначе селект останется пустым.
+        if not all_values and filtered_value:
+            all_values = filtered_value
+
         error_item = error_by_key.get((table_name, name))
 
         # Для ошибочного параметра показываем допустимые варианты,
@@ -663,12 +693,14 @@ async def process_table_data(
         if error_item:
             response_value = None
 
-        # Если параметр был выбран пользователем и он не ошибочный —
+        # Если параметр был выбран пользователем и не ошибочный —
         # оставляем выбранное значение, чтобы фронт не сбрасывал весь подбор
+        # (явный выбор пользователя в приоритете).
         elif is_selected:
             response_value = selected_value
 
         # Если после фильтрации осталось одно значение — можно подставить его
+        # (для параметров, которые пользователь явно не выбирал).
         elif isinstance(filtered_value, list) and len(filtered_value) == 1:
             response_value = filtered_value[0]
 
@@ -686,6 +718,7 @@ async def process_table_data(
             "all_values": all_values,
             "response_value": response_value,
             "visibility": item["visibility"],
+            "editable": item["editable"],
             "required_type": item["required_type"],
             "filtered_values": filtered_value,
             "sort": item["sort"],
@@ -697,23 +730,29 @@ async def process_table_data(
         response_params.append(param_info)
     time_before_fromula = time.perf_counter()
 
-    formula_params = await search_formula(
+    # Объединяем выбранные значения: исходный запрос + авто-подставленные табличные.
+    selected_values = dict(selected_params)
+    for param_item in response_params:
+        rv = param_item.get("response_value")
+        if rv is not None and param_item["name"] not in selected_values:
+            selected_values[param_item["name"]] = rv
+
+    # Новые формулы — асинхронный движок; старые — fallback на CodeParametr.
+    response_params = await apply_new_and_legacy_formulas(
         db,
         response_params,
-        table_name_params=list(tables_map.keys()),
-        select_formula_params=selected_params,
-        column_to_param=all_column_to_param,
-        product_id=product_id
+        selected_values,
+        list(tables_map.keys()),
+        product_id,
     )
 
     # Получаем файлы продукта
     stmt_product_files = await db.execute(select(ProductFiles).where(ProductFiles.product_id == product_id))
     product_files = stmt_product_files.scalars().all()
-    # product_files = [dict(row) for row in rows]  
+    # product_files = [dict(row) for row in rows]
     # print(type(product_files), 'че получимли')
-    # print(formula_params, 'че получили')
     response_params = sorted(
-        formula_params,
+        response_params,
         key=lambda param: (
             param["sort"]
             if param.get("sort") is not None

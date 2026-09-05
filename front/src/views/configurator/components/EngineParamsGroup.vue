@@ -3,8 +3,18 @@
     <div v-for="(param, index) in items"
          :key="param.id"
          class="flex flex-row items-center px-[10px]  hover:bg-(--color-information-orange-50) ">
+        <!-- Нередактируемые параметры: показываем значение ярко (просто текст) -->
+        <div v-if="(param as IFormattedData).editable === false && (param as IFormattedData).required_type !== 'drawing'"
+             class="flex flex-col w-full gap-[4px] py-[6px] px-[4px]">
+            <span class="text-[13px] text-[#343B4C] font-[600]">{{ param.name }}</span>
+            <span class="text-[16px] font-bold text-gray-900"
+                  :class="{ 'text-orange-600': (param as IFormattedData).response_value }">
+                {{ (param as IFormattedData).response_value || '—' }}
+            </span>
+        </div>
+
         <!-- Смежный селект + инпут для сред -->
-        <SelectInput v-if="(param as IFormattedData).required_type == 'select-input'"
+        <SelectInput v-else-if="(param as IFormattedData).required_type == 'select-input'"
                      :param="(param as IFormattedData)"
                      :disabled="paramsLoading"
                      @changeSelectInputValue="(value) => $emit('valueChanged', value, param.name)" />
@@ -14,6 +24,22 @@
                    :class="{ 'input-param__wrapper--no-response': (userParams && !userParams[param.name as keyof typeof userParams]) }"
                    :inputSettings="initInputSettings(param, index)"
                    @valueChanged="(value: string | null) => $emit('valueChanged', value ?? '', param.name)" />
+
+        <!-- параметр-чертёж: отображает картинку/файл по выбору пользователя -->
+        <div v-else-if="(param as IFormattedData).required_type == 'drawing'"
+             class="flex flex-col w-full gap-[6px] py-[6px]">
+            <label class="text-[13px] text-[#343B4C] font-[600]">{{ param.name }}</label>
+            <img v-if="(param as IFormattedData).response_value"
+                 :src="fileUrl((param as IFormattedData).response_value)"
+                 class="max-w-full max-h-[300px] rounded-lg border border-gray-200 object-contain"
+                 alt="Чертеж" />
+            <a v-if="(param as IFormattedData).response_value"
+               :href="fileUrl((param as IFormattedData).response_value)"
+               target="_blank"
+               rel="noreferrer"
+               class="text-[12px] text-blue-600 underline">Открыть чертеж в новой вкладке</a>
+            <span v-else class="text-[12px] text-gray-400">Чертеж будет доступен после выбора параметров</span>
+        </div>
 
         <!-- выпадающий список -->
         <BaseSelect v-else
@@ -38,6 +64,7 @@ import { createLabelIconsComponent } from '@/composables/createComponent';
 import AlertCircle from '@/assets/icons/AlertCircle.svg?component';
 import QuestionStatus from '@/components/layout/QuestionStatus.vue';
 import { replaceSpotOrComma } from '@/utils/replaceSpotOrComma';
+import { fileUrl } from '@/utils/fileUrl';
 
 export default defineComponent({
     components: {
@@ -75,14 +102,16 @@ export default defineComponent({
         const configurator = useConfiguratorStore();
 
         const checkParams = (param: IFormattedData) => {
+            const norm = (arr?: string[]) => Array.isArray(arr) ? arr.map(e => replaceSpotOrComma(e, 'spot')) : []
             switch (freeConfigMode.value) {
                 case true:
-                    return Array.from(param?.all_values.map(e => replaceSpotOrComma(e, 'spot'))) || []
+                    return norm(param?.all_values)
 
                 case false:
-                    return Array.from((!('filtered_values' in param) || !param?.filtered_values || param.response_value) ?
-                        (param?.all_values.map(e => replaceSpotOrComma(e, 'spot'))) :
-                        (param?.filtered_values.map(e => replaceSpotOrComma(e, 'spot'))) || [])
+                    if (!('filtered_values' in param) || !param?.filtered_values || param.response_value) {
+                        return norm(param?.all_values)
+                    }
+                    return norm(param?.filtered_values)
                 default:
                     return []
             }
@@ -110,7 +139,7 @@ export default defineComponent({
                 labelIcon: createLabelIconsComponent(param, () => console.log('testComp')),
                 error: 'error' in param ? param.error : '',
                 errorIcon: AlertCircle,
-                disabled: (((!param.filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')) && props.type == 'auto') || props.paramsLoading
+                disabled: (((!param.filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')) && props.type == 'auto') || props.paramsLoading || param.editable === false
             }
         }
 
@@ -122,7 +151,7 @@ export default defineComponent({
                 name: param.name + (Number(index) + 1),
                 label: param.name,
                 error: 'error' in param ? (param as IFormattedData).error : '',
-                disabled: props.paramsLoading
+                disabled: props.paramsLoading || param.editable === false
             }
         }
 
@@ -133,7 +162,8 @@ export default defineComponent({
             createLabelIconsComponent,
             checkParams,
             initSelectSettings,
-            initInputSettings
+            initInputSettings,
+            fileUrl
         }
     }
 });

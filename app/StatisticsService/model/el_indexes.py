@@ -1,8 +1,9 @@
-from .el_connect import elastic_client as es
+from .el_connect import get_elastic_client
 from ..set.settings import SELECTION_INDEX, RECOGNITION_INDEX
 
 
 def create_selection_index():
+    es = get_elastic_client()
     mapping = {
         "settings": {
             "number_of_shards": 1,
@@ -142,6 +143,7 @@ def create_selection_index():
     return True
 
 def create_recognition_index():
+  es = get_elastic_client()
   mapping = {
       "settings": {
           "number_of_shards": 1,

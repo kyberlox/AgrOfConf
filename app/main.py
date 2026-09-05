@@ -17,8 +17,12 @@ from .TableSearch.router.module_search_pandas import router as module_search_rou
 from .TableSearch.router.AI import router as AI_router
 from .TableSearch.router.blocks import router as blocks_router
 from .TablePakage.router.tkp_generation import router as tkp_generation
+from .TablePakage.router.product_porting import router as product_porting_router
 
-from .TablePakage.model.database import create_tables
+from .TablePakage.model.database import create_tables, AsyncSessionLocal
+from .TablePakage.model.formula_columns import ensure_formula_config_column
+from .TablePakage.model.blocks_columns import ensure_blocks_schema
+from .TablePakage.model.parameter_flags_columns import ensure_parameter_flags
 import app.logging_config
 from .TablePakage.model.database import create_tables
 
@@ -32,6 +36,7 @@ from .StatisticsService.router.recognition_router import router as recognition_r
 from .StatisticsService.router.selection_router import router as selection_router
 from .StatisticsService.model.el_indexes import create_selection_index, create_recognition_index
 from .RequestService.router.requests import router as requests_router
+from .formulas.router import router as formula_router
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -139,7 +144,36 @@ redis_storage = RedisStorage()
 @app.on_event("startup")
 async def startup_event():
     await create_tables()
-    #создаем elasticsearch индекс
+    # Лёгкая миграция: добавляем колонку formula_config (новая система формул)
+    try:
+        async with AsyncSessionLocal() as session:
+            await ensure_formula_config_column(session)
+    except Exception as e:
+        print(f"⚠️ Не удалось применить миграцию formula_config: {e}")
+    # Миграция блоков параметров: таблица parameter_blocks + колонка block_id
+    try:
+        async with AsyncSessionLocal() as session:
+            await ensure_blocks_schema(session)
+    except Exception as e:
+        print(f"⚠️ Не удалось применить миграцию blocks: {e}")
+    # Миграция флагов параметров (editable)
+    try:
+        async with AsyncSessionLocal() as session:
+            await ensure_parameter_flags(session)
+    except Exception as e:
+        print(f"⚠️ Не удалось применить миграцию parameter flags: {e}")
+    # DEV-сессия для тестирования (если включена) — создаём пользователя/админа
+    try:
+        from .UserService.utils.dev_session import ensure_dev_user
+        async with AsyncSessionLocal() as session:
+            await ensure_dev_user(session)
+    except Exception as e:
+        print(f"⚠️ Не удалось создать dev-пользователя: {e}")
+    # Ожидаем, пока Elasticsearch полностью развернётся, и создаём индексы.
+    # Без этого при первом старте ES может быть ещё недоступен, и клиент
+    # оказывается None, что приводило к падению приложения.
+    from .StatisticsService.model.el_connect import ensure_elastic_ready
+    await ensure_elastic_ready()
     create_selection_index()
     create_recognition_index()
 
@@ -162,9 +196,11 @@ app.include_router(users_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(roots_router, prefix="/api")
 app.include_router(tkp_generation, prefix="/api")
+app.include_router(product_porting_router, prefix="/api")
 app.include_router(recognition_router, prefix="/api")
 app.include_router(selection_router, prefix="/api")
 app.include_router(requests_router, prefix="/api")
+app.include_router(formula_router, prefix="/api")
 # app.include_router(calculated_router, prefix="/api")
 # app.include_router(user_input_router, prefix="/api")
 # app.include_router(condition_router, prefix="/api")

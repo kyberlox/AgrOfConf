@@ -8,6 +8,7 @@ export interface IFormattedData {
     required_type: string,
     response_value: string | null,
     visibility: boolean
+    editable?: boolean
     error?: string
 } 
 

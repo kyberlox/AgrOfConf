@@ -138,8 +138,12 @@ export default defineComponent({
         const configuratorStore = useConfiguratorStore();
         const freeConfigMode = computed(() => configuratorStore.getFreeModeConfig);
         const paramsLoading = ref(false);
-        const paramsGroups = ref<Record<string, Array<string>>>();
+        const paramsGroups = ref<Array<{ name: string; display: string; params: Array<string> }>>();
+        // Параметры, которые пользователь выбрал явно (не авто-подставленные).
+        const manuallyChanged = ref<Record<string, boolean>>({});
         let abortController: AbortController | null = null;
+        // Защита от зацикливания повторного подбора после сброса ошибочных параметров.
+        let rerunGuard = false;
         const priorityParam = ref<string>();
         const promptModalKey = ref(1);
 
@@ -167,6 +171,14 @@ export default defineComponent({
                 abortController.abort();
             }
             let newBody = clone(body);
+            // На поиск отправляем только явно выбранные пользователем параметры.
+            // Авто-подставленные значения сервер пересчитает сам, поэтому они
+            // «адаптируются» при изменении выбора и не залипают как старый выбор.
+            if (newBody && Object.keys(newBody).length) {
+                newBody = Object.fromEntries(
+                    Object.entries(newBody).filter(([key]) => manuallyChanged.value[key])
+                )
+            }
             if (freeConfigMode.value && Object.keys(newBody).length) {
                 return
             }
@@ -202,6 +214,20 @@ export default defineComponent({
                     }
                     questionCounter++
                 })
+                // Параметры, которые сервер пометил как ошибочные, стали несовместимыми
+                // с текущим выбором. Убираем их из списка явных выборов, чтобы их старое
+                // значение не продолжало отправляться и не блокировало подбор — тогда
+                // остальные параметры смогут автоматически «подстроиться» под новый выбор.
+                let removedError = false;
+                data.parameters.forEach((e: IFormattedData) => {
+                    if ('error' in e && e.error) {
+                        if (e.name in userInputs.value) {
+                            delete userInputs.value[e.name]
+                            removedError = true
+                        }
+                        delete manuallyChanged.value[e.name]
+                    }
+                })
                 configuratorStore.setCalcParams(data.parameters.filter((e: IFormattedData) => e.required_type == 'raschet' && e.response_value));
                 configuratorStore.setCovered(Number(answeredCounter));
                 configuratorStore.setAllQuestions(Number(questionCounter));
@@ -213,7 +239,16 @@ export default defineComponent({
                 if (!(data && 'parameters' in data)) return
                 form.value = data.parameters
                 productName.value = data.product_name
+
+                // Были удалены ошибочные (несовместимые) параметры — пересчитываем
+                // подбор без них, чтобы сервер автоматически подставил единственные
+                // доступные значения и зависимые параметры адаптировались.
+                if (removedError && !rerunGuard) {
+                    rerunGuard = true
+                    await paramsUpdateRequest(userInputs.value)
+                }
             } finally {
+                rerunGuard = false
                 paramsLoading.value = false
             }
         }
@@ -240,8 +275,19 @@ export default defineComponent({
         })
 
         const handleValueChanged = (value: string, key: keyof typeof userInputs.value) => {
+            // Сброс значения (resetValue): убираем параметр из явных выборов и
+            // перезапрашиваем подбор без него, чтобы зависимые параметры пересчитались.
+            if (value == null) {
+                delete userInputs.value[key];
+                delete manuallyChanged.value[key];
+                paramsUpdateRequest(userInputs.value);
+                return;
+            }
             if (value && userInputs.value[key] !== replaceSpotOrComma(value, 'spot')) {
                 userInputs.value[key] = replaceSpotOrComma(value, 'spot') || '';
+                // Помечаем как явный выбор пользователя — такой параметр не будет
+                // перезаписан авто-подстановкой и останется в приоритете.
+                manuallyChanged.value[String(key)] = true;
                 priorityParam.value = String(key);
                 paramsUpdate(userInputs.value);
             }

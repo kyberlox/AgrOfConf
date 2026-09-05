@@ -15,11 +15,19 @@ class ParameterSchema(Base):
     type = Column(String(50), nullable=False)  # "Table" или "Formula"
     measuring_unit = Column(Text, nullable=True)  # Единицы измерения
     visibility = Column(Boolean, default=True)  # Видимость для пользователя
+    editable = Column(Boolean, default=True)  # Редактируемость пользователем
     required_type = Column(Text, default='list')  # Тип данных для типа "Formula"
     table_name = Column(String(255))  #s Имя таблицы для типа "Table"
     field_of_view = Column(JSON, default=dict)  # Хранение JSON: {"admin": true, "user": false}
+    # Конфигурация расчёта параметра (новая система формул):
+    # {"func": "<имя функции из formulas/algorithms.py>",
+    #  "validate": "<имя функции из formulas/validators.py>",
+    #  "type": "formula"}
+    formula_config = Column(JSON, nullable=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)  # Связь через внешний ключ
     product_table_id = Column( Integer, ForeignKey("product_tables.id", ondelete="CASCADE"), nullable=True, index=True)
+    # Блок параметров (например «Конструкция», «Контактные данные»). NULL — параметр без блока.
+    block_id = Column(Integer, ForeignKey("parameter_blocks.id", ondelete="SET NULL"), nullable=True, index=True)
     sort = Column(Float, nullable=True)
 
     # ORM-связь

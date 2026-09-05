@@ -8,7 +8,7 @@
             <div class="text-md text-gray-700">
                 Для изменения логики подбора по табличным параметрам необходимо
                 отредактировать исходный
-                excell
+                excel
                 файл, сперва скачав его, отредактировав и затем загрузив по кнопкам в блоке Excell, добавить или
                 отредактировать формульные параметры можно по нажатию на блок или кнопку "+"
             </div>
@@ -32,6 +32,21 @@
                             @fileUpload="(file) => handleExcellUpload(file)" />
             </div>
         </div>
+        <div class="flex justify-start gap-2">
+            <div class="flex flex-row flex-wrap md:flex-nowrap gap-2 items-center border border-indigo-300 bg-indigo-100 rounded-md p-4">
+                <div class="text-lg w-full">Перенос конфигурации</div>
+                <BaseButton :buttonSettings="{ class: 'button-primary', disabled: exporting }"
+                            @clicked="exportProduct">
+                    <Loader v-if="exporting" />
+                    <span v-else>Экспорт</span>
+                </BaseButton>
+                <VInputFile :buttonClass="'button-primary'"
+                            :needFileNameInTitle="false"
+                            :fileName="'Импорт'"
+                            :isLoading="importing"
+                            @fileUpload="handleImportFile" />
+            </div>
+        </div>
         <div class="w-fit m-auto">
             <Transition name="fade-btn">
                 <BaseButton v-if="sortChanged"
@@ -51,9 +66,48 @@
                 {{ item.title }}
             </BaseButton>
         </div>
+        <div class="mt-[20px] max-w-[250px] w-[250px]">
+            <BaseButton :buttonSettings="{ class: 'button-primary' }"
+                        @clicked="createParamModalVisible = true">
+                Создать параметр
+            </BaseButton>
+        </div>
+    </div>
+
+    <!-- Статистика подборов по продукту -->
+    <div class="mt-[20px] border border-gray-200 p-[20px] rounded-xl">
+        <h3 class="text-lg font-medium mb-2">Статистика подборов по продукту</h3>
+        <p v-if="!productStatistics.length"
+           class="text-sm text-gray-500">
+            Пока нет данных о подборах.
+        </p>
+        <ul v-else
+            class="flex flex-col gap-2 max-h-[220px] overflow-auto">
+            <li v-for="(s, i) in productStatistics"
+                :key="i"
+                class="text-sm flex flex-row justify-between gap-4 border-b border-gray-100 pb-1">
+                <span>Документ №{{ s.document_number ?? '-' }}</span>
+                <span>{{ s.date_search ?? '' }} — {{ s.status ?? '' }}</span>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Блоки параметров -->
+    <div class="mt-[20px]">
+        <BlocksManager v-if="safeProductId"
+                       :productId="safeProductId"
+                       @changed="getParams" />
     </div>
 
     <div class="flex flex-col gap-[20px]">
+        <div v-if="!productTableType.length"
+             class="mt-4 border border-dashed border-gray-300 p-[24px] rounded-xl text-center text-gray-500">
+            <p class="text-[16px] font-medium mb-1">Параметры продукта ещё не заданы</p>
+            <p class="text-sm">
+                Загрузите Excel‑таблицу в блоке «Excell» (кнопка загрузки) — будут созданы
+                таблица и её параметры, либо создайте параметр вручную кнопкой «Создать параметр».
+            </p>
+        </div>
         <div class="flex flex-col gap-2 mt-4 border border-gray-200 p-[20px] rounded-xl"
              v-if="productTableType.length">
             <div class="flex flex-row justify-left gap-[40px] flex-wrap">
@@ -87,6 +141,11 @@
                             <div class="text-xs text-gray-500  wrap-break-word">
                                 Из таблицы: {{ parameter.table_name }}
                             </div>
+                            <div class="w-[24px] h-[24px] p-[5px] rounded-lg bg-mist-100 absolute top-[15px] right-[40px] cursor-pointer hover:bg-mist-300 text-[var(--icon-color-secondary)] hover:text-[var(--icon-color-primary)]"
+                                 title="Удалить параметр"
+                                 @click.stop.prevent="deleteParam(parameter.id)">
+                                <CloseIcon class="text-red-500" />
+                            </div>
                             <div class="w-[24px] h-[24px] p-[5px] rounded-lg bg-mist-100 absolute top-[15px] right-[15px] cursor-pointer hover:bg-mist-300 text-[var(--icon-color-secondary)] hover:text-[var(--icon-color-primary)]"
                                  @click.stop.prevent="changeSettings(parameter.id)">
                                 <SettingsIcon />
@@ -116,6 +175,12 @@
                        :tables="Array.from(productTablesList)"
                        @closeModal="tablesModalIsOpen = false"
                        @deleteTable="deleteTableFromProduct" />
+
+    <CreateParameterModal :showModal="createParamModalVisible"
+                          :productId="safeProductId ?? ''"
+                          :tables="productTablesList"
+                          @closeModal="createParamModalVisible = false"
+                          @created="getParams" />
 </div>
 </template>
 <script lang='ts'>
@@ -139,6 +204,8 @@ import { toast } from 'vue3-toastify';
 import Loader from '@/components/layout/Loader.vue';
 import VInputFile from '@/components/layout/VInputFile.vue';
 import TablesManageModal from './TablesManageModal.vue';
+import CreateParameterModal from './CreateParameterModal.vue';
+import BlocksManager from './BlocksManager.vue';
 
 export default defineComponent({
     components: {
@@ -153,7 +220,9 @@ export default defineComponent({
         UploadedOl,
         Loader,
         VInputFile,
-        TablesManageModal
+        TablesManageModal,
+        CreateParameterModal,
+        BlocksManager
     },
     props: {
         id: {
@@ -176,8 +245,12 @@ export default defineComponent({
         const olIsLoading = ref(false);
         const excellDownloading = ref(false);
         const excellUploading = ref(false);
+        const exporting = ref(false);
+        const importing = ref(false);
         const tablesModalIsOpen = ref(false);
         const productTablesList = ref<string[]>([]);
+        const createParamModalVisible = ref(false);
+        const productStatistics = ref<Record<string, any>[]>([]);
 
         const downloadExcell = async () => {
             try {
@@ -207,6 +280,38 @@ export default defineComponent({
             }
         }
 
+        const exportProduct = async () => {
+            exporting.value = true;
+            try {
+                const blob = await Api.get(`products/${props.id}/export`, { responseType: 'blob' });
+                const filename = `product_${props.id}.zip`;
+                download(blob, filename);
+            }
+            catch (error) { console.error('exportProduct', error) }
+            finally { exporting.value = false }
+        }
+
+        const handleImportFile = async (file: File) => {
+            if (!file) return;
+            const fd = new FormData();
+            fd.append('archive', file);
+            importing.value = true;
+            try {
+                const data = await Api.post('products/import', fd);
+                if (data && data.id) {
+                    toast.success(`Продукт импортирован (id=${data.id})`);
+                    window.location.href = `/admin/product/${data.id}`;
+                }
+            }
+            catch (error) {
+                console.error('importProduct', error);
+                toast.error('Ошибка импорта');
+            }
+            finally {
+                importing.value = false;
+            }
+        }
+
         const getParams = async () => {
             try {
                 const products: IParameter[] = await Api.get(`parameters/by_product/${props.id}`)
@@ -221,9 +326,27 @@ export default defineComponent({
             }
         }
 
+        const loadProductStatistics = async () => {
+            if (!props.id || props.id === 'null') {
+                productStatistics.value = []
+                return
+            }
+            try {
+                productStatistics.value = await Api.get(`selection_statistic/selection?product_id=${props.id}`) || []
+            } catch {
+                productStatistics.value = []
+            }
+        }
+
+        const safeProductId = computed(() => {
+            const id = Number(props.id)
+            return Number.isFinite(id) ? id : null
+        })
+
         onMounted(async () => {
             getParams();
             getOlList();
+            loadProductStatistics();
         })
 
         const getOlList = async () => {
@@ -231,8 +354,14 @@ export default defineComponent({
                 olList.value = await getTkpVariants(props.id) || []
         }
 
-        const deleteParam = () => {
-            console.log('del')
+        const deleteParam = async (id: number) => {
+            if (!window.confirm('Удалить параметр? Это действие нельзя отменить.')) return
+            try {
+                await Api.delete(`parameters/${id}`)
+                await getParams()
+            } catch (error) {
+                console.error('deleteParam', error)
+            }
         }
 
         const onStart = () => {
@@ -243,6 +372,9 @@ export default defineComponent({
         const onEnd = () => {
             nextTick(() => {
                 drag.value = false
+                // Сохраняем новый порядок параметров сразу после перетаскивания,
+                // чтобы он влиял на порядок в подборе.
+                sendNewSort()
             })
         }
 
@@ -260,7 +392,7 @@ export default defineComponent({
             idInSettings.value = id;
         }
 
-        const updateParameter = async (id: number, parameter: { name: string, description: string }) => {
+        const updateParameter = async (id: number, parameter: Record<string, unknown>) => {
             parameterUpdating.value = true;
             try {
                 await Api.put(`parameters/${id}`, parameter)
@@ -308,6 +440,10 @@ export default defineComponent({
         return {
             url,
             productTableType,
+            createParamModalVisible,
+            productStatistics,
+            loadProductStatistics,
+            safeProductId,
             excellFileNode,
             product,
             sortChanged,
@@ -321,12 +457,16 @@ export default defineComponent({
             excellUploading,
             tablesModalIsOpen,
             excellDownloading,
+            exporting,
+            importing,
+            handleImportFile,
             productTablesList,
             actionButtons: [{ name: 'tkp', title: 'Загруженные ТКП' }, { name: 'tables', title: 'Загруженные таблицы' }],
             removeOl,
             downloadExcell,
             sendNewSort,
             handleExcellUpload,
+            exportProduct,
             deleteParam,
             startDrag,
             onOver,

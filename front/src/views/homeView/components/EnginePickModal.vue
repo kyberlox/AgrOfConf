@@ -16,7 +16,7 @@
                             class="w-[200px] h-[274] p-[17px] cursor-pointer flex flex-col gap-[10px] border border-[#EAECEF] rounded-[8px] hover:border-orange-500 duration-300 transition-all"
                             @click="$emit('selectEngine', item.id)">
                     <div class=" w-full h-[170px] bg-contain bg-no-repeat bg-center"
-                         :style="{ 'background-image': `url(http://agrofconf.emk.org.ru${item.image_url})` }">
+                         :style="{ 'background-image': item.image_url ? `url(${item.image_url})` : 'none' }">
                     </div>
                     <div class="text-[14px] text-(--text-primary)">
                         {{ item.name }}

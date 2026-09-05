@@ -11,8 +11,8 @@
     </div>
     <div class="border-t border-[#EAECEF] w-full max-w-full mb-[20px]"></div>
     <!-- Группы параметров  -->
-    <MasonryWall v-if="paramsGroups && Object.keys(paramsGroups).length"
-                 :items="Object.keys(paramsGroups)"
+    <MasonryWall v-if="paramsGroups && paramsGroups.length"
+                 :items="paramsGroups"
                  :columnWidth="400"
                  :gap="12">
         <template #default="{ item, index }">
@@ -21,11 +21,10 @@
                 <!-- Заголовок группы -->
                 <div class="text-[13px] px-[8px] py-[8px] rounded-[10px_10px_0_0] font-[600] h-full bg-cover bg-blend-multiply bg-right bg-(--color-information-gray-200) text-black uppercase tracking-[0.03em] mb-[2px] border-b border-[#EAECEF] bg-image bg-right"
                      :style="{ backgroundImage: `url(${backImage})`, backgroundPositionY: `${(index + 2) * 25}px` }">
-                    {{ item }}
+                    {{ item.name }}
                 </div>
                 <!-- Параметры группы -->
-                <EngineParamsGroup :items="getParamsGroup(paramsGroups[item as keyof typeof paramsGroups])
-                    .filter(paramsFilter)"
+                <EngineParamsGroup :items="getGroupedParams(item)"
                                    :gridCols="gridCols"
                                    :type="type"
                                    :userParams="userParams"
@@ -61,6 +60,12 @@ import EngineParamsNoGroup from './EngineParamsNoGroup.vue';
 import { MasonryWall } from '@yeger/vue-masonry-wall';
 import backImage from '@/assets/img/test.jpg';
 
+interface IParamBlock {
+    name: string;
+    display: string;
+    params: Array<string>;
+}
+
 export default defineComponent({
     components: {
         BaseSelect,
@@ -86,8 +91,8 @@ export default defineComponent({
             defaul: false
         },
         paramsGroups: {
-            type: Object as PropType<Record<string, Array<string>>>,
-            default: {}
+            type: Array as PropType<IParamBlock[]>,
+            default: () => []
         },
         userParams: {
             type: Object as PropType<Record<string, string>>
@@ -111,13 +116,33 @@ export default defineComponent({
             return newGroup;
         }
 
+        // Применяем фильтр видимости/доступности и режим отображения блока.
+        const paramsFilter = (e: IFormattedData) => e.visibility && e.required_type !== 'raschet' && (e.required_type == 'select-input' ? e.all_values : true)
+
+        // Для режима «sequential» показываем параметры друг за другом:
+        // только отвеченные плюс первый неотвеченный. Для «group» — все сразу.
+        const getGroupedParams = (block: IParamBlock): IFormattedData[] => {
+            const all = getParamsGroup(block.params).filter(paramsFilter);
+            if (block.display === 'sequential') {
+                const result: IFormattedData[] = [];
+                for (const p of all) {
+                    result.push(p);
+                    const answered = !!(p.response_value || (props.userParams && props.userParams[p.name]));
+                    if (!answered) break;
+                }
+                return result;
+            }
+            return all;
+        }
+
         return {
             gridCols,
             screenMixins,
             backImage,
             getParamsGroup,
+            getGroupedParams,
             createLabelIconsComponent,
-            paramsFilter: (e: IFormattedData) => e.visibility && e.required_type !== 'raschet' && (e.required_type == 'select-input' ? e.all_values : true)
+            paramsFilter
         }
     }
 });

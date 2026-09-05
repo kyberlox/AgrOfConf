@@ -6,6 +6,7 @@
             Добавить
         </BaseButton>
     </div>
+
     <div class="flex flex-row gap-[16px] mt-[10px]">
         <div class="cursor-pointer bg-white relative "
              v-for="product in products"
@@ -13,7 +14,7 @@
             <RouterLink class="w-[200px] h-[274] p-[17px] cursor-pointer flex flex-col gap-[10px] border border-[#EAECEF] rounded-[8px] h-full hover:border-orange-500 duration-300 transition-all"
                         :to="{ name: 'productEdit', params: { id: product.id } }">
                 <div class="bg-contain bg-no-repeat bg-center w-full h-[170px]"
-                     :style="{ 'background-image': `url(http://agrofconf.emk.org.ru${product.image_url})` }">
+                     :style="{ 'background-image': `url(${product.image_url})` }">
                 </div>
                 <div class="text-[14px] text-(--text-primary)">
                     {{ product.name }}
@@ -29,28 +30,31 @@
                         <MoreIcon />
                         <MoreOptions class="hidden group-hover:block!"
                                      :list="['Изменить', 'Удалить']"
-                                     @valueClicked="handleValueClick" />
+                                     @valueClicked="(value: string) => handleValueClick(value, product)" />
                     </div>
                 </div>
             </RouterLink>
-
-            <!-- Модалка удаления параметров-->
-            <ProductDeleteModal :showDeleteModal="showDeleteModal"
-                                :product="product"
-                                :isLoading="isLoading"
-                                @closeAllModals="closeAllModals"
-                                @deleteProduct="deleteProduct" />
-
-            <!-- Модалка редактирования параметров -->
-            <ProductParamsModal :showModal="showEditModal"
-                                :product="product"
-                                :type="'edit'"
-                                :isLoading="isLoading"
-                                @closeModal="closeAllModals"
-                                @changeProduct="changeProduct" />
         </div>
     </div>
-    <!-- Модалка добавления продукта -->
+
+    <!-- Модалка удаления -->
+    <ProductDeleteModal v-if="selectedProduct"
+                        :showDeleteModal="showDeleteModal"
+                        :product="selectedProduct"
+                        :isLoading="isLoading"
+                        @closeAllModals="closeAllModals"
+                        @deleteProduct="deleteProduct" />
+
+    <!-- Модалка редактирования -->
+    <ProductParamsModal v-if="selectedProduct"
+                        :showModal="showEditModal"
+                        :product="selectedProduct"
+                        :type="'edit'"
+                        :isLoading="isLoading"
+                        @closeModal="closeAllModals"
+                        @changeProduct="changeProduct" />
+
+    <!-- Модалка добавления -->
     <ProductParamsModal :showModal="showAddModal"
                         :type="'add'"
                         :isLoading="isLoading"
@@ -62,7 +66,6 @@
 import Api from '@/utils/Api';
 import { defineComponent, onMounted, ref } from 'vue';
 import MoreIcon from '@/assets/icons/MoreIcon.svg?component';
-import SettingIcon from '@/assets/icons/Settings.svg?component';
 import MoreOptions from '@/components/layout/MoreOptions.vue';
 import SlotModal from '@/components/layout/SlotModal.vue';
 import { type IProduct } from '@/assets/interfaces/IProduct';
@@ -70,10 +73,16 @@ import ProductDeleteModal from './ProductDeleteModal.vue';
 import ProductParamsModal from './ProductParamsModal.vue';
 import { BaseButton } from 'beans-ui-kit';
 
+interface IProductForm {
+    name: string,
+    manufacturer: string,
+    description: string,
+    image?: string
+}
+
 export default defineComponent({
     components: {
         MoreIcon,
-        SettingIcon,
         MoreOptions,
         SlotModal,
         ProductDeleteModal,
@@ -83,8 +92,7 @@ export default defineComponent({
     props: {},
     setup() {
         const products = ref<IProduct[]>([]);
-        const url = import.meta.env.VITE_API_URL;
-        const showOptions = ref(false);
+        const selectedProduct = ref<IProduct | null>(null);
         const showEditModal = ref(false);
         const showDeleteModal = ref(false);
         const showAddModal = ref(false);
@@ -103,16 +111,15 @@ export default defineComponent({
             catch (error) { console.error(error) }
         }
 
-        const handleValueClick = (value: string) => {
+        const handleValueClick = (value: string, product: IProduct) => {
+            selectedProduct.value = product;
             switch (value) {
                 case 'Изменить':
                     showEditModal.value = true;
                     break;
-
                 case 'Удалить':
                     showDeleteModal.value = true;
                     break;
-
                 default:
                     break;
             }
@@ -124,7 +131,7 @@ export default defineComponent({
             showAddModal.value = false;
         }
 
-        const changeProduct = (type: string, id: number, userInputs: IProduct) => {
+        const changeProduct = (type: string, id: number | null, userInputs: IProductForm) => {
             switch (type) {
                 case 'add':
                     addProduct(userInputs);
@@ -133,36 +140,42 @@ export default defineComponent({
                     if (!id) return
                     editProduct(id, userInputs)
                     break
-                case 'delete':
-                    if (!id) return
-                    deleteProduct(id)
                 default:
                     break;
             }
         }
 
-        const addProduct = async (userInputs: IProduct) => {
+        const addProduct = async (userInputs: IProductForm) => {
             isLoading.value = true;
             const formInput = new FormData();
-            Object.keys(userInputs).forEach(key => formInput.append(key, (userInputs[key as keyof typeof userInputs] as string)))
+            formInput.append('name', userInputs.name);
+            formInput.append('description', userInputs.description || '');
+            formInput.append('manufacturer', userInputs.manufacturer || '');
+            if (userInputs.image) {
+                formInput.append('image', userInputs.image);
+            }
             try {
                 await Api.post('products/', formInput)
-            }
-            finally {
+            } catch (error) {
+                console.error(error)
+            } finally {
                 closeAllModals()
                 initProducts();
                 isLoading.value = false
             }
         }
 
-        const editProduct = async (id: number, userInputs: IProduct) => {
+        const editProduct = async (id: number, userInputs: IProductForm) => {
             isLoading.value = true;
             const formInput = new FormData();
-            Object.keys(userInputs).filter(e => e !== 'image' && e !== 'image_url').forEach(key => formInput.append(key, (userInputs[key as keyof typeof userInputs] as string)))
+            formInput.append('name', userInputs.name);
+            formInput.append('description', userInputs.description || '');
+            formInput.append('manufacturer', userInputs.manufacturer || '');
             try {
                 await Api.put(`products/${id}`, formInput)
-            }
-            finally {
+            } catch (error) {
+                console.error(error)
+            } finally {
                 closeAllModals();
                 initProducts();
                 isLoading.value = false;
@@ -185,18 +198,17 @@ export default defineComponent({
         }
 
         return {
-            url,
             products,
-            showOptions,
+            selectedProduct,
             showEditModal,
             showDeleteModal,
             showAddModal,
             isLoading,
-            editProduct,
             handleValueClick,
             closeAllModals,
             deleteProduct,
             addProduct,
+            editProduct,
             changeProduct
         }
     }

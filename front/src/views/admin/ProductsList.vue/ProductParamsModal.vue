@@ -1,60 +1,76 @@
 <template>
-<SlotModal v-if="showModal">
-    <div class="flex flex-col gap-2 p-4 min-w-full cursor-default">
-        <div class="flex flex-col"
-             v-for="(param, index) in params.filter(e => e !== 'id')"
-             :key="index + 'input'">
-            <VInputFile v-if="param == 'image'"
-                        :button-class="'button-primary'"
-                        @fileUpload="(image: string) => updateUserInputs('image', image)" />
+<div v-if="showModal"
+     class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+        <h1 class="text-lg font-medium mb-4">
+            {{ type == 'edit' ? 'Редактирование продукта' : 'Добавление продукта' }}
+        </h1>
 
-            <BaseInput v-else
-                       :inputSettings="initInputProps(param as keyof IProduct)"
-                       @valueChanged="(val: string) => updateUserInputs(param as keyof IProduct, val)" />
+        <div class="flex flex-col gap-3">
+            <label class="flex flex-col gap-1 text-sm">
+                <span class="text-gray-700">Название</span>
+                <input class="input-product-edit w-full"
+                       v-model="userInputs.name"
+                       placeholder="Название" />
+            </label>
+
+            <label class="flex flex-col gap-1 text-sm">
+                <span class="text-gray-700">Производитель</span>
+                <input class="input-product-edit w-full"
+                       v-model="userInputs.manufacturer"
+                       placeholder="Производитель" />
+            </label>
+
+            <label class="flex flex-col gap-1 text-sm">
+                <span class="text-gray-700">Описание</span>
+                <input class="input-product-edit w-full"
+                       v-model="userInputs.description"
+                       placeholder="Описание" />
+            </label>
+
+            <label class="flex flex-col gap-1 text-sm">
+                <span class="text-gray-700">Изображение</span>
+                <input type="file"
+                       accept="image/*"
+                       @change="onFileChange" />
+            </label>
         </div>
-        <div class="flex justify-start">
-            <BaseButton :button-settings="{ class: 'button-primary' }"
-                        @click="$emit('changeProduct', type, product.id ?? null, userInputs)">
-                <div class="w-[20px] h-[20px]"
-                     v-if="isLoading">
-                    <Loader />
-                </div>
-                <span v-else>{{ type == 'edit' ? 'Изменить' : 'Добавить' }}</span>
-            </BaseButton>
+
+        <div class="flex justify-end gap-3 mt-5">
+            <button class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+                    @click="$emit('closeModal')">
+                Назад
+            </button>
+            <button class="px-4 py-2 rounded text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-50"
+                    :disabled="!userInputs.name || isLoading"
+                    @click="$emit('changeProduct', type, product?.id ?? null, userInputs)">
+                {{ type == 'edit' ? 'Изменить' : 'Добавить' }}
+            </button>
         </div>
     </div>
-</SlotModal>
+</div>
 </template>
 <script lang='ts'>
-import { defineComponent, watch, type PropType } from 'vue';
+import { defineComponent, reactive, watch, type PropType } from 'vue';
 import { type IProduct } from '@/assets/interfaces/IProduct';
-import { ref } from 'vue';
-import VInputFile from '@/components/layout/VInputFile.vue';
-import Loader from '@/components/layout/Loader.vue';
-import { BaseButton, BaseInput } from 'beans-ui-kit';
-import SlotModal from '@/components/layout/SlotModal.vue';
+
+interface IProductForm {
+    name: string,
+    manufacturer: string,
+    description: string,
+    image?: string
+}
+
+const emptyForm = (): IProductForm => ({ name: '', manufacturer: '', description: '' });
 
 export default defineComponent({
-    components: {
-        BaseButton,
-        VInputFile,
-        Loader,
-        BaseInput,
-        SlotModal
-    },
     props: {
         type: {
-            type: String
+            type: String as PropType<'add' | 'edit'>
         },
         product: {
             type: Object as PropType<IProduct>,
-            default: {
-                created_at: '',
-                description: '',
-                image: '',
-                manufacturer: '',
-                name: ''
-            }
+            default: null
         },
         isLoading: {
             type: Boolean
@@ -64,37 +80,36 @@ export default defineComponent({
             default: false
         }
     },
-    emits: ['closeAllModals', 'deleteProduct', 'changeProduct'],
+    emits: ['closeModal', 'changeProduct'],
     setup(props) {
-        const userInputs = ref<IProduct>({} as IProduct);
+        const userInputs = reactive<IProductForm>(emptyForm());
 
-        watch(() => props.product, () => {
-            if (props.type == 'add') return
-            userInputs.value = { ...props.product };
+        watch(() => props.showModal, () => {
+            if (!props.showModal) return
+            if (props.type == 'edit' && props.product) {
+                userInputs.name = props.product.name ?? ''
+                userInputs.manufacturer = props.product.manufacturer ?? ''
+                userInputs.description = props.product.description ?? ''
+                userInputs.image = undefined
+            } else {
+                Object.assign(userInputs, emptyForm())
+            }
         }, { immediate: true })
 
-        type ProductKey = keyof IProduct;
-        const updateUserInputs = <K extends ProductKey>(key: K, value: IProduct[K]) => {
-            if ((typeof value == 'string' && value && value !== 'null') || value === '') {
-                userInputs.value[key] = value;
+        const onFileChange = (event: Event) => {
+            const input = event.target as HTMLInputElement
+            const file = input.files?.[0]
+            if (!file) return
+            const reader = new FileReader()
+            reader.onload = () => {
+                userInputs.image = String(reader.result ?? '')
             }
-        }
-        const params = ref(Object.keys(userInputs.value));
-
-        const initInputProps = (param: keyof IProduct) => {
-            return {
-                class: 'input-product-edit',
-                placeholder: param,
-                label: param,
-                value: userInputs.value[param]
-            }
+            reader.readAsDataURL(file)
         }
 
         return {
-            params,
             userInputs,
-            updateUserInputs,
-            initInputProps
+            onFileChange
         }
     }
 });

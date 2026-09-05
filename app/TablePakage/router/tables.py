@@ -490,6 +490,51 @@ async def upload_product_table_version(
     return version
 
 
+@router.post(
+    "/upload_xlsx",
+    status_code=201,
+    description=(
+        "Загрузка Excel с созданием таблицы и параметров продукта. "
+        "Если таблица с таким именем уже существует — перезагружает её версию."
+    ),
+)
+async def upload_xlsx(
+        product_id: int,
+        file: UploadFile = File(...),
+        db: AsyncSession = Depends(get_db),
+):
+    """Создаёт/обновляет таблицу продукта из Excel и соответствующие параметры."""
+    product_result = await db.execute(
+        select(Product).where(Product.id == product_id)
+    )
+    if product_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Продукт не найден")
+
+    base_name = os.path.splitext(file.filename or "table")[0]
+    physical = f"{to_sql_name_lat(base_name)}_p{product_id}"
+    validate_sql_identifier(physical)
+
+    entity_result = await db.execute(
+        select(ProductTable).where(
+            ProductTable.product_id == product_id,
+            ProductTable.physical_table_name == physical,
+        )
+    )
+    entity = entity_result.scalar_one_or_none()
+
+    if entity is None:
+        entity = ProductTable(
+            name=base_name,
+            product_id=product_id,
+            physical_table_name=physical,
+        )
+        db.add(entity)
+        await db.flush()
+
+    # Переиспользуем общую логику загрузки версии (создание таблицы + параметров).
+    return await upload_product_table_version(entity.id, file, db)
+
+
 @router.get(
     "/{product_table_id}/versions",
     response_model=list[ProductTableVersionResponse],

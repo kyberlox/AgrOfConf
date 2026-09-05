@@ -175,6 +175,12 @@ async def search_formula(db, params, table_name_params, select_formula_params=[]
     # Отфильтровываем constants, т.к. они не вычисляются, а просто возвращают константу
     formula_params = []
     for param in all_formula_params:
+        # Параметры новой системы формул считает отдельный движок (app/formulas),
+        # поэтому пропускаем их здесь, чтобы не вызывать CodeParametr.
+        formula_cfg = getattr(param, "formula_config", None)
+        if isinstance(formula_cfg, dict) and formula_cfg.get("func"):
+            continue
+
         # async def code_params(db, func_name, param_info, user_params, select_formula_params):
         func_name = param.field_of_view
         # print(func_name, 'какой порядок')

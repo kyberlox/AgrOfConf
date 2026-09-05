@@ -48,7 +48,7 @@ export default class Api {
         }
     }
 
-    static async put(url: string, data?: IProduct | IParameter[] | FormData | { name?: string, description?: string }) {
+    static async put(url: string, data?: IProduct | IParameter[] | FormData | Record<string, unknown>) {
         return await api.put(url, data)
             .catch(e => handleApiErrors(e))
     }

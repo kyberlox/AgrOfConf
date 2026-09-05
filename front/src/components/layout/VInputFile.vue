@@ -1,9 +1,8 @@
 <template>
 <div class="rounded-[8px] relative flex flex-col-reverse gap-[4px] w-fit">
     <input class="hidden"
-           ref=fileInput
+           ref="fileInput"
            type="file"
-           :value="newFileName"
            @change="handleFileUpload" />
 
     <BaseButton :buttonSettings="{ class: buttonClass, disabled: isLoading }"
@@ -57,12 +56,6 @@ export default defineComponent({
             newFileName.value = fileInput.value.files[0].name;
             emit('fileUpload', fileInput.value.files[0])
         }
-
-        watch(() => props.fileValue, () => {
-            if (props.fileValue) {
-                fileInput.value = props.fileValue
-            }
-        }, { immediate: true })
 
         watch(() => props.fileName, () => {
             if (props.fileName) {

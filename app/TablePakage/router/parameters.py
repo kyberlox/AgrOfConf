@@ -1,6 +1,9 @@
 # app/products/router/parameters.py
 
-from fastapi import APIRouter, Depends, HTTPException, Body
+import os
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException, Body, File, UploadFile
 from sqlalchemy import text
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,11 +12,15 @@ from sqlalchemy.future import select
 from ..model.database import get_db
 from ..model.product import Product
 from ..model.parameter_schema import ParameterSchema
+from ..model.parameter_file import ParameterFile
 from ..schema.parameter_schema import ParameterSchemaCreate, ParameterSchemaResponse, ParameterSchemaUpdate
 from ..utils.db_utils import create_or_alter_table
 from ..utils.router_utils import to_sql_name_lat
 
 router = APIRouter(prefix="/parameters", tags=["Parameters"])
+
+PARAM_FILES_DIR = "./static/parameter_files"
+os.makedirs(PARAM_FILES_DIR, exist_ok=True)
 
 
 # === Parameter Schema Endpoints ===
@@ -24,8 +31,8 @@ async def create_parameter_schema(
         db: AsyncSession = Depends(get_db)
 ):
     # Проверка типа
-    if schema.type not in ["Table", "Formula"]:
-        raise HTTPException(status_code=400, detail="Type must be 'Table' or 'Formula'")
+    if schema.type not in ["Table", "Formula", "Drawing"]:
+        raise HTTPException(status_code=400, detail="Type must be 'Table', 'Formula' or 'Drawing'")
 
     # Проверка связи с продуктом
     product_result = await db.execute(
@@ -74,9 +81,9 @@ async def get_parameters(product_id: int, db: AsyncSession = Depends(get_db)):
         .order_by(ParameterSchema.sort)
     )
     params = result.scalars().all()
-    if not params:
-        raise HTTPException(status_code=404, detail="Parameters not found")
-    return params
+    # Для продукта без параметров возвращаем пустой список, а не 404,
+    # чтобы фронтенд корректно показывал плашку «Параметры ещё не заданы».
+    return list(params)
 
 
 @router.get("/{param_id}", response_model=ParameterSchemaResponse,
@@ -168,7 +175,98 @@ async def delete_parameter(
     if not param:
         raise HTTPException(status_code=404, detail="Parameter not found")
 
+    # Если это параметр типа «Файл» — удаляем его файлы (БД и с диска),
+    # иначе внешний ключ не даст удалить сам параметр.
+    files_res = await db.execute(
+        select(ParameterFile).where(ParameterFile.parameter_id == param_id)
+    )
+    for pf in files_res.scalars().all():
+        if pf.file_path and os.path.exists(pf.file_path):
+            os.remove(pf.file_path)
+        await db.delete(pf)
+
     await db.delete(param)
     await db.commit()
 
     return param
+
+
+# === Файлы параметра типа «Файл» (Drawing) ===
+
+@router.post("/{param_id}/files", status_code=201,
+             description="Загрузка файлов в параметр типа «Файл». Файлы — значения этого параметра.")
+async def upload_parameter_files(
+        param_id: int,
+        files: list[UploadFile] = File(...),
+        db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(ParameterSchema).where(ParameterSchema.id == param_id))
+    param = result.scalar_one_or_none()
+    if not param:
+        raise HTTPException(status_code=404, detail="Parameter not found")
+
+    created = []
+    for image in files:
+        original = Path(image.filename or "file").name
+        file_type = Path(original).suffix
+        # Уникализируем имя на диске, но сохраняем оригинальное в БД (для функции).
+        disk_name = f"{param_id}_{original}"
+        file_path = os.path.join(PARAM_FILES_DIR, disk_name)
+        with open(file_path, "wb") as f:
+            f.write(await image.read())
+
+        file_url = f"/api/files/parameter_files/{disk_name}"
+
+        record = ParameterFile(
+            parameter_id=param_id,
+            product_id=param.product_id,
+            name=original,
+            file_path=file_path,
+            file_url=file_url,
+        )
+        db.add(record)
+        created.append({
+            "name": original,
+            "file_path": file_path,
+            "file_url": file_url,
+        })
+
+    await db.commit()
+
+    return created
+
+
+@router.get("/{param_id}/files", description="Список файлов параметра типа «Файл».")
+async def get_parameter_files(param_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(ParameterFile)
+        .where(ParameterFile.parameter_id == param_id)
+        .order_by(ParameterFile.id)
+    )
+    return result.scalars().all()
+
+
+@router.delete("/{param_id}/files/{file_id}", status_code=204,
+               description="Удаление файла параметра.")
+async def delete_parameter_file(
+        param_id: int,
+        file_id: int,
+        db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(ParameterFile).where(
+            ParameterFile.id == file_id,
+            ParameterFile.parameter_id == param_id,
+        )
+    )
+    node = result.scalar_one_or_none()
+    if not node:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    if node.file_path and os.path.exists(node.file_path):
+        os.remove(node.file_path)
+
+    await db.delete(node)
+    await db.commit()
+
+    return None
