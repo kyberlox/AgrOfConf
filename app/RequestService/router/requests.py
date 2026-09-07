@@ -1,17 +1,18 @@
 # app/requests/router/requests.py
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy import select, case, func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..model.contact_person import ContactPerson
 from ..schema.contact_person import ContactResponse
 from ..model.customer import Customer
 from ..model.database import get_db
 from ..model.request import Request
-from ..schema.request import RequestCreate, RequestCreateResponse, RequestResponse, RequestUpdate
-from ..schema.customer import CustomerResponse
+from ..schema.request import RequestCreate, RequestResponse, RequestUpdate, RequestData
+from ..schema.customer import CustomerRequest, CustomerResponse
 from ...UserService.model.Users import Users
 from ...UserService.utils.auth_utils import get_user_id_by_session_id
 
@@ -47,9 +48,119 @@ async def get_active_user_id(
     return user.id
 
 
+async def get_request_with_relations(
+        request_id: int,
+        db: AsyncSession,
+        user_id: int | None = None,
+):
+    statement = (
+        select(Request)
+        .options(
+            selectinload(Request.customer)
+            .selectinload(Customer.contacts),
+
+            selectinload(Request.organization)
+            .selectinload(Customer.contacts),
+
+            selectinload(Request.end_customer)
+            .selectinload(Customer.contacts),
+        )
+        .where(Request.id == request_id)
+    )
+
+    if user_id is not None:
+        statement = statement.where(Request.user_id == user_id)
+
+    result = await db.execute(statement)
+
+    db_request = result.scalar_one_or_none()
+
+    if db_request is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Запрос с id={request_id} не найден",
+        )
+
+    return RequestResponse(
+        id=db_request.id,
+        request_num=db_request.request_num,
+        status=db_request.status,
+
+        request=RequestData(
+            request_purpose=db_request.request_purpose,
+            description=db_request.description,
+            construction_project=db_request.construction_project,
+            tkp_term=db_request.tkp_term,
+            delivery_time=db_request.delivery_time,
+            procedure_type=db_request.procedure_type,
+        ),
+
+        customer=db_request.customer,
+        organization=db_request.organization,
+        end_customer=db_request.end_customer,
+    )
+
+
+async def get_or_create_customer(
+        data: CustomerRequest,
+        role_name: str,
+        db: AsyncSession,
+):
+    # Если передан ID — берём существующего
+    if data.id is not None:
+        result = await db.execute(
+            select(Customer)
+            .where(Customer.id == data.id)
+        )
+
+        customer = result.scalar_one_or_none()
+
+        if customer is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=(
+                    f"{role_name} с id={data.id} не найден"
+                ),
+            )
+
+        return customer
+
+    # Если ID нет — создаём нового
+    if not data.organization:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Для нового объекта '{role_name}' "
+                "необходимо указать organization"
+            ),
+        )
+
+    customer_data = data.model_dump(
+        exclude={"id", "contacts"},
+        exclude_none=True,
+    )
+
+    customer = Customer(**customer_data)
+
+    db.add(customer)
+
+    await db.flush()
+
+    # Создаём контакты этого объекта
+    for contact_data in data.contacts:
+        contact = ContactPerson(
+            **contact_data.model_dump(exclude_none=True),
+            customer_id=customer.id,
+        )
+
+        db.add(contact)
+
+    return customer
+
+
 @router.post(
     "/",
-    response_model=RequestCreateResponse,
+    response_model=RequestResponse,
     status_code=201,
 )
 async def create_request(
@@ -58,128 +169,63 @@ async def create_request(
         db: AsyncSession = Depends(get_db),
 ):
     try:
-        # 1. Получаем существующего либо создаём нового заказчика
-        if payload.customer_id is not None:
-            customer_result = await db.execute(
-                select(Customer).where(
-                    Customer.id == payload.customer_id
-                )
-            )
-            customer = customer_result.scalar_one_or_none()
+        # 1. Клиент / заказчик
+        customer = await get_or_create_customer(
+            data=payload.customer,
+            role_name="Заказчик",
+            db=db,
+        )
 
-            if customer is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=(
-                        f"Заказчик с id={payload.customer_id} не найден"
-                    ),
-                )
-        else:
-            if payload.customer is None:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=(
-                        "Если customer_id не передан, "
-                        "необходимо передать customer"
-                    ),
-                )
+        # 2. Проектная организация
+        organization = await get_or_create_customer(
+            data=payload.organization,
+            role_name="Проектная организация",
+            db=db,
+        )
 
-            customer = Customer(
-                **payload.customer.model_dump(exclude_none=True)
+        # 3. Конечный заказчик
+        end_customer = None
+
+        if payload.end_customer is not None:
+            end_customer = await get_or_create_customer(
+                data=payload.end_customer,
+                role_name="Конечный заказчик",
+                db=db,
             )
 
-            db.add(customer)
-            await db.flush()
-
-        # 2. Получаем существующую либо создаём новую организацию
-        if payload.organization_id is not None:
-            organization_result = await db.execute(
-                select(Customer).where(
-                    Customer.id == payload.organization_id
-                )
-            )
-            organization = organization_result.scalar_one_or_none()
-
-            if organization is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=(
-                        f"Организация с id={payload.organization_id} не найдена"
-                    ),
-                )
-
-        else:
-            if payload.organization is None:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=(
-                        "Если organization_id не передан, "
-                        "необходимо передать organization"
-                    ),
-                )
-
-            organization = Customer(
-                **payload.organization.model_dump(exclude_none=True)
-            )
-
-            db.add(organization)
-            await db.flush()
-
-        # 3. Создаём запрос
+        # 4. Создаём сам запрос
         db_request = Request(
             user_id=user_id,
+
             customer_id=customer.id,
             organization_id=organization.id,
-            request_purpose=payload.request_purpose,
-            description=payload.description,
-            construction_project=payload.construction_project,
-            tkp_term=payload.tkp_term,
-            delivery_time=payload.delivery_time,
-            procedure_type=payload.procedure_type,
+            end_customer_id=(
+                end_customer.id
+                if end_customer is not None
+                else None
+            ),
+
+            request_purpose=payload.request.request_purpose,
+            description=payload.request.description,
+            construction_project=(
+                payload.request.construction_project
+            ),
+            tkp_term=payload.request.tkp_term,
+            delivery_time=payload.request.delivery_time,
+            procedure_type=payload.request.procedure_type,
         )
 
         db.add(db_request)
+
         await db.flush()
-
-        # 4. Создаём контакты заказчика
-        created_contacts: list[ContactPerson] = []
-
-        for contact_data in payload.contacts:
-            contact = ContactPerson(
-                **contact_data.model_dump(exclude_none=True),
-                customer_id=customer.id,
-            )
-
-            db.add(contact)
-            created_contacts.append(contact)
-
-        if created_contacts:
-            await db.flush()
-
-        await db.refresh(customer)
-        await db.refresh(organization)
-        await db.refresh(db_request)
-
-        for contact in created_contacts:
-            await db.refresh(contact)
-
-        response = RequestCreateResponse(
-            id=db_request.id,
-            customer_id=db_request.customer_id,
-            organization_id=db_request.organization_id,
-            request_purpose=db_request.request_purpose,
-            description=db_request.description,
-            construction_project=db_request.construction_project,
-            tkp_term=db_request.tkp_term,
-            delivery_time=db_request.delivery_time,
-            procedure_type=db_request.procedure_type,
-            customer=customer,
-            contacts=created_contacts,
-        )
 
         await db.commit()
 
-        return response
+        return await get_request_with_relations(
+            db_request.id,
+            db,
+            user_id,
+        )
 
     except HTTPException:
         await db.rollback()
@@ -194,7 +240,10 @@ async def create_request(
 
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Не удалось создать запрос из-за конфликта данных",
+            detail=(
+                "Не удалось создать запрос "
+                "из-за конфликта данных"
+            ),
         ) from exc
 
     except Exception as exc:
@@ -251,6 +300,7 @@ async def search_customers(
 
     result = await db.execute(
         select(Customer)
+        .options(selectinload(Customer.contacts))
         .where(
             Customer.organization.is_not(None),
             Customer.organization.ilike(
@@ -360,79 +410,62 @@ async def update_request(
                 Request.user_id == user_id,
             )
         )
+
         db_request = result.scalar_one_or_none()
 
         if db_request is None:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=404,
                 detail=f"Запрос с id={request_id} не найден",
             )
 
-        update_data = payload.model_dump(exclude_unset=True)
+        # -------------------------
+        # 1. Изменение данных request
+        # -------------------------
 
-        if not update_data:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Не передано ни одного поля для изменения",
+        if payload.request is not None:
+            request_data = payload.request.model_dump(
+                exclude_unset=True
             )
 
-        # Если меняется заказчик, проверяем его наличие
-        if "customer_id" in update_data:
-            customer_id = update_data["customer_id"]
-
-            if customer_id is None:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="customer_id не может быть null",
+            for field_name, field_value in request_data.items():
+                setattr(
+                    db_request,
+                    field_name,
+                    field_value
                 )
 
-            customer_result = await db.execute(
-                select(Customer.id).where(
-                    Customer.id == customer_id
-                )
+        if payload.customer is not None:
+            customer = await get_or_create_customer(
+                payload.customer,
+                "Заказчик",
+                db,
             )
-            customer_exists = customer_result.scalar_one_or_none()
+            db_request.customer_id = customer.id
 
-            if customer_exists is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Заказчик с id={customer_id} не найден",
-                )
-
-        # Если меняется организация, проверяем её наличие
-        if (
-                "organization_id" in update_data
-                and update_data["organization_id"] is not None
-        ):
-            organization_id = update_data["organization_id"]
-
-            organization_result = await db.execute(
-                select(Customer.id).where(
-                    Customer.id == organization_id
-                )
+        if payload.organization is not None:
+            organization = await get_or_create_customer(
+                payload.organization,
+                "Проектная организация",
+                db,
             )
-            organization_exists = (
-                organization_result.scalar_one_or_none()
+            db_request.organization_id = organization.id
+
+        if payload.end_customer is not None:
+            end_customer = await get_or_create_customer(
+                payload.end_customer,
+                "Конечный заказчик",
+                db,
             )
+            db_request.end_customer_id = end_customer.id
 
-            if organization_exists is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=(
-                        f"Организация с id={organization_id} "
-                        "не найдена"
-                    ),
-                )
-
-        for field_name, field_value in update_data.items():
-            setattr(db_request, field_name, field_value)
-
-        await db.flush()
-        await db.refresh(db_request)
-
-        response = RequestResponse.model_validate(db_request)
         await db.commit()
-        return response
+
+        return await get_request_with_relations(
+            request_id,
+            db,
+            user_id,
+        )
 
     except HTTPException:
         await db.rollback()
@@ -442,15 +475,20 @@ async def update_request(
         await db.rollback()
 
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Не удалось изменить запрос из-за конфликта данных",
+            status_code=409,
+            detail="Не удалось изменить запрос",
         ) from exc
 
     except Exception as exc:
         await db.rollback()
 
+        logger.exception(
+            "Ошибка изменения запроса: %s",
+            exc
+        )
+
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail="Ошибка при изменении запроса",
         ) from exc
 
@@ -495,23 +533,69 @@ async def delete_request(
 )
 async def get_user_requests(
         user_id: int,
-        current_user_id: int = Depends(get_active_user_id),
         skip: int = Query(default=0, ge=0),
         limit: int = Query(default=100, ge=1, le=500),
         db: AsyncSession = Depends(get_db),
 ):
-    if user_id != current_user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Нет доступа к запросам другого пользователя",
-        )
-
     result = await db.execute(
         select(Request)
-        .where(Request.user_id == user_id)
-        .order_by(Request.id.desc())
+        .options(
+            selectinload(Request.customer)
+            .selectinload(Customer.contacts),
+
+            selectinload(Request.organization)
+            .selectinload(Customer.contacts),
+
+            selectinload(Request.end_customer)
+            .selectinload(Customer.contacts),
+        )
+        .where(
+            Request.user_id == user_id
+        )
+        .order_by(
+            Request.id.desc()
+        )
         .offset(skip)
         .limit(limit)
     )
 
-    return result.scalars().all()
+    requests = result.scalars().all()
+
+    return [
+        RequestResponse(
+            id=request.id,
+            request_num=request.request_num,
+            status=request.status,
+
+            request=RequestData(
+                request_purpose=request.request_purpose,
+                description=request.description,
+                construction_project=request.construction_project,
+                tkp_term=request.tkp_term,
+                delivery_time=request.delivery_time,
+                procedure_type=request.procedure_type,
+            ),
+
+            customer=request.customer,
+            organization=request.organization,
+            end_customer=request.end_customer,
+        )
+        for request in requests
+    ]
+
+
+@router.get(
+    "/{request_id}",
+    response_model=RequestResponse,
+    description="Получение запроса по ID.",
+)
+async def get_request(
+        request_id: int,
+        user_id: int = Depends(get_active_user_id),
+        db: AsyncSession = Depends(get_db),
+):
+    return await get_request_with_relations(
+        request_id,
+        db,
+        user_id,
+    )
