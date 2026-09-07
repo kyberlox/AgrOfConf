@@ -72,6 +72,9 @@
                                 :value="f">{{ f }}</option>
                     </datalist>
                 </label>
+                <ValuesListEditor v-if="['list', 'select-input'].includes(form.required_type)"
+                                  :values="form.values"
+                                  @update:values="(v: string[]) => form.values = v" />
             </template>
 
             <template v-if="form.type == 'Drawing'">
@@ -107,6 +110,7 @@
 <script lang='ts'>
 import { defineComponent, onMounted, reactive, ref, watch } from 'vue';
 import Api from '@/utils/Api';
+import ValuesListEditor from './components/ValuesListEditor.vue';
 
 interface IParamForm {
     name: string,
@@ -115,6 +119,7 @@ interface IParamForm {
     table_name: string,
     func: string,
     validate: string,
+    values: string[],
     drawing_of: string,
     use_first_chars: number
 }
@@ -126,11 +131,15 @@ const emptyForm = (): IParamForm => ({
     table_name: '',
     func: '',
     validate: '',
+    values: [],
     drawing_of: '',
     use_first_chars: 0
 });
 
 export default defineComponent({
+    components: {
+        ValuesListEditor
+    },
     props: {
         showModal: { type: Boolean, default: false },
         productId: { type: [Number, String], required: true },
@@ -174,6 +183,7 @@ export default defineComponent({
                 body.formula_config = {
                     func: form.func,
                     validate: form.validate || undefined,
+                    ...(form.values.length ? { values: form.values.map(v => v.trim()).filter(Boolean) } : {}),
                     type: 'formula'
                 }
             }

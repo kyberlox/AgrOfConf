@@ -62,6 +62,12 @@ async def _apply_new_formulas(
             }
             response_params.append(entry)
 
+        # Статический список значений для «выбора из списка» (formula_config["values"]).
+        cfg = spec.get("formula_config") or {}
+        values = cfg.get("values")
+        if isinstance(values, list):
+            entry["all_values"] = values
+
         if "error" in res:
             entry["error"] = res["error"]
             entry["is_validation"] = res.get("is_validation", False)
@@ -119,12 +125,19 @@ async def _add_input_params(
                 except Exception as e:  # noqa: BLE001
                     error = str(e)
 
+        # Статический список значений для «выбора из списка» (формульный параметр
+        # с required_type=list/select-input): хранится в formula_config["values"]
+        # и выводится фронту как all_values.
+        values = cfg.get("values")
+        if not isinstance(values, list):
+            values = None
+
         entry = {
             "id": param.id,
             "name": param.name,
             "description": param.description,
             "table_name": param.table_name,
-            "all_values": None,
+            "all_values": values,
             "response_value": rv,
             "visibility": param.visibility,
             "editable": param.editable,

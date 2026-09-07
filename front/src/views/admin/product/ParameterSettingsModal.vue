@@ -63,6 +63,9 @@
                             :value="f">{{ f }}</option>
                 </datalist>
             </div>
+            <ValuesListEditor v-if="['list', 'select-input'].includes(newParameter.required_type)"
+                              :values="formulaConfig.values"
+                              @update:values="changeValues" />
         </template>
 
         <!-- Конфигурация параметра-файла -->
@@ -127,12 +130,14 @@ import type { IParameter } from '@/assets/interfaces/IParameter';
 import { BaseButton, BaseInput } from 'beans-ui-kit';
 import Api from '@/utils/Api';
 import { fileUrl } from '@/utils/fileUrl';
+import ValuesListEditor from './components/ValuesListEditor.vue';
 
 export default defineComponent({
     components: {
         SlotModal,
         BaseInput,
-        BaseButton
+        BaseButton,
+        ValuesListEditor
     },
     emits: ['closeModal', 'updateParameter'],
     props: {
@@ -144,15 +149,16 @@ export default defineComponent({
         }
     },
     setup(props, { emit }) {
-        const initialConfig = computed<{ func: string, validate: string }>(() => {
+        const initialConfig = computed<{ func: string, validate: string, values: string[] }>(() => {
             const cfg = props.parameter?.formula_config;
             if (cfg && typeof cfg === 'object') {
                 return {
                     func: String(cfg.func ?? ''),
-                    validate: String(cfg.validate ?? '')
+                    validate: String(cfg.validate ?? ''),
+                    values: Array.isArray(cfg.values) ? cfg.values.map(String) : []
                 }
             }
-            return { func: '', validate: '' }
+            return { func: '', validate: '', values: [] }
         })
 
         const newParameter = ref<{
@@ -229,7 +235,10 @@ export default defineComponent({
 
         const formulaConfig = computed(() => ({
             func: String(newParameter.value.formula_config?.func ?? ''),
-            validate: String(newParameter.value.formula_config?.validate ?? '')
+            validate: String(newParameter.value.formula_config?.validate ?? ''),
+            values: Array.isArray(newParameter.value.formula_config?.values)
+                ? (newParameter.value.formula_config!.values as string[]).map(String)
+                : []
         }))
 
         const drawingConfig = computed(() => ({
@@ -256,6 +265,13 @@ export default defineComponent({
             }
         }
 
+        const changeValues = (values: string[]) => {
+            newParameter.value.formula_config = {
+                ...(newParameter.value.formula_config || {}),
+                values
+            }
+        }
+
         const initInputProps = (item: { title: string, name: string }) => {
             return {
                 class: 'input-param',
@@ -266,8 +282,18 @@ export default defineComponent({
         }
 
         const applyParameter = () => {
-            const fc = newParameter.value.formula_config || {}
-            const hasConfig = !!(fc.func || fc.validate || fc.drawing_of)
+            const fc = { ...(newParameter.value.formula_config || {}) }
+
+            if (Array.isArray(fc.values)) {
+                const cleaned = (fc.values as string[]).map(v => v.trim()).filter(Boolean)
+                if (cleaned.length) {
+                    fc.values = cleaned
+                } else {
+                    delete fc.values
+                }
+            }
+
+            const hasConfig = !!(fc.func || fc.validate || fc.drawing_of || fc.values)
             emit('updateParameter', props.parameter?.id, {
                 name: newParameter.value.name,
                 description: newParameter.value.description,
@@ -291,6 +317,7 @@ export default defineComponent({
             uploadFiles,
             removeFile,
             changeValue,
+            changeValues,
             setDrawingConfig,
             initInputProps,
             applyParameter

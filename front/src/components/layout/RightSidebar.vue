@@ -61,10 +61,10 @@
             </div>
         </div>
         <div class="mt-[15px] text-[13px] flex flex-row justify-between"
-             v-for="(item, index) in formatCalcParams(calcParams)[activeGroupBlock]"
+             v-for="(item, index) in formatCalcParams(calcRows)[activeGroupBlock]"
              :key='index'>
             <div class="text-(--text-secondary) text-left w-[50%]">{{ item.name }}</div>
-            <div class="text-(--text-primary) text-left">{{ item.response_value }}</div>
+            <div class="text-(--text-primary) text-left">{{ item.response_value || '—' }}</div>
         </div>
     </div>
     <!-- Блок подсказки и ошибка -->
@@ -176,6 +176,23 @@ export default defineComponent({
             return formattedParams.concat(formattedParams);
         }
 
+        // Объектное значение (характеристики смеси) разворачивается в N записей
+        // «ключ — значение», чтобы параметр-«источник» показывал все характеристики.
+        const calcRows = computed<IFormattedData[]>(() => {
+            const rows: IFormattedData[] = []
+            for (const param of calcParams.value) {
+                const value = (param.response_value as unknown)
+                if (value && typeof value === 'object' && !Array.isArray(value)) {
+                    for (const [key, rawValue] of Object.entries(value)) {
+                        rows.push({ ...param, name: `${param.name}: ${key}`, response_value: String(rawValue ?? '—') })
+                    }
+                } else {
+                    rows.push(param)
+                }
+            }
+            return rows
+        })
+
         const downloadZip = async (status: 'outdated' | 'actual') => {
             const zipUrl = await Api.get(`products/get_product_files_zip/${props.id}?load_valid=${status !== 'outdated'}`, { responseType: 'blob' });
             await downloadFile(zipUrl, status == 'outdated' ? 'Истекшие документы.zip' : 'Актуальные документы.zip');
@@ -203,7 +220,8 @@ export default defineComponent({
             handleFileUpload,
             formatCalcParams,
             handleImageClick,
-            downloadZip
+            downloadZip,
+            calcRows
         }
     }
 });

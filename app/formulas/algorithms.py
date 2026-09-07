@@ -418,7 +418,7 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
         result["molekuljarnaja_massa"] = pre_M
 
     else:
-        result["agregatnoe_sostojanie"] = "Неоднородная смесь"
+        result["agregatnoe_sostojanie"] = "Двухфазный поток"
 
         density_ch = 0
         density_zn = 0
@@ -457,7 +457,7 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
 
 
 async def mixture_state(ctx: FormulaContext, config):
-    """Агрегатное состояние смеси: «Газ», «Жидкость» или «Неоднородная смесь»."""
+    """Агрегатное состояние смеси: «Газ», «Жидкость» или «Двухфазный поток»."""
     result = await _mixture_properties(ctx, config)
     return result["agregatnoe_sostojanie"]
 
@@ -508,3 +508,26 @@ async def mixture_material(ctx: FormulaContext, config):
     """Материал, подобранный из компонентов смеси."""
     result = await _mixture_properties(ctx, config)
     return result["material"]
+
+
+async def mixture_characteristics(ctx: FormulaContext, config):
+    """Все характеристики смеси одним объектом (параметр «Смесь»).
+
+    Возвращает dict с полями: агрегатное состояние, состав, молярная масса,
+    плотность, вязкость, показатель адиабаты, теплоёмкости, фактор
+    сжимаемости и материал. Ветка рассчитывается по агрегатному состоянию
+    компонентов: газ / жидкость / двухфазный поток.
+    """
+    result = await _mixture_properties(ctx, config)
+    return {
+        "Агрегатное состояние": result["agregatnoe_sostojanie"],
+        "Состав": result["nazvanie_rabochej_sredy"].strip() or "—",
+        "Молярная масса": result["molekuljarnaja_massa"],
+        "Плотность": result["plotnost_zhidkosti"],
+        "Вязкость": result["vjazkost_pa_s"],
+        "Показатель адиабаты": result["pokazatel_adiabaty"],
+        "Изобарная теплоёмкость": result["isobaric_capacity"],
+        "Изохорная теплоёмкость": result["isochoric_capacity"],
+        "Фактор сжимаемости": result["factor"],
+        "Материал": result["material"],
+    }
