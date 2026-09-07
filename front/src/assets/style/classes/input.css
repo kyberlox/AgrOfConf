@@ -2,6 +2,7 @@
 @import './input/input-product.css';
 @import './input/input-select.css';
 @import './input/input-param.css';
+@import './input/input-search.css';
 
 /* временное решение, удалить!!!!!! */
 .input-param--no-group__wrapper {

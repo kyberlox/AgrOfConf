@@ -29,10 +29,10 @@
 
             <!-- Поиск -->
             <BaseInput v-if="userId"
-                       :propsClass="'searchInput'"
+                       :propsClass="'input-search'"
                        :propsPlaceholder="'Поиск'"
                        :type="'search'"
-                       :inputSettings="{ class: 'searchInput', placeholder: 'Поиск', type: 'search' }"
+                       :inputSettings="{ class: 'input-search', placeholder: 'Поиск', type: 'search' }"
                        @value-changed="search">
                 <template #input-icon>
                     <SearchIcon />
