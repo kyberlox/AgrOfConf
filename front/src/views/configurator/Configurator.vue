@@ -218,9 +218,12 @@ export default defineComponent({
                 // с текущим выбором. Убираем их из списка явных выборов, чтобы их старое
                 // значение не продолжало отправляться и не блокировало подбор — тогда
                 // остальные параметры смогут автоматически «подстроиться» под новый выбор.
+                // Исключение — ошибки валидации (is_validation): это явный ввод пользователя
+                // (например, температура вне диапазона), такие параметры НЕ удаляем и ошибку
+                // показываем в блоке подсказки, чтобы пользователь мог её исправить.
                 let removedError = false;
                 data.parameters.forEach((e: IFormattedData) => {
-                    if ('error' in e && e.error) {
+                    if ('error' in e && e.error && !e.is_validation) {
                         if (e.name in userInputs.value) {
                             delete userInputs.value[e.name]
                             removedError = true

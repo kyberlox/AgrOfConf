@@ -47,3 +47,21 @@ def validate_max_below_param(ctx: FormulaContext, value):
     except (TypeError, ValueError):
         return None
     return None
+
+def validate_T_PK(ctx: FormulaContext, value):
+    """
+    Температура должна быть в диапазоне от -60°С до 600°С для пружинных и от -60°С до 250°С для пилотных
+    """
+    valve_type = ctx.get_opt("Тип клапана")
+    if valve_type is None:
+        return None
+    try:
+        if valve_type == "Пружинный (В)" and (float(value) > 600 or float(value) < -60):
+            return "Температура должна быть в диапазоне от -60°С до 600°С для пружинных клапанов"
+        if valve_type == "Пилотный (П)" and (float(value) > 250 or float(value) < -60):
+            return "Температура должна быть в диапазоне от -60°С до 250°С для пилотных клапанов"
+        # else:
+        #     return value
+    except (TypeError, ValueError):
+        return None
+    return None

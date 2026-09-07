@@ -10,6 +10,7 @@ export interface IFormattedData {
     visibility: boolean
     editable?: boolean
     error?: string
+    is_validation?: boolean
 } 
 
 export interface IForm{

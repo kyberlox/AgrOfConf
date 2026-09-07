@@ -64,6 +64,7 @@ async def _apply_new_formulas(
 
         if "error" in res:
             entry["error"] = res["error"]
+            entry["is_validation"] = res.get("is_validation", False)
         if "response_value" in res:
             entry["response_value"] = res["response_value"]
 
@@ -132,6 +133,7 @@ async def _add_input_params(
         }
         if error:
             entry["error"] = error
+            entry["is_validation"] = True
         response_params.append(entry)
 
     return response_params
@@ -176,8 +178,14 @@ async def apply_new_and_legacy_formulas(
                 "formula_config": param.formula_config,
                 "param": param,
             })
-        elif param.type == "Formula":
-            legacy.append(param)
+            continue
+
+        # Входные формульные параметры (например доли смеси) не имеют функции
+        # и выводятся через _add_input_params — их НЕ трогает legacy-CodeParametr.
+        if param.type == "Formula":
+            fov = param.field_of_view
+            if isinstance(fov, str):
+                legacy.append(param)
 
     # Новые формулы — асинхронный движок.
     if new_specs:
