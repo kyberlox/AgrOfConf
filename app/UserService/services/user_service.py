@@ -2,7 +2,7 @@ from ..repo.user_repo import UserRepo
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..model.Users import Users
 from typing import Optional
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
 class UserService:
     def __init__(self, db: AsyncSession):
@@ -21,6 +21,12 @@ class UserService:
         """Удаляет пользователя"""
         user = await self.user_repo.get_by_id(user_id)
         if user:
+            # Явно удаляем записи прав доступа (Roots), иначе ORM попытается
+            # обнулить внешний ключ user_id (NOT NULL) и удаление провалится.
+            from ..model.Roots import Roots
+            await self.user_repo.db.execute(
+                delete(Roots).where(Roots.user_id == user_id)
+            )
             await self.user_repo.delete(user)
             return True
         return False

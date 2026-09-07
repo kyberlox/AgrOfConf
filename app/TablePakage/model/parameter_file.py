@@ -14,8 +14,8 @@ class ParameterFile(Base):
     __tablename__ = "parameter_files"
 
     id = Column(Integer, primary_key=True, index=True)
-    parameter_id = Column(Integer, ForeignKey("parameter_schemas.id"), nullable=False)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    parameter_id = Column(Integer, ForeignKey("parameter_schemas.id", ondelete="CASCADE"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
     # Оригинальное имя файла (например «211.jpg») — по нему функция находит файл.
     name = Column(String(255), nullable=False)
     file_path = Column(Text)

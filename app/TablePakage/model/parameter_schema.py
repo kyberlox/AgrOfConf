@@ -24,7 +24,7 @@ class ParameterSchema(Base):
     #  "validate": "<имя функции из formulas/validators.py>",
     #  "type": "formula"}
     formula_config = Column(JSON, nullable=True)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)  # Связь через внешний ключ
+    product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"), nullable=False)  # Связь через внешний ключ
     product_table_id = Column( Integer, ForeignKey("product_tables.id", ondelete="CASCADE"), nullable=True, index=True)
     # Блок параметров (например «Конструкция», «Контактные данные»). NULL — параметр без блока.
     block_id = Column(Integer, ForeignKey("parameter_blocks.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -33,6 +33,7 @@ class ParameterSchema(Base):
     # ORM-связь
     product = relationship("Product", back_populates="parameters")
     product_table = relationship("ProductTable")
+    parameter_files = relationship("ParameterFile", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("idx_parameter_product_id", "product_id"),

@@ -18,6 +18,10 @@ class Product(Base):
     # Связь с параметрами
     parameters = relationship("ParameterSchema", back_populates="product", cascade="all, delete-orphan")
 
+    parameter_files = relationship("ParameterFile", cascade="all, delete-orphan")
+
+    blocks = relationship("ParameterBlock", cascade="all, delete-orphan")
+
     datamarts = relationship("DataMartRegistry", back_populates="product", cascade="all, delete-orphan")
 
     roots = relationship("Roots", back_populates="product", cascade="all, delete-orphan")

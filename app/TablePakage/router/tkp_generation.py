@@ -387,7 +387,7 @@ async def delete_tkp_file(
         samples = result.scalars().all()
 
         if not samples:
-            return HTTPException(status_code=404, detail="TKP templates not found")
+            raise HTTPException(status_code=404, detail="TKP templates not found")
 
         for sample in samples:
             if sample.file is not None and sample.file != "" and os.path.exists(sample.file):
@@ -399,6 +399,9 @@ async def delete_tkp_file(
             "detail": "TKP templates deleted successfully",
             "deleted_count": len(samples)
         }
+    except HTTPException:
+        await db.rollback()
+        raise
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Ошибка удаления шаблонов ТКП продукта с id = {product_id}: {str(e)}")
@@ -413,7 +416,7 @@ async def delete_tkp_file(
         sample = result.scalar_one_or_none()
 
         if sample is None:
-            return HTTPException(status_code=404, detail="TKP template not found")
+            raise HTTPException(status_code=404, detail="TKP template not found")
 
         if sample.file is not None and sample.file != "" and os.path.exists(sample.file):
             os.remove(sample.file)
@@ -421,6 +424,9 @@ async def delete_tkp_file(
         await db.delete(sample)
         await db.commit()
         return True
+    except HTTPException:
+        await db.rollback()
+        raise
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Ошибка удаления шаблона ТКП: {str(e)}")

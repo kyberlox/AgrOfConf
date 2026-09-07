@@ -29,7 +29,7 @@ class Request(Base):
     delivery_time = Column(String, nullable=True)
     procedure_type = Column(String, nullable=False)
     selection_ids = Column(JSON, nullable=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="RESTRICT"),
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"),
                      nullable=False)  # Связь через внешний ключ
     visibility = Column(Boolean, default=True)  # Видимость для пользователя
     field_of_view = Column(JSON, default=dict)  # Хранение JSON: {"admin": true, "user": false}

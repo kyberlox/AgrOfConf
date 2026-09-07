@@ -12,7 +12,7 @@ class ParameterBlock(Base):
     __tablename__ = "parameter_blocks"
 
     id = Column(Integer, primary_key=True, index=True)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     description = Column(String(1000), nullable=True)
     sort = Column(Float, nullable=True)

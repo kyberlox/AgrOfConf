@@ -9,7 +9,7 @@ class DataMartRegistry(Base):
 
     product_id = Column(
         Integer,
-        ForeignKey("products.id"),
+        ForeignKey("products.id", ondelete="CASCADE"),
         primary_key=True
     )
 

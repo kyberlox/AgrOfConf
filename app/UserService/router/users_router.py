@@ -6,6 +6,7 @@ from sqlalchemy import select
 from ..model.Users import Users
 from ..services.user_service import UserService
 from ..services.redis_service import RedisStorage
+from ..utils.auth_utils import validate_users_sessions
 from app.TablePakage.model.database import get_db
 
 router = APIRouter(prefix="/users", tags=["Пользователи"])
@@ -128,6 +129,11 @@ async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
     try:
         service = UserService(db)
         success = await service.delete_user(user_id)
+        if success:
+            # Удаляем сессии пользователя из Redis
+            await validate_users_sessions(user_id)
+            session_id = f"user:{user_id}"
+            redis_storage.delete_session(session_id)
         return success
     except Exception as e:
         await db.rollback()

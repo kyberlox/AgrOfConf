@@ -18,6 +18,7 @@ from ..model.product import Product
 from ..model.product_table import ProductTable
 from ..model.product_table_ver import ProductTableVersion
 from ..model.parameter_schema import ParameterSchema
+from ..model.parameter_file import ParameterFile
 from ..schema.product_table import (
     ProductTableCreate,
     ProductTableResponse,
@@ -637,17 +638,41 @@ async def delete_product_table(
     table_name = entity.physical_table_name
     product_id = entity.product_id
 
+    # Физические файлы для удаления с диска после успешного commit
+    files_to_delete: list[str] = []
+
+    # Параметры этой сущности
+    params_result = await db.execute(
+        select(ParameterSchema).where(
+            ParameterSchema.product_table_id == entity.id
+        )
+    )
+    params = list(params_result.scalars().all())
+
+    # Файлы параметров типа «Файл», привязанные к параметрам этой сущности,
+    # удаляем до удаления самих параметров (иначе внешний ключ помешает)
+    if params:
+        param_ids = [p.id for p in params]
+        pf_result = await db.execute(
+            select(ParameterFile).where(
+                ParameterFile.parameter_id.in_(param_ids)
+            )
+        )
+        for pf in pf_result.scalars().all():
+            if pf.file_path and os.path.exists(pf.file_path):
+                files_to_delete.append(pf.file_path)
+            await db.delete(pf)
+
+    # Файлы версий (файлы Excel) — для удаления с диска после commit
     versions_result = await db.execute(
         select(ProductTableVersion.file_path).where(
             ProductTableVersion.product_table_id == entity.id
         )
     )
 
-    files_to_delete = [
-        path
-        for path in versions_result.scalars().all()
-        if path
-    ]
+    for path in versions_result.scalars().all():
+        if path and os.path.exists(path):
+            files_to_delete.append(path)
 
     try:
         if table_name:
@@ -656,6 +681,10 @@ async def delete_product_table(
             await db.execute(
                 text(f'DROP TABLE IF EXISTS "{table_name}" CASCADE')
             )
+
+        # Удаляем параметры сущности явно (вместе с их файлами)
+        for p in params:
+            await db.delete(p)
 
         await db.delete(entity)
 
@@ -684,6 +713,101 @@ async def delete_product_table(
     return {
         "id": product_table_id,
         "name": entity.name,
+        "message": "Табличная сущность удалена",
+    }
+
+
+@router.delete(
+    "/{product_id}/{table_name}",
+    description="Удаление табличной сущности продукта по физическому имени таблицы.",
+)
+async def delete_product_table_by_name(
+        product_id: int,
+        table_name: str,
+        db: AsyncSession = Depends(get_db),
+):
+    """Удаляет табличную сущность продукта по физическому имени таблицы.
+
+    Используется фронтендом (DELETE /api/tables/{product_id}/{table_name}).
+    Покрывает как таблицы, зарегистрированные в `product_tables`, так и
+    «легаси»-параметры с физической таблицей без записи в реестре.
+    """
+    result = await db.execute(
+        select(ProductTable).where(
+            ProductTable.product_id == product_id,
+            ProductTable.physical_table_name == table_name,
+        )
+    )
+    entity = result.scalar_one_or_none()
+
+    if entity is not None:
+        return await delete_product_table(entity.id, db)
+
+    # Легаси-таблица: параметры с физическим именем без записи в product_tables
+    params_result = await db.execute(
+        select(ParameterSchema).where(
+            ParameterSchema.product_id == product_id,
+            ParameterSchema.table_name == table_name,
+        )
+    )
+    params = list(params_result.scalars().all())
+
+    if not params:
+        raise HTTPException(
+            status_code=404,
+            detail="Табличная сущность не найдена",
+        )
+
+    # Физические файлы зависимых сущностей для удаления с диска после commit
+    files_to_delete: list[str] = []
+
+    # Файлы параметров типа «Файл» (иностранный ключ не даст удалить параметры)
+    param_ids = [p.id for p in params]
+    pf_result = await db.execute(
+        select(ParameterFile).where(
+            ParameterFile.parameter_id.in_(param_ids)
+        )
+    )
+    for pf in pf_result.scalars().all():
+        if pf.file_path and os.path.exists(pf.file_path):
+            files_to_delete.append(pf.file_path)
+        await db.delete(pf)
+
+    try:
+        for p in params:
+            await db.delete(p)
+
+        if table_name:
+            validate_sql_identifier(table_name)
+            await db.execute(
+                text(f'DROP TABLE IF EXISTS "{table_name}" CASCADE')
+            )
+
+        await mark_datamart_dirty(
+            db=db,
+            product_id=product_id,
+        )
+
+        await db.commit()
+
+    except Exception as error:
+        await db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка удаления сущности: {error}",
+        )
+
+    for file_path in files_to_delete:
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except OSError:
+            pass
+
+    return {
+        "id": None,
+        "name": table_name,
         "message": "Табличная сущность удалена",
     }
 

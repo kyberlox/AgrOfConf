@@ -19,5 +19,5 @@ class Users(Base):
     office = Column(Integer, nullable=True)
     photo = Column(String(255), nullable=True)
 
-    rootsusers = relationship("Roots", back_populates="user")
+    rootsusers = relationship("Roots", back_populates="user", passive_deletes=True)
 

@@ -20,6 +20,11 @@ from ..model.database import get_db
 from ..model.product import Product
 from ..model.product_drawing import ProductDrawing
 from ..model.product_files import ProductFiles
+from ..model.parameter_schema import ParameterSchema
+from ..model.parameter_file import ParameterFile
+from ..model.tkp import TKP
+from ..model.product_table import ProductTable
+from ..model.product_table_ver import ProductTableVersion
 from ..schema.product import ProductUpdate, ProductResponse
 
 router = APIRouter(prefix="/products", tags=["Products"])
@@ -201,9 +206,58 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
     product = result.scalar_one_or_none()
 
     if product is None:
-        return HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=404, detail="Product not found")
 
+    # Физические файлы, которые нужно удалить с диска после успешного commit
+    files_to_delete: list[str] = []
     image_path = product.image
+
+    # Собираем файлы всех зависимых сущностей ДО удаления из БД
+    # 1. Файлы параметров типа «Файл» (ParameterFile)
+    pf_res = await db.execute(
+        select(ParameterFile)
+        .join(ParameterSchema, ParameterSchema.id == ParameterFile.parameter_id)
+        .where(ParameterSchema.product_id == product_id)
+    )
+    parameter_files = list(pf_res.scalars().all())
+    for pf in parameter_files:
+        if pf.file_path and os.path.exists(pf.file_path):
+            files_to_delete.append(pf.file_path)
+        await db.delete(pf)
+
+    # 2. Чертежи продукта (ProductDrawing)
+    drawing_res = await db.execute(
+        select(ProductDrawing).where(ProductDrawing.product_id == product_id)
+    )
+    for drawing in drawing_res.scalars().all():
+        if drawing.file_path and os.path.exists(drawing.file_path):
+            files_to_delete.append(drawing.file_path)
+
+    # 3. Сертификаты продукта (ProductFiles)
+    product_files_res = await db.execute(
+        select(ProductFiles).where(ProductFiles.product_id == product_id)
+    )
+    for pfile in product_files_res.scalars().all():
+        if pfile.file and os.path.exists(pfile.file):
+            files_to_delete.append(pfile.file)
+
+    # 4. Шаблоны ТКП (TKP)
+    tkp_res = await db.execute(
+        select(TKP).where(TKP.product_id == product_id)
+    )
+    for tkp in tkp_res.scalars().all():
+        if tkp.file and os.path.exists(tkp.file):
+            files_to_delete.append(tkp.file)
+
+    # 5. Файлы версий таблиц (ProductTableVersion)
+    version_res = await db.execute(
+        select(ProductTableVersion.file_path)
+        .join(ProductTable, ProductTable.id == ProductTableVersion.product_table_id)
+        .where(ProductTable.product_id == product_id)
+    )
+    for path in version_res.scalars().all():
+        if path and os.path.exists(path):
+            files_to_delete.append(path)
 
     # Получаем имена Excel-таблиц до удаления продукта
     tables_result = await db.execute(
@@ -248,9 +302,16 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
             detail=f"Ошибка удаления продукта: {e}"
         )
 
-    # Удаляем файл изображения
+    # Удаляем физические файлы после успешного commit
     if image_path and os.path.exists(image_path):
-        os.remove(image_path)
+        files_to_delete.append(image_path)
+
+    for file_path in files_to_delete:
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except OSError:
+            pass
 
     return product
 
@@ -306,6 +367,9 @@ async def delete_product_drawing(
         if node.file_path and os.path.exists(node.file_path):
             os.remove(node.file_path)
         return True
+    except HTTPException:
+        await db.rollback()
+        raise
     except Exception as e:
         await db.rollback()
         return {'error': f"Ошибка добавления чертежа к продукту: {e}"}
@@ -371,6 +435,9 @@ async def delete_product_files(
             os.remove(node.file)
         
         return True
+    except HTTPException:
+        await db.rollback()
+        raise
     except Exception as e:
         await db.rollback()
         return {'error': f"Ошибка добавления сертификатов к продукту: {e}"}
