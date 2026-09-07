@@ -84,7 +84,7 @@ export default defineComponent({
         const initInputProps = () => {
             return {
                 class: 'input-admin',
-                placeholder: "'Введите название документа'",
+                placeholder: "Введите название документа",
                 disabled: props.isLoading,
                 value: fileName.value
             }

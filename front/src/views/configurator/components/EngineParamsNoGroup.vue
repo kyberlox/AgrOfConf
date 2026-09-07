@@ -1,8 +1,8 @@
 <template>
-<div class="grid grid-cols-4 gap-x-[12px] gap-y-[16px]">
+<div class="grid 3xl:grid-cols-4 xl:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-x-[6px] gap-y-[16px]">
     <div v-for="(param, index) in items"
          :key="param.id"
-         class="px-[10px] hover:none flex flex-row">
+         class="px-[10px] hover:none flex flex-row items-center">
         <!-- Смежный селект + инпут для сред -->
         <SelectInput v-if="(param as IFormattedData).required_type == 'select-input'"
                      :param="(param as IFormattedData)"
@@ -23,6 +23,7 @@
 
         <!-- Статус вопроса -->
         <QuestionStatus v-if="type == 'auto'"
+                        class="mt-[15px]"
                         :status="paramsLoading ? 'loading' : param.error ? 'canceled' : param.response_value ? 'checked' : ''"
                         @resetValue="$emit('resetValue', param.name)" />
     </div>
@@ -108,7 +109,7 @@ export default defineComponent({
                 placeholder: !param.filtered_values?.length && 'filtered_values' in param ? '' : 'Выберите значение',
                 needReq: true,
                 labelIcon: createLabelIconsComponent(param, () => console.log('testComp')),
-                error: 'error' in param ? param.error : '',
+                error: '',
                 errorIcon: AlertCircle,
                 disabled: (((!param.filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')) && props.type == 'auto') || props.paramsLoading
             }

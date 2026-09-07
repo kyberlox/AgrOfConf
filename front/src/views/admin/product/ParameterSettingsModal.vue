@@ -50,7 +50,7 @@ export default defineComponent({
 
         const initInputProps = (item: { title: string, name: string }) => {
             return {
-                class: 'input-param',
+                class: 'input-admin',
                 label: item.title,
                 value: item.name == 'name' ? props.parameter?.name : props.parameter?.description,
                 placeholder: '...'
