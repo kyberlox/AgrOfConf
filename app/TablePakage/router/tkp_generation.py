@@ -143,7 +143,7 @@ async def tkp_generation(
             #Переводит на латиницу
             new_user_dict = dict()
             for param, value in user_dict.items():
-                if KEY_MAPPING.get(param):
+                if KEY_MAPPING.get(param) and 'Заполните' not in value:
                     if isinstance(value, (int, float)):
                         value = str(value).replace('.', ',')
                     elif isinstance(value, str):
