@@ -2,6 +2,10 @@
 <SlotModal @closeModal="$emit('closeModal')">
     <div class="flex flex-col w-full gap-[18px] min-w-[750px] p-[16px]">
         <h3 class="text-lg font-medium">Настройки параметра «{{ parameter?.name }}»</h3>
+        <div v-if="parameter?.type == 'FormulaMix'" class="text-xs text-gray-500">
+            Это параметр состава смеси: в конфигураторе для него откроется попап-редактор
+            рабочих сред (выбор сред и мольных долей, сумма = 100%).
+        </div>
 
         <BaseInput v-for="(item, index) in [{ title: 'Название', name: 'name' }, { name: 'description', title: 'Описание' }]"
                    :inputSettings="initInputProps(item)"
@@ -32,6 +36,8 @@
             <select class="input-param w-full" v-model="newParameter.required_type">
                 <option value="list">Список (select)</option>
                 <option value="user_input">Ввод текста (user_input)</option>
+                <option value="select-input">Выбор + ввод (select-input)</option>
+                <option value="checkbox">Чекбокс (checkbox)</option>
             </select>
         </div>
 

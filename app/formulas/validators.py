@@ -65,3 +65,47 @@ def validate_T_PK(ctx: FormulaContext, value):
     except (TypeError, ValueError):
         return None
     return None
+
+
+def validate_mixture_composition(ctx: FormulaContext, value):
+    """
+    Проверяет состав смеси из select-input параметра «Характеристики среды»:
+    значение — массив пар {название среды: мольная доля}. Долей должна быть
+    суммарно ровно 100% и минимум две среды.
+    """
+    import json
+
+    if value is None or value == "":
+        return None
+
+    raw = value
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (TypeError, ValueError):
+            return "Нужно выбрать состав из списка сред и указать их мольные доли (%)"
+
+    if not isinstance(raw, list):
+        return None
+
+    pairs = []
+    for item in raw:
+        if not isinstance(item, dict) or not item:
+            continue
+        name = next(iter(item), None)
+        share = item.get(name) if name is not None else None
+        if name is None or share is None:
+            continue
+        try:
+            pairs.append((str(name).strip(), float(share)))
+        except (TypeError, ValueError):
+            continue
+
+    if len(pairs) < 2:
+        return "Смесь не может состоять менее чем из двух сред!"
+
+    total = sum(share for _, share in pairs)
+    if abs(total - 100.0) > 0.0001:
+        return f"Сумма мольных долей сред смеси должна составлять 100%, а не {total}%"
+
+    return None

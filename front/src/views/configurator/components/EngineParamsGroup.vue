@@ -13,11 +13,25 @@
             </span>
         </div>
 
-        <!-- Смежный селект + инпут для сред -->
-        <SelectInput v-else-if="(param as IFormattedData).required_type == 'select-input'"
+        <!-- Смежный селект + инпут для сред (кроме параметра-состава смеси) -->
+        <SelectInput v-else-if="(param as IFormattedData).required_type == 'select-input' && (param as IFormattedData).type !== 'FormulaMix' && (param as IFormattedData).name != 'Состав смеси'"
                      :param="(param as IFormattedData)"
                      :disabled="paramsLoading"
                      @changeSelectInputValue="(value) => $emit('valueChanged', value, param.name)" />
+
+        <!-- Редактор состава смеси (type='FormulaMix' или имя «Состав смеси»): попап по клику на параметр -->
+        <MixtureEditor v-else-if="(param as IFormattedData).type == 'FormulaMix' || (param as IFormattedData).name == 'Состав смеси'"
+                       :param="(param as IFormattedData)"
+                       :model-value="(userParams && userParams[param.name as keyof typeof userParams] && Array.isArray(userParams[param.name as keyof typeof userParams])) ? (userParams[param.name as keyof typeof userParams] as Array<{ [key: string]: number }>) : []"
+                       :disabled="paramsLoading"
+                       @valueChanged="(value: Array<{ [key: string]: number }>) => $emit('valueChanged', value, param.name)" />
+
+        <!-- Чекбокс (например, включение расчёта смеси) -->
+        <CheckboxInput v-else-if="(param as IFormattedData).required_type == 'checkbox'"
+                       :param="(param as IFormattedData)"
+                       :model-value="(userParams && userParams[param.name as keyof typeof userParams]) === true"
+                       :disabled="paramsLoading"
+                       @valueChanged="(value: boolean) => $emit('valueChanged', value, param.name)" />
 
         <!-- свободный текстовый инпут -->
         <BaseInput v-else-if="(param as IFormattedData).required_type == 'user_input'"
@@ -59,6 +73,8 @@ import type { IFormattedData } from '@/assets/interfaces/IForm';
 import { defineComponent, type PropType, computed } from 'vue';
 import { BaseButton, BaseInput, BaseSelect } from 'beans-ui-kit';
 import SelectInput from '@/components/SelectInput.vue';
+import CheckboxInput from '@/components/CheckboxInput.vue';
+import MixtureEditor from '@/components/MixtureEditor.vue';
 import { useConfiguratorStore } from '@/stores/configurator';
 import { createLabelIconsComponent } from '@/composables/createComponent';
 import AlertCircle from '@/assets/icons/AlertCircle.svg?component';
@@ -72,6 +88,8 @@ export default defineComponent({
         BaseSelect,
         BaseInput,
         SelectInput,
+        CheckboxInput,
+        MixtureEditor,
         QuestionStatus,
         AlertCircle
     },
@@ -94,7 +112,7 @@ export default defineComponent({
             default: false
         },
         userParams: {
-            type: Object as PropType<Record<string, string>>
+            type: Object as PropType<Record<string, string | boolean | Array<{ [key: string]: number }>>>
         }
     },
     setup(props) {
@@ -119,8 +137,15 @@ export default defineComponent({
 
         type keyofUserParams = keyof typeof props.userParams;
         const setPropsValue = (param: IFormattedData): string => {
-            if (props.userParams && props.userParams[param.name as keyofUserParams]) {
-                return replaceSpotOrComma(props.userParams[param.name as keyofUserParams]!, 'spot') || ''
+            const raw = props.userParams ? props.userParams[param.name as keyofUserParams] : undefined;
+            // Значения-массивы (состав смеси) и булевы (чекбокс) обрабатываются
+            // отдельными компонентами и сюда не попадают, но приводим их к строке
+            // для type-безопасности.
+            const value = Array.isArray(raw) || typeof raw === 'boolean'
+                ? String(raw)
+                : raw
+            if (value) {
+                return replaceSpotOrComma(value, 'spot') || ''
             }
             else if (param?.response_value)
                 return replaceSpotOrComma(param?.response_value, 'spot') || ''

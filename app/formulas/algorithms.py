@@ -13,10 +13,91 @@
 СОВПАДАТЬ с именем функции в этом модуле — реестр строится автоматически.
 """
 
+import json
 import re
 import math
 
 from .engine import FormulaContext, MissingParamError
+
+# Имена параметров смеси (захардкожены по решению пользователя).
+# «Смесь» — чекбокс (True/False): включает/выключает всю логику смеси.
+# «Тип смеси» — select со значениями «газовая»/«жидкостная»/«двухфазный поток».
+# «Состав смеси» — select-input (JSON-массив пар {среда: мольная доля}).
+MIXTURE_SWITCH = "Смесь"
+MIXTURE_TYPE_PARAM = "Тип смеси"
+MIXTURE_COMPOSITION_PARAM = "Состав смеси"
+# Отдельный тип формульного параметра «Состав смеси»: вместо завязки на имя
+# параметр помечается в админке отдельным типом. В конфигураторе для него
+# открывается попап-редактор состава.
+MIXTURE_COMPOSITION_TYPE = "FormulaMix"
+
+# Допустимые типы смеси (из select-параметра «Тип смеси»).
+MIXTURE_MODES_OFF = {"нет", "Нет", "НЕТ", "нет.", ""}
+MIXTURE_MODES = {
+    "газовая": "Газ",
+    "жидкостная": "Жидкость",
+    "двухфазный поток": "Двухфазный поток",
+}
+
+
+def _normalize_mixture_mode(value) -> str | None:
+    """
+    Приводит значение параметра «Смесь» к каноническому виду.
+
+    Возвращает строку-тип («газовая», «жидкостная», «двухфазный поток»)
+    или None, если смесь выключена (значение отсутствует или «нет»).
+    """
+    if value is None:
+        return None
+    key = str(value).strip().lower()
+    if key in MIXTURE_MODES_OFF or key not in MIXTURE_MODES:
+        return None
+    return key
+
+
+def _resolve_mixture_mode(ctx: FormulaContext, config: dict | None) -> str | None:
+    """
+    Определяет тип смеси по двум входным параметрам.
+
+    - «Смесь» — чекбокс (True/False). Если выключен/не выбран — смесь не
+      рассчитывается, возвращается None.
+    - «Тип смеси» — select со значениями «газовая»/«жидкостная»/«двухфазный
+      поток». Если чекбокс включён, а тип не выбран — поднимается
+      MissingParamError (пользователь должен его заполнить).
+
+    Имена параметров захардкожены, но в formula_config можно переопределить
+    ключами `mixture_param` и `type_param`.
+    """
+    config = config or {}
+    switch = ctx.get_opt(config.get("mixture_param") or MIXTURE_SWITCH)
+    if not switch:
+        # Чекбокс не отмечен / «нет» — смесь выключена.
+        return None
+
+    type_name = config.get("type_param") or MIXTURE_TYPE_PARAM
+    mode = _normalize_mixture_mode(ctx.get_opt(type_name))
+    if mode is None:
+        raise MissingParamError(type_name)
+    return mode
+
+
+async def _auto_composition_param(ctx: FormulaContext) -> str | None:
+    """
+    Ищет параметр-состав смеси по типу 'FormulaMix' (единственный на продукт).
+
+    Если таких несколько — берём первый по sort. Возвращает имя параметра или
+    None, если параметр-состав не заведён в админке.
+    """
+    if not ctx.db or not ctx.product_id:
+        return None
+    from sqlalchemy import text
+
+    row = await ctx.db.execute(text(
+        "SELECT name FROM parameter_schemas "
+        "WHERE product_id = :pid AND type = 'FormulaMix' "
+        "ORDER BY COALESCE(sort, id) LIMIT 1"
+    ), {"pid": ctx.product_id})
+    return row.scalar_one_or_none()
 
 
 def count_A(ctx: FormulaContext):
@@ -71,14 +152,28 @@ async def file_by_construction(ctx: FormulaContext):
 
 def _gather_composition(ctx: FormulaContext, config: dict | None) -> list[tuple[str, float]]:
     """
-    Собирает состав смеси из параметров-слотов «Среда N» / «Доля N».
+    Собирает состав смеси.
+
+    Поддерживаются два способа:
+
+    1. Параметры-слоты «Среда N» / «Доля N» (отдельные параметры в форме).
+    2. Один select-input параметр (config["composition_param"], по умолчанию
+       «Состав смеси»), значением которого является JSON-массив пар
+       [{название среды: доля}, ...] — так отдаёт компонент SelectInput.
 
     Возвращает список пар (название среды, мольная доля от 0 до 1).
-    Слоты можно задать явно в formula_config["slots"] (список имён, чередуя
-    среду и долю), иначе они определяются автоматически: из выбранных значений
-    берутся параметры с именами вида «Среда 1..N» и «Доля 1..N».
     """
     config = config or {}
+    composition_param = config.get("composition_param") or MIXTURE_COMPOSITION_PARAM
+
+    # Способ 1: один select-input параметр с JSON-составом.
+    if composition_param:
+        raw = ctx.get_opt(composition_param)
+        if raw is not None:
+            pairs = _parse_composition_json(raw)
+            if pairs:
+                return pairs
+
     slots = config.get("slots")
 
     pairs: list[tuple[str, float]] = []
@@ -132,6 +227,98 @@ def _gather_composition(ctx: FormulaContext, config: dict | None) -> list[tuple[
 
         pairs.append((substance, share))
 
+    if not pairs:
+        # Fallback: если есть любые вовлечённые среды со стандартными именами
+        # (например, «Среда N»/«Мольная доля N») — собираем и их.
+        pairs = _gather_composition_generic(ctx)
+
+    return pairs
+
+
+def _parse_composition_json(raw) -> list[tuple[str, float]]:
+    """
+    Разбирает значение select-input параметра в пары (среда, доля).
+
+    Принимает либо готовый список (приходит из запроса как JSON-массив), либо
+    строку с JSON. Источник: компонент SelectInput отдаёт массив объектов вида
+    [{ "Название среды": 50 }, { "Другая среда": 50 }].
+    """
+    value = raw
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return []
+        try:
+            value = json.loads(text)
+        except json.JSONDecodeError:
+            return []
+
+    if not isinstance(value, list):
+        return []
+
+    pairs: list[tuple[str, float]] = []
+    for item in value:
+        if not isinstance(item, dict) or not item:
+            continue
+        # Формат [{среда: доля}] — один ключ на элемент.
+        if len(item) == 1:
+            name, share = next(iter(item.items()))
+        else:
+            # Альтернативный формат: {"name": ..., "value": .../доля}.
+            name = item.get("name") or item.get("Название рабочей среды")
+            share = item.get("value") or item.get("Мольная доля")
+        if name is None or share is None:
+            continue
+        try:
+            pairs.append((str(name).strip(), float(share)))
+        except (TypeError, ValueError):
+            continue
+    return pairs
+
+
+def _gather_composition_generic(ctx: FormulaContext) -> list[tuple[str, float]]:
+    """Собирает состав из выбранных значений даже с нестандартными именами слотов.
+
+    Например, select-параметры могли называться «Среда 1» + «Мольная доля состава
+    рабочей среды, % 1». Здесь ищем пары «название среды» + «процент» по общим
+    шаблонам имён.
+    """
+    selected = ctx.selected or {}
+
+    def _is_share_name(name: str) -> bool:
+        return bool(re.match(r"^\s*(Доля|Мольная доля|Процент|%).*", name, re.I))
+
+    share_items: dict[int, float] = {}
+    substance_items: dict[int, str] = {}
+
+    for raw_name, raw_value in selected.items():
+        if raw_name is None or not str(raw_name).strip():
+            continue
+        name = str(raw_name).strip()
+        if raw_value is None or not str(raw_value).strip():
+            continue
+
+        tail = re.search(r"(\d+)\s*$", name)
+        index = int(tail.group(1)) if tail else None
+
+        if _is_share_name(name):
+            try:
+                share_items[index] = float(raw_value)
+            except (TypeError, ValueError):
+                continue
+        else:
+            substance_items[index] = str(raw_value).strip()
+
+    pairs: list[tuple[str, float]] = []
+    for index in sorted(set(substance_items) | set(share_items)):
+        substance = substance_items.get(index)
+        share = share_items.get(index)
+        if substance is None and share is None:
+            continue
+        if substance is None or share is None:
+            continue
+        pairs.append((substance, share))
+
     return pairs
 
 
@@ -147,22 +334,29 @@ def _validate_composition(composition: list[tuple[str, float]]) -> str | None:
     return None
 
 
-async def _resolve_media_columns(ctx: FormulaContext) -> dict[str, str]:
+async def _resolve_media_columns(ctx: FormulaContext, table_name: str | None = None) -> dict[str, str]:
     """
-    Определяет физическую таблицу сред и её колонки для продукта.
+    Определяет колонки физической таблицы сред и их транслитерации.
 
     Возвращает map: русское название характеристики -> транслитерированное имя колонки.
-    Колонки-характеристики ищутся по названиям параметров продукта (type='Table').
+    Если table_name указан — берутся колонки только этой таблицы (у продукта может
+    быть несколько таблиц, а характеристики сред живут в одной из них).
     """
     from sqlalchemy import text
+
+    if table_name is None:
+        table_name = await _resolve_media_table(ctx)
+
+    if not table_name:
+        return {}
 
     rows = await ctx.db.execute(text(
         """
         SELECT name, transliterated_name
         FROM parameter_schemas
-        WHERE product_id = :product_id AND type = 'Table' AND table_name IS NOT NULL
+        WHERE product_id = :product_id AND type = 'Table' AND table_name = :tbl
         """
-    ), {"product_id": ctx.product_id})
+    ), {"product_id": ctx.product_id, "tbl": table_name})
 
     columns: dict[str, str] = {}
 
@@ -175,6 +369,16 @@ async def _resolve_media_columns(ctx: FormulaContext) -> dict[str, str]:
         columns[name] = translit
 
     return columns
+
+
+async def _existing_table_columns(ctx: FormulaContext, table_name: str) -> set[str]:
+    """Фактические колонки физической таблицы (чтобы не выбирать несуществующие)."""
+    from sqlalchemy import text
+
+    rows = await ctx.db.execute(text(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = :tbl"
+    ), {"tbl": table_name})
+    return {row[0] for row in rows.all() if row and row[0]}
 
 
 async def _resolve_media_table(ctx: FormulaContext) -> str | None:
@@ -192,6 +396,64 @@ async def _resolve_media_table(ctx: FormulaContext) -> str | None:
     return result.scalar_one_or_none()
 
 
+async def _filtered_media_names(ctx: FormulaContext, mode: str) -> list[str]:
+    """
+    Возвращает имена сред из таблицы продукта, отфильтрованные по агрегатному
+    состоянию согласно режиму «Смесь»:
+
+        «газовая»            — только «Газ»;
+        «жидкостная»         — только «Жидкость»;
+        «двухфазный поток»   — и газ, и жидкость.
+
+    Используется, чтобы состав смеси предлагал пользователю только те среды,
+    которые допустимы выбранным типом смеси.
+    """
+    from sqlalchemy import text
+
+    table_name = await _resolve_media_table(ctx)
+    if not table_name:
+        return []
+
+    columns = await _resolve_media_columns(ctx, table_name)
+    env_name_col = None
+    aggregate_col = None
+
+    for name, translit in columns.items():
+        lowered = name.lower()
+        if env_name_col is None and ("рабочей среды" in lowered or "рабочая среда" in lowered or "среда" in lowered):
+            env_name_col = translit
+        if aggregate_col is None and ("агрегатное состояние" in lowered or "состояние" in lowered):
+            aggregate_col = translit
+
+    if not env_name_col or not aggregate_col:
+        return []
+
+    existing = await _existing_table_columns(ctx, table_name)
+    if env_name_col not in existing or aggregate_col not in existing:
+        return []
+
+    allowed: set[str]
+    if mode == "газовая":
+        allowed = {"Газ"}
+    elif mode == "жидкостная":
+        allowed = {"Жидкость"}
+    else:
+        allowed = {"Газ", "Жидкость"}
+
+    sql = f'SELECT DISTINCT "{env_name_col}", "{aggregate_col}" FROM "{table_name}"'
+    rows = await ctx.db.execute(text(sql))
+    names: list[str] = []
+    for mapping in rows.mappings().all():
+        name = mapping.get(env_name_col)
+        state = mapping.get(aggregate_col)
+        if not name or not state:
+            continue
+        if str(state).strip() in allowed:
+            names.append(str(name).strip())
+
+    return names
+
+
 async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
     """
     Сервисная функция: вычисляет все характеристики смеси разом.
@@ -199,10 +461,33 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
     Используется функциями-характеристиками (mixture_density и др.) и
     кэшируется в ctx.computed["_mixture_full"], чтобы не повторять SQL по
     каждому параметру.
+
+    Ожидаемый конфиг:
+        mixture_param      — имя чекбокса «Смесь» (по умолчанию «Смесь»).
+        type_param         — имя select «Тип смеси» (по умолчанию «Тип смеси»).
+        composition_param  — имя select-input параметра состава
+                             (по умолчанию «Состав смеси»).
+        slots              — альтернативный способ задания состава: список имён
+                             слотов «среда/доля» (чередует пары).
     """
     cached = ctx.computed.get("_mixture_full")
     if cached is not None:
         return cached
+
+    config = config or {}
+
+    # Если параметр-состав не указан в конфиге — ищем по типу 'FormulaMix'.
+    if not config.get("composition_param"):
+        auto_name = await _auto_composition_param(ctx)
+        if auto_name:
+            config = {**config, "composition_param": auto_name}
+
+    # Тип смеси определяется по чекбоксу «Смесь» (вкл/выкл) и select «Тип смеси».
+    mode = _resolve_mixture_mode(ctx, config)
+    if mode is None:
+        # Чекбокс выключен — смесь не рассчитываем: возвращаем None, чтобы
+        # фронт не показывал характеристики (обычный подбор одной среды).
+        return None
 
     if not ctx.db or not ctx.product_id:
         raise MissingParamError("Среда")
@@ -212,16 +497,26 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
     composition = _gather_composition(ctx, config)
 
     if not composition:
-        # Подсказываем пользователю, какой слот заполнить первым.
+        # Подсказываем пользователю, какой параметр заполнить первым.
         slots = (config or {}).get("slots")
-        first_name = slots[0] if slots else "Среда 1"
+        first_name = (
+            config.get("composition_param")
+            or (slots[0] if slots else MIXTURE_COMPOSITION_PARAM)
+        )
         raise MissingParamError(first_name)
 
     error = _validate_composition(composition)
     if error:
         raise ValueError(error)
 
-    columns = await _resolve_media_columns(ctx)
+    # Таблица сред определяется первой, чтобы колонки-характеристики собирались
+    # только из неё (у продукта может быть несколько таблиц).
+    table_name = await _resolve_media_table(ctx)
+    if not table_name:
+        raise MissingParamError("Название рабочей среды")
+
+    columns = await _resolve_media_columns(ctx, table_name)
+    existing = await _existing_table_columns(ctx, table_name)
 
     # Находим основные характеристики по русским названиям параметров продукта.
     def find_column(*keywords: str) -> str | None:
@@ -232,6 +527,9 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
         return None
 
     env_name_col = find_column("название рабочей среды", "рабочая среда", "среда")
+    if not env_name_col or env_name_col not in existing:
+        raise MissingParamError("Название рабочей среды")
+
     aggregate_col = find_column("агрегатное состояние", "состояние")
     molar_mass_col = find_column("молярная масса", "молекулярная масса")
     density_col = find_column("плотность")
@@ -242,42 +540,23 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
     factor_col = find_column("фактор сжимаемости", "сжимаемости")
     material_col = find_column("материал")
 
-    if not env_name_col:
-        raise MissingParamError("Название рабочей среды")
-
-    table_name = await _resolve_media_table(ctx)
-    if not table_name:
-        raise MissingParamError("Название рабочей среды")
-
     select_columns = [env_name_col]
     env_keys = [env_name_col]
-    if aggregate_col:
-        select_columns.append(aggregate_col)
-        env_keys.append(aggregate_col)
-    if molar_mass_col:
-        select_columns.append(molar_mass_col)
-        env_keys.append(molar_mass_col)
-    if density_col:
-        select_columns.append(density_col)
-        env_keys.append(density_col)
-    if viscosity_col:
-        select_columns.append(viscosity_col)
-        env_keys.append(viscosity_col)
-    if adiabatic_col:
-        select_columns.append(adiabatic_col)
-        env_keys.append(adiabatic_col)
-    if isobaric_col:
-        select_columns.append(isobaric_col)
-        env_keys.append(isobaric_col)
-    if isochoric_col:
-        select_columns.append(isochoric_col)
-        env_keys.append(isochoric_col)
-    if factor_col:
-        select_columns.append(factor_col)
-        env_keys.append(factor_col)
-    if material_col:
-        select_columns.append(material_col)
-        env_keys.append(material_col)
+
+    def _add_char_column(col: str | None) -> None:
+        if col and col in existing:
+            select_columns.append(col)
+            env_keys.append(col)
+
+    _add_char_column(aggregate_col)
+    _add_char_column(molar_mass_col)
+    _add_char_column(density_col)
+    _add_char_column(viscosity_col)
+    _add_char_column(adiabatic_col)
+    _add_char_column(isobaric_col)
+    _add_char_column(isochoric_col)
+    _add_char_column(factor_col)
+    _add_char_column(material_col)
 
     envs_json: list[dict] = []
     env_types: set[str] = set()
@@ -459,66 +738,73 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
 async def mixture_state(ctx: FormulaContext, config):
     """Агрегатное состояние смеси: «Газ», «Жидкость» или «Двухфазный поток»."""
     result = await _mixture_properties(ctx, config)
-    return result["agregatnoe_sostojanie"]
+    return None if result is None else result["agregatnoe_sostojanie"]
 
 
 async def mixture_density(ctx: FormulaContext, config):
     """Плотность смеси, кг/м³ (для газа — при нормальных условиях)."""
     result = await _mixture_properties(ctx, config)
-    return result["plotnost_zhidkosti"]
+    return None if result is None else result["plotnost_zhidkosti"]
 
 
 async def mixture_molar_mass(ctx: FormulaContext, config):
     """Молярная масса смеси, г/моль."""
     result = await _mixture_properties(ctx, config)
-    return result["molekuljarnaja_massa"]
+    return None if result is None else result["molekuljarnaja_massa"]
 
 
 async def mixture_viscosity(ctx: FormulaContext, config):
     """Вязкость смеси (Па·с)."""
     result = await _mixture_properties(ctx, config)
-    return result["vjazkost_pa_s"]
+    return None if result is None else result["vjazkost_pa_s"]
 
 
 async def mixture_adiabatic_index(ctx: FormulaContext, config):
     """Показатель адиабаты смеси."""
     result = await _mixture_properties(ctx, config)
-    return result["pokazatel_adiabaty"]
+    return None if result is None else result["pokazatel_adiabaty"]
 
 
 async def mixture_isobaric_capacity(ctx: FormulaContext, config):
     """Изобарная теплоёмкость смеси."""
     result = await _mixture_properties(ctx, config)
-    return result["isobaric_capacity"]
+    return None if result is None else result["isobaric_capacity"]
 
 
 async def mixture_isochoric_capacity(ctx: FormulaContext, config):
     """Изохорная теплоёмкость смеси."""
     result = await _mixture_properties(ctx, config)
-    return result["isochoric_capacity"]
+    return None if result is None else result["isochoric_capacity"]
 
 
 async def mixture_factor(ctx: FormulaContext, config):
     """Фактор сжимаемости смеси."""
     result = await _mixture_properties(ctx, config)
-    return result["factor"]
+    return None if result is None else result["factor"]
 
 
 async def mixture_material(ctx: FormulaContext, config):
     """Материал, подобранный из компонентов смеси."""
     result = await _mixture_properties(ctx, config)
-    return result["material"]
+    return None if result is None else result["material"]
 
 
 async def mixture_characteristics(ctx: FormulaContext, config):
-    """Все характеристики смеси одним объектом (параметр «Смесь»).
+    """Все характеристики смеси одним объектом.
 
     Возвращает dict с полями: агрегатное состояние, состав, молярная масса,
     плотность, вязкость, показатель адиабаты, теплоёмкости, фактор
     сжимаемости и материал. Ветка рассчитывается по агрегатному состоянию
-    компонентов: газ / жидкость / двухфазный поток.
+    компонентов: газ / жидкость / двухфазный поток. Если чекбокс «Смесь»
+    выключен — возвращается None, и параметр не показывается.
+
+    Зависит от входных параметров (по умолчанию): чекбокс «Смесь»,
+    select «Тип смеси», select-input «Состав смеси». Имена можно переопределить
+    в formula_config ключами `mixture_param`, `type_param`, `composition_param`.
     """
     result = await _mixture_properties(ctx, config)
+    if result is None:
+        return None
     return {
         "Агрегатное состояние": result["agregatnoe_sostojanie"],
         "Состав": result["nazvanie_rabochej_sredy"].strip() or "—",

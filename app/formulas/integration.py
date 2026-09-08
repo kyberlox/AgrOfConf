@@ -21,6 +21,151 @@ from app.TablePakage.model.parameter_schema import ParameterSchema
 
 from .engine import compute_formulas, FormulaContext
 from .registry import get_validator
+from .algorithms import (
+    _filtered_media_names, _normalize_mixture_mode, _parse_composition_json,
+    _validate_composition, MIXTURE_COMPOSITION_PARAM, MIXTURE_COMPOSITION_TYPE,
+    MIXTURE_SWITCH, MIXTURE_TYPE_PARAM,
+)
+
+
+async def _composition_param_names(
+    db: AsyncSession,
+    product_id: int,
+) -> set[str]:
+    """Имена параметров-состава смеси продукта.
+
+    Основной способ — тип 'FormulaMix'. Если такой параметр ещё не заведён,
+    ищем по имени «Состав смеси» (обратная совместимость со старой настройкой).
+    """
+    result = await db.execute(text(
+        "SELECT name FROM parameter_schemas "
+        "WHERE product_id = :pid AND type = 'FormulaMix'"
+    ), {"pid": product_id})
+    names = {row[0] for row in result.all() if row and row[0]}
+    if names:
+        return names
+
+    result = await db.execute(text(
+        "SELECT name FROM parameter_schemas "
+        "WHERE product_id = :pid AND name = 'Состав смеси'"
+    ), {"pid": product_id})
+    return {row[0] for row in result.all() if row and row[0]}
+
+
+def _is_mixture_on(selected_values: dict[str, Any]) -> bool:
+    """Включён ли чекбокс «Смесь» (True/False или строка)."""
+    value = selected_values.get(MIXTURE_SWITCH)
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() not in ("", "нет", "false", "0")
+
+
+# Параметры, которые скрываются, когда смесь собрана (включён чекбокс
+# «Смесь» и выбран тип): агрегатное состояние и выбор рабочей среды
+# определяются самим составом смеси.
+_MIXTURE_HIDE_ON_KEYWORDS = (
+    "агрегатное состояние",
+    "название рабочей среды",
+    "наименование рабочей среды",
+    "рабочая среда",
+)
+
+
+async def _finalize_mixture_visibility(
+    db: AsyncSession,
+    response_params: list[dict],
+    selected_values: dict[str, Any],
+    product_id: int,
+) -> list[dict]:
+    """Управляет видимостью параметров смеси по состоянию чекбокса «Смесь».
+
+    - Включена смесь и выбран тип → скрываем «Агрегатное состояние» и
+      «Название рабочей среды»: их определяет состав смеси, а характеристики
+      пересчитываются формулой (apply_mixture_overrides).
+    - Выключена смесь → скрываем «Тип смеси» и параметр-состав
+      (type='FormulaMix' или по имени «Состав смеси»).
+    """
+    if _is_mixture_on(selected_values):
+        mode = _normalize_mixture_mode(selected_values.get(MIXTURE_TYPE_PARAM))
+        if mode is None:
+            return response_params  # тип ещё не выбран — смесь не собрана
+        return [
+            p for p in response_params
+            if not any(kw in str(p.get("name") or "").lower() for kw in _MIXTURE_HIDE_ON_KEYWORDS)
+        ]
+
+    comp_names = await _composition_param_names(db, product_id)
+    hidden = {MIXTURE_TYPE_PARAM} | comp_names
+    return [p for p in response_params if p.get("name") not in hidden]
+
+
+# Табличные характеристики, которые при собранной смеси пересчитываются
+# формулой: русское ключевое слово в названии параметра -> ключ результата
+# расчёта смеси (_mixture_properties). Такой параметр становится нередактируемым.
+_MIXTURE_OVERRIDE_MATCHERS = [
+    ("agregatnoe_sostojanie", ("агрегатное состояние",)),
+    ("molekuljarnaja_massa", ("молярн", "молекул")),
+    ("plotnost_zhidkosti", ("плотност",)),
+    ("vjazkost_pa_s", ("вязкост",)),
+    ("pokazatel_adiabaty", ("адиабат",)),
+    ("isobaric_capacity", ("изобарн",)),
+    ("isochoric_capacity", ("изохорн",)),
+    ("factor", ("сжимаемост",)),
+    ("material", ("материал",)),
+]
+
+
+async def apply_mixture_overrides(
+    db: AsyncSession,
+    response_params: list[dict],
+    selected_values: dict[str, Any],
+    product_id: int,
+) -> list[dict]:
+    """Пересчитывает табличные характеристики по формуле собранной смеси.
+
+    Если у продукта есть параметр-состав (type='FormulaMix'), чекбокс «Смесь»
+    включён, тип смеси выбран и состав валиден — значения табличных параметров
+    (плотность, вязкость, молярная масса, агрегатное состояние, теплоёмкости,
+    фактор сжимаемости, материал и т.п.) заменяются рассчитанными значениями
+    смеси, а сами параметры помечаются как нередактируемые.
+
+    Это заменяет отдельный параметр «Характеристики смеси»: характеристики
+    определяются формулой, а не табличным поиском.
+    """
+    comp_names = await _composition_param_names(db, product_id)
+    if not comp_names:
+        return response_params
+    if not _is_mixture_on(selected_values):
+        return response_params
+
+    from .algorithms import MissingParamError, _mixture_properties
+
+    ctx = FormulaContext(dict(selected_values), {}, db=db, product_id=product_id)
+
+    for comp_name in comp_names:
+        try:
+            props = await _mixture_properties(ctx, {"composition_param": comp_name})
+        except (MissingParamError, ValueError) as exc:
+            # Состав ещё не собран / невалиден — оставляем табличные значения.
+            print(f"[mixture override] пропущен пересчёт смеси '{comp_name}': {exc}")
+            continue
+        except Exception as exc:  # noqa: BLE001
+            print(f"[mixture override] ошибка пересчёта смеси '{comp_name}': {exc}")
+            continue
+        if not props:
+            continue
+
+        for entry in response_params:
+            name = str(entry.get("name") or "").lower()
+            for key, keywords in _MIXTURE_OVERRIDE_MATCHERS:
+                if any(kw in name for kw in keywords):
+                    entry["response_value"] = props.get(key, entry.get("response_value"))
+                    entry["editable"] = False
+                    break
+        break
+    return response_params
 
 
 def _is_new_formula(param: Any) -> bool:
@@ -91,7 +236,7 @@ async def _add_input_params(
     stmt = (
         select(ParameterSchema)
         .where(
-            ParameterSchema.type == "Formula",
+            ParameterSchema.type.in_(["Formula", MIXTURE_COMPOSITION_TYPE]),
             ParameterSchema.product_id == product_id,
         )
         .order_by(ParameterSchema.sort)
@@ -102,7 +247,7 @@ async def _add_input_params(
         return response_params
 
     existing_names = {item["name"] for item in response_params}
-    ctx = FormulaContext(dict(selected_values), {})
+    ctx = FormulaContext(dict(selected_values), {}, db=db, product_id=product_id)
 
     for param in formula_params:
         cfg = param.formula_config or {}
@@ -113,6 +258,44 @@ async def _add_input_params(
 
         rv = selected_values.get(param.name)
         error = None
+
+        # === Логика смеси ===
+        switch_value = selected_values.get(MIXTURE_SWITCH)
+
+        # Параметр-состав смеси: тип 'FormulaMix' или (обратная совместимость)
+        # имя «Состав смеси». В конфигураторе для него попап-редактор.
+        # Показываем только если «Смесь» отмечена
+        # И «Тип смеси» выбран (газовая/жидкостная/двухфазный поток).
+        is_composition_param = (
+            param.type == MIXTURE_COMPOSITION_TYPE
+            or param.name == MIXTURE_COMPOSITION_PARAM
+        )
+        if is_composition_param:
+            if not switch_value:
+                continue  # чекбокс выключен — скрываем параметр
+            mode = _normalize_mixture_mode(selected_values.get(MIXTURE_TYPE_PARAM))
+            if mode is None:
+                continue  # тип смеси ещё не выбран — скрываем состав
+            values = await _filtered_media_names(ctx, mode)
+            if not values:
+                values = None
+            pairs = _parse_composition_json(rv) if rv is not None else []
+            comp_error = _validate_composition(pairs)
+            if comp_error:
+                error = comp_error
+
+        # «Тип смеси»: показываем только если чекбокс «Смесь» отмечен.
+        elif param.name == MIXTURE_TYPE_PARAM:
+            if not switch_value:
+                continue  # чекбокс выключен — скрываем параметр
+            values = cfg.get("values")
+            if not isinstance(values, list):
+                values = None
+
+        else:
+            values = cfg.get("values")
+            if not isinstance(values, list):
+                values = None
 
         validate_name = cfg.get("validate")
         if validate_name and rv is not None:
@@ -125,16 +308,10 @@ async def _add_input_params(
                 except Exception as e:  # noqa: BLE001
                     error = str(e)
 
-        # Статический список значений для «выбора из списка» (формульный параметр
-        # с required_type=list/select-input): хранится в formula_config["values"]
-        # и выводится фронту как all_values.
-        values = cfg.get("values")
-        if not isinstance(values, list):
-            values = None
-
         entry = {
             "id": param.id,
             "name": param.name,
+            "type": param.type,
             "description": param.description,
             "table_name": param.table_name,
             "all_values": values,
@@ -225,6 +402,17 @@ async def apply_new_and_legacy_formulas(
     # Параметры-чертежи (type='Drawing'): возвращают файл/картинку
     # в зависимости от выбранного значения другого параметра.
     response_params = await resolve_drawings(
+        db, response_params, selected_values, product_id
+    )
+
+    # Пересчитываем табличные характеристики по формуле смеси, если состав
+    # собран (вместо отдельного параметра «Характеристики смеси»).
+    response_params = await apply_mixture_overrides(
+        db, response_params, selected_values, product_id
+    )
+
+    # Скрываем «Тип смеси»/параметр-состав, если чекбокс «Смесь» выключен.
+    response_params = await _finalize_mixture_visibility(
         db, response_params, selected_values, product_id
     )
 

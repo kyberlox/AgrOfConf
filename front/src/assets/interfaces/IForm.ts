@@ -5,8 +5,9 @@ export interface IFormattedData {
     filtered_values?: string[],
     id: number,
     name: string,
+    type?: string,
     required_type: string,
-    response_value: string | null,
+    response_value: string | Array<{ [key: string]: number }> | null,
     visibility: boolean
     editable?: boolean
     error?: string

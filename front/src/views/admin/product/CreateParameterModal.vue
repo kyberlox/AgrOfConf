@@ -19,16 +19,23 @@
                     <option value="Table">Табличный</option>
                     <option value="Formula">Формульный</option>
                     <option value="Drawing">Файл</option>
+                    <option value="FormulaMix">Состав смеси</option>
                 </select>
             </label>
 
-            <label v-if="form.type != 'Drawing'" class="flex flex-col gap-1 text-sm">
+            <div v-if="form.type == 'FormulaMix'" class="text-xs text-gray-500">
+                Параметр состава смеси. В конфигураторе для него откроется попап-редактор:
+                выбор рабочих сред и их мольных долей (двух сред и более, сумма долей = 100%).
+            </div>
+
+            <label v-if="form.type != 'Drawing' && form.type != 'FormulaMix'" class="flex flex-col gap-1 text-sm">
                 <span class="text-gray-700">Тип ввода</span>
                 <select class="input-param w-full"
                         v-model="form.required_type">
                     <option value="list">Выбор из списка</option>
                     <option value="user_input">Ручной ввод</option>
                     <option value="select-input">Выбор + ввод</option>
+                    <option value="checkbox">Чекбокс (Смесь)</option>
                 </select>
             </label>
 
@@ -114,7 +121,7 @@ import ValuesListEditor from './components/ValuesListEditor.vue';
 
 interface IParamForm {
     name: string,
-    type: 'Table' | 'Formula' | 'Drawing',
+    type: 'Table' | 'Formula' | 'Drawing' | 'FormulaMix',
     required_type: string,
     table_name: string,
     func: string,
@@ -173,7 +180,7 @@ export default defineComponent({
                 description: '',
                 measuring_unit: null,
                 visibility: true,
-                required_type: form.type == 'Drawing' ? 'drawing' : form.required_type,
+                required_type: form.type == 'Drawing' ? 'drawing' : (form.type == 'FormulaMix' ? 'select-input' : form.required_type),
                 table_name: form.type == 'Table' ? form.table_name : null,
                 field_of_view: null,
                 product_id: Number(props.productId),

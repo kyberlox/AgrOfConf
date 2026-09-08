@@ -31,8 +31,8 @@ async def create_parameter_schema(
         db: AsyncSession = Depends(get_db)
 ):
     # Проверка типа
-    if schema.type not in ["Table", "Formula", "Drawing"]:
-        raise HTTPException(status_code=400, detail="Type must be 'Table', 'Formula' or 'Drawing'")
+    if schema.type not in ["Table", "Formula", "Drawing", "FormulaMix"]:
+        raise HTTPException(status_code=400, detail="Type must be 'Table', 'Formula', 'Drawing' or 'FormulaMix'")
 
     # Проверка связи с продуктом
     product_result = await db.execute(
