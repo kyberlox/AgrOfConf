@@ -13,6 +13,21 @@
 from .engine import FormulaContext
 
 
+def _find_actual_key(ctx: FormulaContext, *keywords: str, fallback: str) -> str:
+    """Синхронный поиск фактического имени параметра по ключевым словам.
+
+    Для валидаторов (не могут ходить в БД): смотрим ключи выбранных и
+    вычисленных значений. Точное переопределение именем не поддерживается —
+    валидатор применяется к конкретному параметру, а зависимости ищутся
+    по ключевым словам (устойчиво к суффиксам размерности и переименованиям).
+    """
+    lowered = [str(k).strip().lower() for k in keywords if k and str(k).strip()]
+    for name in list(ctx.selected or {}) + list(ctx.computed or {}):
+        if name and any(kw in str(name).lower() for kw in lowered):
+            return name
+    return fallback
+
+
 def validate_nonzero(ctx: FormulaContext, value):
     """Значение не должно быть равно нулю."""
     try:
@@ -52,7 +67,7 @@ def validate_T_PK(ctx: FormulaContext, value):
     """
     Температура должна быть в диапазоне от -60°С до 600°С для пружинных и от -60°С до 250°С для пилотных
     """
-    valve_type = ctx.get_opt("Тип клапана")
+    valve_type = ctx.get_opt(_find_actual_key(ctx, "тип клапана", fallback="Тип клапана"))
     if valve_type is None:
         return None
     try:
@@ -80,7 +95,7 @@ def validate_pressure_setting(ctx: FormulaContext, value):
 
 def validate_backpressure(ctx: FormulaContext, value):
     """Противодавление не должно превышать 70% давления настройки и быть меньше 0."""
-    pn = ctx.get_opt("Давление настройки")
+    pn = ctx.get_opt(_find_actual_key(ctx, "давление настройки", fallback="Давление настройки"))
     if pn is None:
         return None
     try:

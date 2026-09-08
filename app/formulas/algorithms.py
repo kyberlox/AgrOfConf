@@ -55,7 +55,7 @@ def _normalize_mixture_mode(value) -> str | None:
     return key
 
 
-def _resolve_mixture_mode(ctx: FormulaContext, config: dict | None) -> str | None:
+async def _resolve_mixture_mode(ctx: FormulaContext, config: dict | None) -> str | None:
     """
     Определяет тип смеси по двум входным параметрам.
 
@@ -65,16 +65,30 @@ def _resolve_mixture_mode(ctx: FormulaContext, config: dict | None) -> str | Non
       поток». Если чекбокс включён, а тип не выбран — поднимается
       MissingParamError (пользователь должен его заполнить).
 
-    Имена параметров захардкожены, но в formula_config можно переопределить
-    ключами `mixture_param` и `type_param`.
+    Имена параметров ищутся по ключевым словам (переименования и суффиксы
+    размерности не страшны), а в formula_config можно переопределить ключами
+    `mixture_param` и `type_param`.
     """
     config = config or {}
-    switch = ctx.get_opt(config.get("mixture_param") or MIXTURE_SWITCH)
+    switch_name = await _actual_param_name(
+        ctx, config, "mixture_param",
+        "смесь", "признак смеси",
+        default=MIXTURE_SWITCH,
+        exclude=("тип смеси", "состав смеси", "название смеси"),
+    )
+    switch_name = switch_name or MIXTURE_SWITCH
+    switch = ctx.get_opt(switch_name)
     if not switch:
         # Чекбокс не отмечен / «нет» — смесь выключена.
         return None
 
-    type_name = config.get("type_param") or MIXTURE_TYPE_PARAM
+    type_name = await _actual_param_name(
+        ctx, config, "type_param",
+        "тип смеси", "тип",
+        default=MIXTURE_TYPE_PARAM,
+        exclude=("состав", "перечень"),
+    )
+    type_name = type_name or MIXTURE_TYPE_PARAM
     mode = _normalize_mixture_mode(ctx.get_opt(type_name))
     if mode is None:
         raise MissingParamError(type_name)
@@ -470,6 +484,92 @@ async def _filtered_media_names(ctx: FormulaContext, mode: str) -> list[str]:
     return names
 
 
+async def _schema_param_names(ctx: FormulaContext) -> list[str]:
+    """Все имена параметров продукта из БД (схема), для поиска по ключевым словам."""
+    cached = ctx.computed.get("_schema_param_names")
+    if cached is not None:
+        return cached
+
+    names: list[str] = []
+    if ctx.db and ctx.product_id:
+        from sqlalchemy import text
+
+        rows = await ctx.db.execute(text(
+            "SELECT name FROM parameter_schemas "
+            "WHERE product_id = :pid AND name IS NOT NULL"
+        ), {"pid": ctx.product_id})
+        names = [str(r[0]) for r in rows.all() if r and r[0]]
+
+    ctx.computed["_schema_param_names"] = names
+    return names
+
+
+async def _actual_param_name(
+    ctx: FormulaContext,
+    config: dict | None,
+    config_key: str | None,
+    *keywords: str,
+    default: str | None = None,
+    exclude: tuple[str, ...] = (),
+) -> str | None:
+    """Определяет ФАКТИЧЕСКОЕ имя входного/табличного параметра по ключевым словам.
+
+    Переименование параметров в админке и добавление размерности к названию
+    (например «Температура рабочей среды, °C») не должно требовать правки
+    алгоритма. Приоритет поиска:
+
+      1) явное имя из formula_config[config_key] — но только если параметр
+         действительно присутствует среди выбранных/вычисленных значений;
+      2) ключ в ctx.selected / ctx.computed, чьё имя содержит ключевое слово
+         (без учёта регистра);
+      3) имя параметра продукта в БД (parameter_schemas);
+      4) default — запасное имя.
+
+    Ключевые слова проверяются ПО ПОРЯДКУ: первое, давшее совпадение, и
+    определяет имя (самое специфичное указывайте первым). `exclude` позволяет
+    отсечь похожие по имени параметры (например «Тип смеси» при поиске чекбокса
+    «Смесь»).
+    """
+    config = config or {}
+
+    if config_key:
+        explicit = config.get(config_key)
+        if explicit and str(explicit).strip():
+            candidate = str(explicit)
+            if candidate in ctx.selected or candidate in ctx.computed:
+                return candidate
+
+    kws = [str(k).strip().lower() for k in keywords if k and str(k).strip()]
+    if not kws:
+        return default
+    excluded = [str(e).strip().lower() for e in (exclude or ()) if e and str(e).strip()]
+
+    def _best(matched: list[str]) -> str | None:
+        for name in matched:
+            low = name.lower()
+            if any(e in low for e in excluded):
+                continue
+            return name
+        return None
+
+    candidates = [
+        str(k) for k in list(ctx.selected or {}) + list(ctx.computed or {})
+        if isinstance(k, str) and k.strip()
+    ]
+
+    for kw in kws:
+        best = _best([n for n in candidates if kw in n.lower()])
+        if best is not None:
+            return best
+
+    for kw in kws:
+        best = _best([n for n in await _schema_param_names(ctx) if kw in n.lower()])
+        if best is not None:
+            return best
+
+    return default
+
+
 def _to_float(value, default=None):
     """Безопасное приведение значения колонки к float.
 
@@ -518,7 +618,7 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
             config = {**config, "composition_param": auto_name}
 
     # Тип смеси определяется по чекбоксу «Смесь» (вкл/выкл) и select «Тип смеси».
-    mode = _resolve_mixture_mode(ctx, config)
+    mode = await _resolve_mixture_mode(ctx, config)
     if mode is None:
         # Чекбокс выключен — смесь не рассчитываем: возвращаем None, чтобы
         # фронт не показывал характеристики (обычный подбор одной среды).
@@ -1014,14 +1114,61 @@ async def _medium_properties(ctx: FormulaContext, config: dict | None) -> dict:
         ctx.computed["_medium_full"] = mix
         return mix
 
+    state_name = await _actual_param_name(
+        ctx, config, "state_param",
+        "агрегатное состояние", "состояние",
+        default="Агрегатное состояние",
+    )
+    molar_name = await _actual_param_name(
+        ctx, config, "molar_param",
+        "молярная масса", "молекулярная масса",
+        default="Молярная масса",
+    )
+    density_name = await _actual_param_name(
+        ctx, config, "density_param",
+        "плотность жидкости", "плотность",
+        default="Плотность жидкости",
+    )
+    viscosity_name = await _actual_param_name(
+        ctx, config, "viscosity_param",
+        "вязкость",
+        default="Вязкость (Па*с)",
+    )
+    adiabatic_name = await _actual_param_name(
+        ctx, config, "adiabatic_param",
+        "показатель адиабаты", "адиабат",
+        default="Показатель адиабаты",
+    )
+    latent_name = await _actual_param_name(
+        ctx, config, "latent_heat_param",
+        "удельная теплота парообразования", "теплота парообразования", "парообразован",
+        default="Удельная теплота парообразования",
+    )
+    material_name = await _actual_param_name(
+        ctx, config, "material_param",
+        "материал",
+        default="Материал",
+    )
+
+    idx_config = {
+        "state_param": state_name,
+        "molar_param": molar_name,
+        "density_param": density_name,
+        "viscosity_param": viscosity_name,
+        "adiabatic_param": adiabatic_name,
+        "latent_heat_param": latent_name,
+        "material_param": material_name,
+    }
+
     result = {
-        "agregatnoe_sostojanie": ctx.get_opt(config.get("state_param") or "Агрегатное состояние") or "",
-        "molekuljarnaja_massa": _to_float(ctx.get_opt(config.get("molar_param") or "Молярная масса")),
-        "plotnost_zhidkosti": _to_float(ctx.get_opt(config.get("density_param") or "Плотность жидкости")),
-        "vjazkost_pa_s": _to_float(ctx.get_opt(config.get("viscosity_param") or "Вязкость (Па*с)")),
-        "pokazatel_adiabaty": _to_float(ctx.get_opt(config.get("adiabatic_param") or "Показатель адиабаты")),
-        "latent_heat": _to_float(ctx.get_opt(config.get("latent_heat_param") or "Удельная теплота парообразования")),
-        "material": ctx.get_opt(config.get("material_param") or "Материал") or "",
+        "agregatnoe_sostojanie": ctx.get_opt(state_name) or "",
+        "molekuljarnaja_massa": _to_float(ctx.get_opt(molar_name)),
+        "plotnost_zhidkosti": _to_float(ctx.get_opt(density_name)),
+        "vjazkost_pa_s": _to_float(ctx.get_opt(viscosity_name)),
+        "pokazatel_adiabaty": _to_float(ctx.get_opt(adiabatic_name)),
+        "latent_heat": _to_float(ctx.get_opt(latent_name)),
+        "material": ctx.get_opt(material_name) or "",
+        "param_names": idx_config,
     }
     ctx.computed["_medium_full"] = result
     return result
@@ -1095,22 +1242,57 @@ async def _seat_calc_full(ctx: FormulaContext, config: dict | None) -> dict:
     P_atm = 0.101320
     R = 8.31446261815324
 
-    def param(key: str, fallback: str) -> str:
-        return config.get(key) or fallback
-
     # Гейт legacy-расчёта: седло считается, только когда выбран табличный
     # параметр «Устройство принудительного открытия» (значение «Да» или «Нет»).
     # Если он не выбран (продукт не подобран) — просим заполнить.
-    force_open = ctx.get_opt(param("force_open_param", _SEAT_FORCE_OPEN_PARAM))
+    force_open_name = await _actual_param_name(
+        ctx, config, "force_open_param",
+        "устройство принудительного открытия", "принудительного открытия",
+        default=_SEAT_FORCE_OPEN_PARAM,
+    )
+    if force_open_name is None:
+        force_open_name = _SEAT_FORCE_OPEN_PARAM
+    force_open = ctx.get_opt(force_open_name)
     if force_open is None or force_open == "":
-        raise MissingParamError(param("force_open_param", _SEAT_FORCE_OPEN_PARAM))
+        raise MissingParamError(force_open_name)
 
-    Pn = ctx.num(param("pn_param", _SEAT_PN_PARAM))
-    Gab = ctx.num(param("flow_param", _SEAT_FLOW_PARAM))
-    N = ctx.num(param("count_param", _SEAT_COUNT_PARAM))
-    pre_Kc = ctx.get(param("membrane_param", _SEAT_MEMBRANE_PARAM))
-    Pp = ctx.num(param("backpressure_param", _SEAT_BACKPRESSURE_PARAM))
-    T = ctx.num(param("temperature_param", _SEAT_TEMPERATURE_PARAM))
+    pn_name = await _actual_param_name(
+        ctx, config, "pn_param",
+        "давление настройки", "давление для настройки",
+        default=_SEAT_PN_PARAM,
+    )
+    flow_name = await _actual_param_name(
+        ctx, config, "flow_param",
+        "максимальный аварийный расход", "аварийный расход", "расход жидкости и газа",
+        default=_SEAT_FLOW_PARAM,
+    )
+    count_name = await _actual_param_name(
+        ctx, config, "count_param",
+        "количество параллельно установленных", "клапанов",
+        default=_SEAT_COUNT_PARAM,
+    )
+    membrane_name = await _actual_param_name(
+        ctx, config, "membrane_param",
+        "мембранно-предохранительное", "мембран",
+        default=_SEAT_MEMBRANE_PARAM,
+    )
+    backpressure_name = await _actual_param_name(
+        ctx, config, "backpressure_param",
+        "противодавление статическое", "противодавление",
+        default=_SEAT_BACKPRESSURE_PARAM,
+    )
+    temperature_name = await _actual_param_name(
+        ctx, config, "temperature_param",
+        "температура рабочей среды", "рабочая среда",
+        default=_SEAT_TEMPERATURE_PARAM,
+    )
+
+    Pn = ctx.num(pn_name)
+    Gab = ctx.num(flow_name)
+    N = ctx.num(count_name)
+    pre_Kc = ctx.get(membrane_name)
+    Pp = ctx.num(backpressure_name)
+    T = ctx.num(temperature_name)
 
     Kc = 0.9 if pre_Kc == "Да" else 1
 
@@ -1132,9 +1314,11 @@ async def _seat_calc_full(ctx: FormulaContext, config: dict | None) -> dict:
     props = await _medium_properties(ctx, config)
     state = props["agregatnoe_sostojanie"] or ""
 
+    params_by_key = props.get("param_names") or {}
+
     u = props["vjazkost_pa_s"]
     if not u:
-        raise MissingParamError("Вязкость (Па*с)")
+        raise MissingParamError(params_by_key.get("viscosity_param") or "Вязкость (Па*с)")
 
     x0 = 0
     omega = None
@@ -1144,9 +1328,9 @@ async def _seat_calc_full(ctx: FormulaContext, config: dict | None) -> dict:
         M = props["molekuljarnaja_massa"]
         n = props["pokazatel_adiabaty"]
         if not M:
-            raise MissingParamError("Молярная масса")
+            raise MissingParamError(params_by_key.get("molar_param") or "Молярная масса")
         if not n:
-            raise MissingParamError("Показатель адиабаты")
+            raise MissingParamError(params_by_key.get("adiabatic_param") or "Показатель адиабаты")
 
         p1 = P1 * 1000 * M / (R * (T + 273.15))
         alpha = 0.8
@@ -1172,7 +1356,7 @@ async def _seat_calc_full(ctx: FormulaContext, config: dict | None) -> dict:
     elif "Жидкость" in state:
         p1 = props["plotnost_zhidkosti"]
         if not p1:
-            raise MissingParamError("Плотность жидкости")
+            raise MissingParamError(params_by_key.get("density_param") or "Плотность жидкости")
         alpha = 0.6
         # (Д.21) с исправленной границей: legacy-ветка `>1.15 and <=0.25`
         # недостижима, корректная граница — 0.15 (по ГОСТ 12.2.085 приложение Д).
@@ -1193,7 +1377,7 @@ async def _seat_calc_full(ctx: FormulaContext, config: dict | None) -> dict:
         alpha = 0.8
         Kw = 1
         if p1 <= 0:
-            raise MissingParamError("Плотность жидкости")
+            raise MissingParamError(params_by_key.get("density_param") or "Плотность жидкости")
         omega = _omega_parameter(props, P1, T + 273.15)
         eta_c = _two_phase_critical_ratio(omega)
         Gideal = _two_phase_mass_flux(props, P1, T + 273.15, B)

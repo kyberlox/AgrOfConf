@@ -52,9 +52,27 @@ async def _composition_param_names(
     return {row[0] for row in result.all() if row and row[0]}
 
 
+def _mixture_switch_key(selected_values: dict[str, Any]) -> str | None:
+    """Фактическое имя чекбокса «Смесь» по ключевым словам в выбранных параметрах."""
+    for name in selected_values or {}:
+        low = str(name).lower()
+        if "смесь" in low and "тип" not in low and "состав" not in low:
+            return name
+    return MIXTURE_SWITCH
+
+
+def _mixture_type_key(selected_values: dict[str, Any]) -> str | None:
+    """Фактическое имя select «Тип смеси» по ключевым словам."""
+    for name in selected_values or {}:
+        low = str(name).lower()
+        if "тип смеси" in low or ("тип" in low and "смесь" in low):
+            return name
+    return MIXTURE_TYPE_PARAM
+
+
 def _is_mixture_on(selected_values: dict[str, Any]) -> bool:
     """Включён ли чекбокс «Смесь» (True/False или строка)."""
-    value = selected_values.get(MIXTURE_SWITCH)
+    value = selected_values.get(_mixture_switch_key(selected_values))
     if value is None:
         return False
     if isinstance(value, bool):
@@ -88,7 +106,7 @@ async def _finalize_mixture_visibility(
       (type='FormulaMix' или по имени «Состав смеси»).
     """
     if _is_mixture_on(selected_values):
-        mode = _normalize_mixture_mode(selected_values.get(MIXTURE_TYPE_PARAM))
+        mode = _normalize_mixture_mode(selected_values.get(_mixture_type_key(selected_values)))
         if mode is None:
             return response_params  # тип ещё не выбран — смесь не собрана
         return [
@@ -97,7 +115,8 @@ async def _finalize_mixture_visibility(
         ]
 
     comp_names = await _composition_param_names(db, product_id)
-    hidden = {MIXTURE_TYPE_PARAM} | comp_names
+    type_key = _mixture_type_key(selected_values)
+    hidden = {type_key} | comp_names
     return [p for p in response_params if p.get("name") not in hidden]
 
 
@@ -262,7 +281,7 @@ async def _add_input_params(
         error = None
 
         # === Логика смеси ===
-        switch_value = selected_values.get(MIXTURE_SWITCH)
+        switch_value = selected_values.get(_mixture_switch_key(selected_values))
 
         # Параметр-состав смеси: тип 'FormulaMix' или (обратная совместимость)
         # имя «Состав смеси». В конфигураторе для него попап-редактор.
@@ -275,7 +294,7 @@ async def _add_input_params(
         if is_composition_param:
             if not switch_value:
                 continue  # чекбокс выключен — скрываем параметр
-            mode = _normalize_mixture_mode(selected_values.get(MIXTURE_TYPE_PARAM))
+            mode = _normalize_mixture_mode(selected_values.get(_mixture_type_key(selected_values)))
             if mode is None:
                 continue  # тип смеси ещё не выбран — скрываем состав
             values = await _filtered_media_names(ctx, mode)
@@ -287,7 +306,7 @@ async def _add_input_params(
                 error = comp_error
 
         # «Тип смеси»: показываем только если чекбокс «Смесь» отмечен.
-        elif param.name == MIXTURE_TYPE_PARAM:
+        elif param.name == _mixture_type_key(selected_values):
             if not switch_value:
                 continue  # чекбокс выключен — скрываем параметр
             values = cfg.get("values")
