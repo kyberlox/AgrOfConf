@@ -27,7 +27,7 @@ load_dotenv()
 
 # По умолчанию dev-сессия ВКЛЮЧЕНА (удобно для разработки). Для отключения
 # установите DEV_SESSION_ENABLED=false в .env.
-_DEV_ENABLED = os.getenv("DEV_SESSION_ENABLED", "true").strip().lower() in (
+_DEV_ENABLED = os.getenv("DEV_SESSION_ENABLED", "false").strip().lower() in (
     "1", "true", "yes", "on",
 )
 DEV_USER_ID = int(os.getenv("DEV_USER_ID", "4133"))
