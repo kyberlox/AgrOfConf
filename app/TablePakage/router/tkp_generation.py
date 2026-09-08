@@ -110,7 +110,6 @@ async def tkp_generation(
                 "WHERE product_id = :pid AND name ILIKE :pattern LIMIT 1"
             ), {"pid": product_id, "pattern": f"%{search_mark}%"})
             drawing_path = row.scalar_one_or_none()
-            print(drawing_path, 'РЕАЛЬНО ПОЛУЧАЕМ АПИ?')
         else:
             drawing_path = None
         filename = f"TKP+TO_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}_{user_dict.get('id', '')}"
