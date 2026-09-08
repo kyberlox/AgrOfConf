@@ -454,6 +454,25 @@ async def _filtered_media_names(ctx: FormulaContext, mode: str) -> list[str]:
     return names
 
 
+def _to_float(value, default=None):
+    """Безопасное приведение значения колонки к float.
+
+    В таблицах сред характеристики могут хранить текст «нет», пустые строки
+    или десятичные с запятой — такие значения не должны ломать расчёт смеси.
+    """
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return float(value)
+    text_value = str(value).strip().replace(",", ".")
+    if not text_value or text_value.lower() in ("нет", "none", "n/a", "не применимо", "-"):
+        return default
+    try:
+        return float(text_value)
+    except (TypeError, ValueError):
+        return default
+
+
 async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
     """
     Сервисная функция: вычисляет все характеристики смеси разом.
@@ -580,13 +599,13 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
             "name": env_name,
             "r": share,
             "environment": str(mapping.get(aggregate_col) or "") if aggregate_col else "",
-            "molekuljarnaja_massa": mapping.get(molar_mass_col),
-            "plotnost_zhidkosti": mapping.get(density_col),
-            "vjazkost_pa_s": mapping.get(viscosity_col),
-            "isobaric_capacity": mapping.get(isobaric_col),
-            "isochoric_capacity": mapping.get(isochoric_col),
-            "pokazatel_adiabaty": mapping.get(adiabatic_col),
-            "compressibility_factor": mapping.get(factor_col),
+            "molekuljarnaja_massa": _to_float(mapping.get(molar_mass_col)),
+            "plotnost_zhidkosti": _to_float(mapping.get(density_col)),
+            "vjazkost_pa_s": _to_float(mapping.get(viscosity_col)),
+            "isobaric_capacity": _to_float(mapping.get(isobaric_col)),
+            "isochoric_capacity": _to_float(mapping.get(isochoric_col)),
+            "pokazatel_adiabaty": _to_float(mapping.get(adiabatic_col)),
+            "compressibility_factor": _to_float(mapping.get(factor_col), 1),
             "material": mapping.get(material_col),
         }
         env_types.add(env_json["environment"])

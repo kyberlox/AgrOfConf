@@ -19,7 +19,7 @@
         <!-- Чекбокс (например, включение расчёта смеси) -->
         <CheckboxInput v-else-if="(param as IFormattedData).required_type == 'checkbox'"
                        :param="(param as IFormattedData)"
-                       :model-value="(userParams && userParams[param.name as keyof typeof userParams]) === true"
+                       :model-value="!!(userParams && userParams[param.name as keyof typeof userParams])"
                        :disabled="paramsLoading"
                        @valueChanged="(value: boolean) => $emit('valueChanged', value, param.name)" />
 
