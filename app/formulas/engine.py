@@ -110,6 +110,34 @@ def _message_for_missing(param_name: str) -> str:
     return f'Заполните параметр "{param_name}"'
 
 
+def _call_algorithm(func, ctx: FormulaContext, config: dict):
+    """
+    Вызывает функцию расчёта, поддерживая две сигнатуры:
+
+    - `func(ctx)`           — старое поведение (примеры из ТЗ);
+    - `func(ctx, config)`   — функция может читать свою `formula_config`
+                              (например, список слотов `среда/доля`).
+    """
+    try:
+        parameters = inspect.signature(func).parameters
+        n_required = sum(
+            1
+            for p in parameters.values()
+            if p.default is inspect.Parameter.empty
+            and p.kind
+            in (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            )
+        )
+    except (TypeError, ValueError):
+        n_required = 1
+
+    if n_required >= 2:
+        return func(ctx, config)
+    return func(ctx)
+
+
 async def _attempt(
     spec: dict,
     ctx: FormulaContext,
@@ -136,7 +164,7 @@ async def _attempt(
         return ("error", None, str(exc))
 
     try:
-        value = func(ctx)
+        value = _call_algorithm(func, ctx, config)
         # Алгоритм может быть асинхронным (например, если ему нужны данные из БД).
         if inspect.isawaitable(value):
             value = await value
@@ -149,24 +177,28 @@ async def _attempt(
 
     # Валидация результата (если задана).
     error = None
+    is_validation = False
     validate_name = config.get("validate")
     if validate_name:
         validator = get_validator(validate_name)
         if validator is None:
             error = f'Неизвестная функция валидации "{validate_name}"'
+            is_validation = True
         else:
             try:
                 validate_error = validator(ctx, value)
                 if validate_error:
                     error = str(validate_error)
+                    is_validation = True
             except MissingParamError as exc:
                 if exc.param_name in formula_names:
                     return ("missing_formula", exc.param_name)
                 return ("missing_input", exc.param_name)
             except Exception as exc:  # noqa: BLE001
                 error = f'Ошибка валидации параметра "{spec.get("name")}": {exc}'
+                is_validation = True
 
-    return ("ok", value, error)
+    return ("ok", value, error, is_validation)
 
 
 async def compute_formulas(
@@ -214,11 +246,12 @@ async def compute_formulas(
             name = spec["name"]
 
             if status == "ok":
-                value, error = outcome[1], outcome[2]
+                value, error, is_validation = outcome[1], outcome[2], outcome[3]
                 computed[name] = value
                 entry = {"response_value": value}
                 if error:
                     entry["error"] = error
+                    entry["is_validation"] = is_validation
                 results[name] = entry
                 progress = True
                 continue

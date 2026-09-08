@@ -124,7 +124,7 @@ export default defineComponent({
     },
     setup(props, { emit }) {
         const form = ref<IFormattedData[]>([]);
-        const userInputs = ref<{ [key: string]: string }>({});
+        const userInputs = ref<{ [key: string]: string | boolean | Array<{ [key: string]: number }> }>({});
         const modalVisible = ref(false);
         const paramsRenderKey = ref(0);
         const neuroOlDataStore = useNeuroOlData();
@@ -146,8 +146,11 @@ export default defineComponent({
         let rerunGuard = false;
         const priorityParam = ref<string>();
         const promptModalKey = ref(1);
+        // Имя параметра-состава смеси (type='FormulaMix'). Хранится отдельно,
+        // т.к. при выключенном чекбоксе «Смесь» сервер его не возвращает в форме.
+        const mixtureCompositionName = ref('');
 
-        const paramsUpdate = (body: Record<string, string> | null) => {
+        const paramsUpdate = (body: Record<string, string | boolean | Array<{ [key: string]: number }>> | null) => {
             if (!body) {
                 paramsUpdateRequest()
             } else {
@@ -155,18 +158,37 @@ export default defineComponent({
             }
         }
 
+        const arraysEqual = (a: unknown, b: unknown): boolean => {
+            if (Array.isArray(a) && Array.isArray(b)) {
+                return JSON.stringify(a) === JSON.stringify(b);
+            }
+            return a === b;
+        }
+
         watchDebounced(() => userInputs.value, async () => {
             if (Object.keys(userInputs.value).length) {
-                Object.keys(userInputs.value).forEach(key => {
+                let shouldSend = false;
+                for (const [key, current] of Object.entries(userInputs.value)) {
                     const formTarget = form.value.find(formEl => formEl.name == key)
-                    if (!formTarget?.response_value || userInputs.value[key] !== formTarget?.response_value) {
-                        return paramsUpdateRequest(userInputs.value)
+                    const serverValue = formTarget?.response_value
+                    // Параметр-состав смеси (select-input) — массив {среда: доля}: сравниваем
+                    // по содержимому, а не по ссылке — сервер каждый раз присваивает
+                    // новый объект. Если пользователь менял состав — отправляем.
+                    if (Array.isArray(current) || Array.isArray(serverValue)) {
+                        if (!arraysEqual(current, serverValue)) {
+                            shouldSend = true;
+                            break;
+                        }
+                    } else if (!serverValue || current !== serverValue) {
+                        shouldSend = true;
+                        break;
                     }
-                })
+                }
+                if (shouldSend) return paramsUpdateRequest(userInputs.value)
             } else paramsUpdateRequest({})
         }, { debounce: 500, maxWait: 5000, deep: true })
 
-        const paramsUpdateRequest = async (body: Record<string, string | null> = {}) => {
+        const paramsUpdateRequest = async (body: Record<string, string | boolean | Array<{ [key: string]: number }> | null> = {}) => {
             if (abortController) {
                 abortController.abort();
             }
@@ -186,7 +208,12 @@ export default defineComponent({
             const signal = abortController.signal;
             if (newBody && Object.keys(newBody).length) {
                 Object.keys(newBody)?.forEach((key, index) => {
-                    newBody[key] = replaceSpotOrComma(newBody[key]!, 'comma');
+                    // Значение select-input (состав смеси) — массив {среда: доля}.
+                    // Точки/запятые ему не нужны, а конвертация строки сломает JSON.
+                    // Чекбокс (boolean) также не конвертируем.
+                    if (!Array.isArray(newBody[key]) && typeof newBody[key] !== 'boolean') {
+                        newBody[key] = replaceSpotOrComma(newBody[key]!, 'comma');
+                    }
                     if (priorityParam.value)
                         newBody.priority = priorityParam.value;
                 })
@@ -208,7 +235,7 @@ export default defineComponent({
                     if ('error' in e && e.error) {
                         errors.push(e.error)
                     }
-                    if ('response_value' in e && e.response_value && userInputs.value[e.name] !== e.response_value) {
+                    if ('response_value' in e && e.response_value && !(typeof e.response_value === 'object') && userInputs.value[e.name] !== e.response_value) {
                         userInputs.value[e.name] = e.response_value
                         answeredCounter++
                     }
@@ -218,9 +245,12 @@ export default defineComponent({
                 // с текущим выбором. Убираем их из списка явных выборов, чтобы их старое
                 // значение не продолжало отправляться и не блокировало подбор — тогда
                 // остальные параметры смогут автоматически «подстроиться» под новый выбор.
+                // Исключение — ошибки валидации (is_validation): это явный ввод пользователя
+                // (например, температура вне диапазона), такие параметры НЕ удаляем и ошибку
+                // показываем в блоке подсказки, чтобы пользователь мог её исправить.
                 let removedError = false;
                 data.parameters.forEach((e: IFormattedData) => {
-                    if ('error' in e && e.error) {
+                    if ('error' in e && e.error && !e.is_validation) {
                         if (e.name in userInputs.value) {
                             delete userInputs.value[e.name]
                             removedError = true
@@ -238,6 +268,8 @@ export default defineComponent({
 
                 if (!(data && 'parameters' in data)) return
                 form.value = data.parameters
+                const mixtureParam = data.parameters.find((e: IFormattedData) => e.type === 'FormulaMix' || e.name === 'Состав смеси')
+                if (mixtureParam) mixtureCompositionName.value = mixtureParam.name
                 productName.value = data.product_name
 
                 // Были удалены ошибочные (несовместимые) параметры — пересчитываем
@@ -274,7 +306,7 @@ export default defineComponent({
             }
         })
 
-        const handleValueChanged = (value: string, key: keyof typeof userInputs.value) => {
+        const handleValueChanged = (value: string | boolean | Array<{ [key: string]: number }> | null, key: keyof typeof userInputs.value) => {
             // Сброс значения (resetValue): убираем параметр из явных выборов и
             // перезапрашиваем подбор без него, чтобы зависимые параметры пересчитались.
             if (value == null) {
@@ -283,12 +315,37 @@ export default defineComponent({
                 paramsUpdateRequest(userInputs.value);
                 return;
             }
-            if (value && userInputs.value[key] !== replaceSpotOrComma(value, 'spot')) {
-                userInputs.value[key] = replaceSpotOrComma(value, 'spot') || '';
+            // Select-input (состав смеси) приходит массивом {среда: доля}.
+            // Конвертация в строку через replaceSpotOrComma сломает JSON — не трогаем.
+            // Чекбокс приходит boolean (True/False) — тоже не конвертируем.
+            const prepared = Array.isArray(value) || typeof value === 'boolean'
+                ? value
+                : replaceSpotOrComma(value, 'spot') || '';
+            const shouldProcess = Array.isArray(value) || typeof value === 'boolean'
+                ? userInputs.value[key] !== prepared
+                : value && userInputs.value[key] !== prepared;
+
+            if (shouldProcess) {
+                userInputs.value[key] = prepared;
                 // Помечаем как явный выбор пользователя — такой параметр не будет
                 // перезаписан авто-подстановкой и останется в приоритете.
                 manuallyChanged.value[String(key)] = true;
                 priorityParam.value = String(key);
+                // При выключении чекбокса «Смесь»: очищаем связанные параметры,
+                // чтобы они не оставались в выборе и не отправлялись на сервер.
+                if (key === 'Смесь' && prepared === false) {
+                    delete userInputs.value['Тип смеси'];
+                    delete manuallyChanged.value['Тип смеси'];
+                    if (mixtureCompositionName.value) {
+                        delete userInputs.value[mixtureCompositionName.value];
+                        delete manuallyChanged.value[mixtureCompositionName.value];
+                    }
+                }
+                // При смене типа смеси: очищаем состав, т.к. список сред мог измениться.
+                if (key === 'Тип смеси' && mixtureCompositionName.value && userInputs.value[mixtureCompositionName.value] !== undefined) {
+                    delete userInputs.value[mixtureCompositionName.value];
+                    delete manuallyChanged.value[mixtureCompositionName.value];
+                }
                 paramsUpdate(userInputs.value);
             }
         }

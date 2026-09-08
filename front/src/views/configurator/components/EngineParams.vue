@@ -114,7 +114,7 @@ export default defineComponent({
             default: () => []
         },
         userParams: {
-            type: Object as PropType<Record<string, string>>
+            type: Object as PropType<Record<string, string | boolean | Array<{ [key: string]: number }>>>
         }
     },
     emits: ['valueChanged'],

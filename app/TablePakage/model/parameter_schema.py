@@ -12,7 +12,7 @@ class ParameterSchema(Base):
     name = Column(String(255), nullable=False)
     transliterated_name = Column(String(255), nullable=False)
     description = Column(Text)
-    type = Column(String(50), nullable=False)  # "Table" или "Formula"
+    type = Column(String(50), nullable=False)  # "Table", "Formula", "Drawing" или "FormulaMix" (состав смеси)
     measuring_unit = Column(Text, nullable=True)  # Единицы измерения
     visibility = Column(Boolean, default=True)  # Видимость для пользователя
     editable = Column(Boolean, default=True)  # Редактируемость пользователем

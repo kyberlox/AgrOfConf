@@ -8,7 +8,7 @@ FIELD_OF_VIEWS = ['codeparam']
 class ParameterSchemaBase(BaseModel):
     name: str
     description: Optional[str] = None
-    type: str  # "Table" or "Formula"
+    type: str  # "Table", "Formula", "Drawing" или "FormulaMix" (параметр-состав смеси)
     measuring_unit: Optional[str] = None
     table_name: Optional[str] = None
     visibility: Optional[bool] = True

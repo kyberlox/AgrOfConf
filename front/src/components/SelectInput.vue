@@ -1,18 +1,24 @@
 <template>
-<div v-for="(item, index) in inputsCount"
-     class="flex flex-col gap-[24px] col-span-full w-full"
-     :key="'count' + item">
-    <div class="flex flex-row justify-between w-full gap-[8px]">
-        <BaseSelect :selectSettings="initSelectProps(param, index)"
-                    @valueChanged="(x: string) => handleValueChange(x, index, 'select')">
-            <AlertCircle />
-        </BaseSelect>
-
-        <BaseInput :inputSettings="initInputProps(param, index)"
-                   @valueChanged="(x: string) => handleValueChange(x, index, 'input')" />
+<div class="flex flex-col gap-[16px] col-span-full w-full">
+    <div v-if="param.name"
+         class="text-[13px] px-[8px] py-[8px] rounded-[10px_10px_0_0] font-[600] h-full bg-cover bg-blend-multiply bg-right bg-(--color-information-gray-200) text-black uppercase tracking-[0.03em] mb-[2px] border-b border-[#EAECEF] bg-image bg-right">
+        {{ param.name }}
     </div>
-    <div v-if="index !== item - 1"
-         class="border border-[#EAECEF] w-full h-[1px] col-span-full m-auto"></div>
+    <div v-for="(item, index) in inputsCount"
+         class="flex flex-col gap-[24px] col-span-full w-full"
+         :key="'count' + item">
+        <div class="flex flex-row justify-between w-full gap-[8px]">
+            <BaseSelect :selectSettings="initSelectProps(param, index)"
+                        @valueChanged="(x: string) => handleValueChange(x, index, 'select')">
+                <AlertCircle />
+            </BaseSelect>
+
+            <BaseInput :inputSettings="initInputProps(param, index)"
+                       @valueChanged="(x: string) => handleValueChange(x, index, 'input')" />
+        </div>
+        <div v-if="index !== item - 1"
+             class="border border-[#EAECEF] w-full h-[1px] col-span-full m-auto"></div>
+    </div>
 </div>
 </template>
 
@@ -74,8 +80,8 @@ export default defineComponent({
             return {
                 class: 'select-params',
                 options: param.all_values,
-                label: 'Компонент',
-                placeholder: 'Выберите компонент',
+                label: 'Название рабочей среды',
+                placeholder: 'Выберите среду',
                 disabled: props.disabled,
                 error: 'error' in param && choices.value.some(e => e.name && e.value) && Number(index) == 0 ? param.error as string : ''
             }
@@ -87,7 +93,7 @@ export default defineComponent({
                 type: 'number',
                 placeholder: 'в %',
                 name: param.name + (index + 1),
-                label: 'Мольная доля, %',
+                label: 'Мольная доля состава рабочей среды, %',
                 min: 0,
                 max: 100,
                 error: 'error' in param ? param.error : ''
