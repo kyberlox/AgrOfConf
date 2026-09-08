@@ -22,7 +22,7 @@ from .TablePakage.router.product_porting import router as product_porting_router
 from .TablePakage.model.database import create_tables, AsyncSessionLocal
 from .TablePakage.model.formula_columns import ensure_formula_config_column
 from .TablePakage.model.blocks_columns import ensure_blocks_schema
-from .TablePakage.model.parameter_flags_columns import ensure_parameter_flags
+from .TablePakage.model.parameter_flags_columns import ensure_parameter_flags, ensure_parameter_special
 import app.logging_config
 from .TablePakage.model.database import create_tables
 
@@ -162,6 +162,12 @@ async def startup_event():
             await ensure_parameter_flags(session)
     except Exception as e:
         print(f"⚠️ Не удалось применить миграцию parameter flags: {e}")
+    # Миграция флага «специальный параметр» (special)
+    try:
+        async with AsyncSessionLocal() as session:
+            await ensure_parameter_special(session)
+    except Exception as e:
+        print(f"⚠️ Не удалось применить миграцию parameter special: {e}")
     # DEV-сессия для тестирования (если включена) — создаём пользователя/админа
     try:
         from .UserService.utils.dev_session import ensure_dev_user

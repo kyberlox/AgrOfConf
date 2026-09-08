@@ -29,6 +29,7 @@ class ParameterSchema(Base):
     # Блок параметров (например «Конструкция», «Контактные данные»). NULL — параметр без блока.
     block_id = Column(Integer, ForeignKey("parameter_blocks.id", ondelete="SET NULL"), nullable=True, index=True)
     sort = Column(Float, nullable=True)
+    special = Column(Boolean, default=False)  # «Специальный» параметр — выводится отдельно справа
 
     # ORM-связь
     product = relationship("Product", back_populates="parameters")

@@ -33,6 +33,8 @@ export default defineComponent({
           try {
             const userData: IUser = await Api.get(`users/find_by/${user}`)
             userStore.setUser(userData)
+            const isAdmin = await Api.get(`roots/access_admin?user_id=${userData.id}`)
+            userStore.setIsAdmin(Boolean(isAdmin))
           } catch (error) {
             console.error(error)
           }

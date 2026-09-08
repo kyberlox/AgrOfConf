@@ -113,7 +113,7 @@ export default defineComponent({
         const mouseTab = ref('');
 
         const checkRights = (route: string | 'myRequests' | 'koRequests' | 'profileSettings' | 'admin', data: IRequestsData) => {
-            if (route == 'admin' && !data.isAdmin) return false
+            if (route == 'admin' && !useUserStore().getIsAdmin) return false
             else if (route == 'koRequests' && !('requestsData' in data)) return false
             else
                 return true

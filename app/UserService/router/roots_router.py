@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 
@@ -24,8 +24,8 @@ async def create_new_root(
 
 @router.get("/access_base", status_code=200)
 async def get_access_base(
-    user_id: int,
-    product_id: int,
+    user_id: int = Query(None, description="ID пользователя"),
+    product_id: int = Query(None, description="ID продукта"),
     db: AsyncSession = Depends(get_db)
 ):
     try:
@@ -38,7 +38,7 @@ async def get_access_base(
 
 @router.get("/access_admin", status_code=200)
 async def get_access_admin(
-    user_id: int,
+    user_id: int = Query(None, description="ID пользователя"),
     db: AsyncSession = Depends(get_db)
 ):
     try:
@@ -51,7 +51,7 @@ async def get_access_admin(
     
 @router.delete("/delete_root", status_code=200)
 async def delete_root(
-    id: int,
+    id: int = Query(None, description="ID прав доступа"),
     db: AsyncSession = Depends(get_db)
 ):
     try:

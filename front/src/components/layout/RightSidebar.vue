@@ -95,9 +95,11 @@
                 </div>
             </div>
         </div>
-        <div class="mt-[16px] bg-gray-100 bg-contain bg-no-repeat bg-center w-[294px] h-[320px] cursor-zoom-in"
-             @click="{ activeImageInModal = images[activeImgBlock]?.img; showImageModal = true }"
-             :style="{ 'background-image': `url(${images[activeImgBlock]?.img})` }">
+        <div class="mt-[16px] bg-gray-100 w-[294px] h-[320px] cursor-zoom-in flex items-center justify-center overflow-hidden"
+             @click="{ activeImageInModal = images[activeImgBlock]?.img; showImageModal = true }">
+            <img :src="images[activeImgBlock]?.img"
+                 class="max-w-full max-h-full object-contain"
+                 alt="Чертеж" />
         </div>
     </div>
     <!-- Блок с документами -->

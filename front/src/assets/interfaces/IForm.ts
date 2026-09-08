@@ -11,6 +11,8 @@ export interface IFormattedData {
     visibility: boolean
     editable?: boolean
     error?: string
+    special?: boolean
+    sort?: number
     is_validation?: boolean
 } 
 

@@ -132,12 +132,13 @@ def duplicate_value(ctx: FormulaContext):
 
 
 async def file_by_construction(ctx: FormulaContext):
-    construction = ctx.get("Тип среды")
+    """Возвращает URL чертежа по маркировке."""
+    construction = ctx.get("Маркировка")
     if not ctx.db or not ctx.product_id:
         return None
 
-    target = "АМ211.jpg" if str(construction) == "Газ" else "АМ212.jpg"
-
+    target = construction[0:5]
+    
     from sqlalchemy import text
 
     row = await ctx.db.execute(text(
@@ -146,6 +147,21 @@ async def file_by_construction(ctx: FormulaContext):
     ), {"pid": ctx.product_id, "pattern": f"%{target}%"})
     url = row.scalar_one_or_none()
     return url or None
+
+async def has_product_device(ctx: FormulaContext):
+    """Проверяет, есть ли у продукта рычаг."""
+    has_device  = ctx.get('Устройство принудительного открытия')
+    if has_device and has_device == 'требуется':
+        return "Рычаг"
+    return None
+
+async def has_product_seal(ctx: FormulaContext):
+    """Проверяет, есть ли у продукта сильфон."""
+    has_seal  = ctx.get('Тип уплотнения')
+    if has_seal and has_seal == 'сильфонное':
+        return "Сильфон"
+    return None
+
 
 
 # === Расчёт характеристик смесей ===

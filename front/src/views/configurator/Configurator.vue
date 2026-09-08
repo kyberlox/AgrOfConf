@@ -258,7 +258,7 @@ export default defineComponent({
                         delete manuallyChanged.value[e.name]
                     }
                 })
-                configuratorStore.setCalcParams(data.parameters.filter((e: IFormattedData) => e.required_type == 'raschet' && e.response_value));
+                configuratorStore.setCalcParams(data.parameters.filter((e: IFormattedData) => (e.required_type == 'raschet' || e.required_type == 'drawing') && e.response_value));
                 configuratorStore.setCovered(Number(answeredCounter));
                 configuratorStore.setAllQuestions(Number(questionCounter));
                 if (errors.length) {

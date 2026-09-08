@@ -7,6 +7,7 @@ export const useUserStore = defineStore('userStore', {
     state: () => ({
         user: {} as IUser,
         isLogin: false,
+        isAdmin: false,
         monthMetrics: [] as IStatisticBlock[],
         yearMetrics: {} as IYearMetric
     }),
@@ -19,6 +20,9 @@ export const useUserStore = defineStore('userStore', {
             this.user = {} as IUser;
             this.isLogin = isLogin;
             useHistoryStore().setHistoryData([]);
+        },
+        setIsAdmin(isAdmin: boolean) {
+            this.isAdmin = isAdmin;
         },
         setMonthMetrics(monthMetrics: IStatisticBlock[]) {
             this.monthMetrics = monthMetrics;
@@ -33,6 +37,7 @@ export const useUserStore = defineStore('userStore', {
         getUser: (state) => state.user,
         getFio: (state) => state.user.last_name && state.user.name ? `${state.user.last_name} ${state.user.name} ${state.user.second_name ?? ''}` : null,
         getIsLogin: (state) => state.isLogin,
+        getIsAdmin: (state) => state.isAdmin,
         getYearMetrics: (state) => state.yearMetrics,
         getMonthMetrics: (state) => state.monthMetrics
 
