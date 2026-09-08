@@ -25,6 +25,10 @@
                 <input type="checkbox" v-model="newParameter.editable" />
                 Редактируемый пользователем
             </label>
+            <label class="flex flex-row items-center gap-[8px] text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" v-model="newParameter.special" />
+                Специальный (отображать отдельным блоком справа)
+            </label>
         </div>
 
         <div class="flex flex-col gap-[8px]">
@@ -161,6 +165,7 @@ export default defineComponent({
             measuring_unit: string,
             visibility: boolean,
             editable: boolean,
+            special: boolean,
             required_type: string,
             formula_config?: Record<string, unknown>
         }>({
@@ -169,6 +174,7 @@ export default defineComponent({
             measuring_unit: props.parameter?.measuring_unit ?? '',
             visibility: props.parameter?.visibility ?? true,
             editable: props.parameter?.editable ?? true,
+            special: props.parameter?.special ?? false,
             required_type: props.parameter?.required_type ?? 'list',
             formula_config: { ...initialConfig.value }
         });
@@ -274,6 +280,7 @@ export default defineComponent({
                 measuring_unit: newParameter.value.measuring_unit,
                 visibility: newParameter.value.visibility,
                 editable: newParameter.value.editable,
+                special: newParameter.value.special,
                 required_type: newParameter.value.required_type,
                 ...(hasConfig ? { formula_config: fc } : {})
             })

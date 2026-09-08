@@ -21,6 +21,7 @@ class ParameterSchemaBase(BaseModel):
     formula_config: Optional[Dict[str, Any]] = None
     product_id: int
     sort: float
+    special: Optional[bool] = False
 
     # Поле field_of_view исторически хранилось как Dict[str, bool],
     # теперь ожидается строка. Приводим словарь к JSON-строке,
@@ -52,6 +53,7 @@ class ParameterSchemaUpdate(BaseModel):
     formula_config: Optional[Dict[str, Any]] = None
     product_id: Optional[int] = None
     sort: Optional[float] = True
+    special: Optional[bool] = False
 
     # @validator('field_of_view', pre=True, always=True)
     # def validate_operation(cls, value):

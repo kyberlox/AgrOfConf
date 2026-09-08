@@ -62,7 +62,7 @@
              v-for="(item, index) in actionButtons"
              :key="item.name + index">
             <BaseButton :buttonSettings="{ class: 'button-secondary' }"
-                        @clicked="item.name == 'tkp' ? olListModalOpen = true : tablesModalIsOpen = true">
+                        @clicked="handleActionButton(item.name)">
                 {{ item.title }}
             </BaseButton>
         </div>
@@ -133,7 +133,9 @@
                             class="flex flex-col py-[20px] px-[15px]  border border-green-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 bg-green-50 relative cursor-move"
                             :class="{ 'bg-blue-50! border-blue-200!': parameter.type == 'Formula' }">
                             <div class="text-lg pr-[25px] font-medium  text-gray-800 mb-2 wrap-break-word">
-                                {{ parameter.name }}
+                                <span>{{ parameter.name }}</span>
+                                <span v-if="parameter.special"
+                                      class="ml-[8px] align-middle text-[11px] px-[8px] py-[2px] rounded-full bg-orange-100 text-orange-700 border border-orange-200">специальный</span>
                             </div>
                             <div class="text-sm text-gray-600 mb-3 wrap-break-word">
                                 {{ parameter.description }}
@@ -176,6 +178,15 @@
                        @closeModal="tablesModalIsOpen = false"
                        @deleteTable="deleteTableFromProduct" />
 
+    <CertificatesModal v-if="id"
+                       :id="id"
+                       :isOpen="filesModalIsOpen"
+                       :filesList="filesList"
+                       :isLoading="filesIsLoading"
+                       @closeModal="filesModalIsOpen = false"
+                       @updateFilesList="uploadFile"
+                       @removeFile="removeFile" />
+
     <CreateParameterModal :showModal="createParamModalVisible"
                           :productId="safeProductId ?? ''"
                           :tables="productTablesList"
@@ -206,6 +217,9 @@ import VInputFile from '@/components/layout/VInputFile.vue';
 import TablesManageModal from './TablesManageModal.vue';
 import CreateParameterModal from './CreateParameterModal.vue';
 import BlocksManager from './BlocksManager.vue';
+import CertificatesModal from './CertificatesModal.vue';
+import { getProductFiles } from '@/utils/getProductFiles.ts';
+import { type IProductFile } from '@/assets/interfaces/IProductFile.ts';
 
 export default defineComponent({
     components: {
@@ -222,7 +236,8 @@ export default defineComponent({
         VInputFile,
         TablesManageModal,
         CreateParameterModal,
-        BlocksManager
+        BlocksManager,
+        CertificatesModal
     },
     props: {
         id: {
@@ -251,6 +266,9 @@ export default defineComponent({
         const productTablesList = ref<string[]>([]);
         const createParamModalVisible = ref(false);
         const productStatistics = ref<Record<string, any>[]>([]);
+        const filesModalIsOpen = ref(false);
+        const filesList = ref<IProductFile[]>();
+        const filesIsLoading = ref(false);
 
         const downloadExcell = async () => {
             try {
@@ -346,12 +364,18 @@ export default defineComponent({
         onMounted(async () => {
             getParams();
             getOlList();
+            getFilesList();
             loadProductStatistics();
         })
 
         const getOlList = async () => {
             if (props.id)
                 olList.value = await getTkpVariants(props.id) || []
+        }
+
+        const getFilesList = async () => {
+            if (props.id)
+                filesList.value = await getProductFiles(props.id) || []
         }
 
         const deleteParam = async (id: number) => {
@@ -437,6 +461,36 @@ export default defineComponent({
             }
         }
 
+        const handleActionButton = (name: string) => {
+            if (name == 'tkp') olListModalOpen.value = true
+            else if (name == 'tables') tablesModalIsOpen.value = true
+            else if (name == 'files') filesModalIsOpen.value = true
+        }
+
+        const removeFile = async (id: number) => {
+            try {
+                await Api.delete(`products/delete_product_file/${id}`)
+                await getFilesList();
+            } catch (error) {
+                console.error(error)
+            }
+        }
+
+        const uploadFile = async (fileFormData: FormData) => {
+            filesIsLoading.value = true;
+            try {
+                const data = await Api.post('products/upload_product_file', fileFormData);
+                if (data) {
+                    toast.success('Сертификат успешно загружен')
+                }
+                await getFilesList();
+            } catch (error) {
+                console.error(error)
+            } finally {
+                filesIsLoading.value = false;
+            }
+        }
+
         return {
             url,
             productTableType,
@@ -461,8 +515,15 @@ export default defineComponent({
             importing,
             handleImportFile,
             productTablesList,
-            actionButtons: [{ name: 'tkp', title: 'Загруженные ТКП' }, { name: 'tables', title: 'Загруженные таблицы' }],
+            actionButtons: [{ name: 'tkp', title: 'Загруженные ТКП' }, { name: 'tables', title: 'Загруженные таблицы' }, { name: 'files', title: 'Сертификаты' }],
             removeOl,
+            getFilesList,
+            filesList,
+            filesModalIsOpen,
+            filesIsLoading,
+            removeFile,
+            uploadFile,
+            handleActionButton,
             downloadExcell,
             sendNewSort,
             handleExcellUpload,

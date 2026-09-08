@@ -10,39 +10,58 @@
         </div>
     </div>
     <div class="border-t border-[#EAECEF] w-full max-w-full mb-[20px]"></div>
-    <!-- Группы параметров  -->
-    <MasonryWall v-if="paramsGroups && paramsGroups.length"
-                 :items="paramsGroups"
-                 :columnWidth="400"
-                 :gap="12">
-        <template #default="{ item, index }">
-            <div
-                 class="w-full rounded-[10px_10px_0_0] border border-[#EAECEF] transition-all  hover:shadow-lg hover:shadow-gray-200 hover:border-[#d4d4d4]">
-                <!-- Заголовок группы -->
-                <div class="text-[13px] px-[8px] py-[8px] rounded-[10px_10px_0_0] font-[600] h-full bg-cover bg-blend-multiply bg-right bg-(--color-information-gray-200) text-black uppercase tracking-[0.03em] mb-[2px] border-b border-[#EAECEF] bg-image bg-right"
-                     :style="{ backgroundImage: `url(${backImage})`, backgroundPositionY: `${(index + 2) * 25}px` }">
-                    {{ item.name }}
-                </div>
-                <!-- Параметры группы -->
-                <EngineParamsGroup :items="getGroupedParams(item)"
-                                   :gridCols="gridCols"
-                                   :type="type"
-                                   :userParams="userParams"
-                                   :paramsLoading="paramsLoading"
-                                   @resetValue="(param) => $emit('valueChanged', null, param)"
-                                   @valueChanged="(value, param) => $emit('valueChanged', value, param)" />
+    <div class="flex flex-row flex-wrap items-start gap-[12px] w-full">
+        <div class="flex-1 min-w-0">
+            <!-- Группы параметров  -->
+            <MasonryWall v-if="paramsGroups && paramsGroups.length"
+                         :items="paramsGroups"
+                         :columnWidth="400"
+                         :gap="12">
+                <template #default="{ item, index }">
+                    <div
+                         class="w-full rounded-[10px_10px_0_0] border border-[#EAECEF] transition-all  hover:shadow-lg hover:shadow-gray-200 hover:border-[#d4d4d4]">
+                        <!-- Заголовок группы -->
+                        <div class="text-[13px] px-[8px] py-[8px] rounded-[10px_10px_0_0] font-[600] h-full bg-cover bg-blend-multiply bg-right bg-(--color-information-gray-200) text-black uppercase tracking-[0.03em] mb-[2px] border-b border-[#EAECEF] bg-image bg-right"
+                             :style="{ backgroundImage: `url(${backImage})`, backgroundPositionY: `${(index + 2) * 25}px` }">
+                            {{ item.name }}
+                        </div>
+                        <!-- Параметры группы -->
+                        <EngineParamsGroup :items="getGroupedParams(item)"
+                                           :gridCols="gridCols"
+                                           :type="type"
+                                           :userParams="userParams"
+                                           :paramsLoading="paramsLoading"
+                                           @resetValue="(param) => $emit('valueChanged', null, param)"
+                                           @valueChanged="(value, param) => $emit('valueChanged', value, param)" />
+                    </div>
+                </template>
+            </MasonryWall>
+            <!-- Параметры скопом -->
+            <EngineParamsNoGroup v-else-if="form"
+                                 :items="nonSpecialParams"
+                                 :gridCols="gridCols"
+                                 :type="type"
+                                 :userParams="userParams"
+                                 :paramsLoading="paramsLoading"
+                                 @resetValue="(param) => $emit('valueChanged', null, param)"
+                                 @valueChanged="(value, param) => $emit('valueChanged', value, param)" />
+        </div>
+        <!-- Специальные параметры: выводятся отдельно, вне блоков, справа -->
+        <div v-if="specialParams.length"
+             class="w-[300px] shrink-0 rounded-[10px_10px_0_0] border border-[#EAECEF] transition-all hover:shadow-lg hover:shadow-gray-200 hover:border-[#d4d4d4]">
+            <div class="text-[13px] px-[8px] py-[8px] rounded-[10px_10px_0_0] font-[600] h-full bg-cover bg-blend-multiply bg-right bg-(--color-information-orange-50) text-black uppercase tracking-[0.03em] mb-[2px] border-b border-[#EAECEF] bg-image bg-right"
+                 :style="{ backgroundImage: `url(${backImage})`, backgroundPositionY: `${3 * 25}px` }">
+                Специальные параметры
             </div>
-        </template>
-    </MasonryWall>
-    <!-- Параметры скопом -->
-    <EngineParamsNoGroup v-else-if="form"
-                         :items="form"
-                         :gridCols="gridCols"
-                         :type="type"
-                         :userParams="userParams"
-                         :paramsLoading="paramsLoading"
-                         @resetValue="(param) => $emit('valueChanged', null, param)"
-                         @valueChanged="(value, param) => $emit('valueChanged', value, param)" />
+            <EngineParamsGroup :items="specialParams"
+                               :gridCols="gridCols"
+                               :type="type"
+                               :userParams="userParams"
+                               :paramsLoading="paramsLoading"
+                               @resetValue="(param) => $emit('valueChanged', null, param)"
+                               @valueChanged="(value, param) => $emit('valueChanged', value, param)" />
+        </div>
+    </div>
 </div>
 </template>
 <script lang='ts'>
@@ -117,7 +136,23 @@ export default defineComponent({
         }
 
         // Применяем фильтр видимости/доступности и режим отображения блока.
-        const paramsFilter = (e: IFormattedData) => e.visibility && e.required_type !== 'raschet' && (e.required_type == 'select-input' ? e.all_values : true)
+        const paramsFilter = (e: IFormattedData) => e.visibility && !e.special && e.required_type !== 'raschet' && (e.required_type == 'select-input' ? e.all_values : true)
+
+        // Специальные параметры — выводятся отдельным блоком справа (вне групп).
+        // Чертежи (required_type == 'drawing') сюда не попадают: они показываются
+        // в правом сайдбаре, под блоком ошибок/примечаний.
+        const specialParams = computed<IFormattedData[]>(() => {
+            if (!props.form) return []
+            return props.form
+                .filter((e: IFormattedData) => e.special && e.visibility && e.required_type !== 'raschet' && e.required_type !== 'drawing' && (e.required_type == 'select-input' ? e.all_values : true))
+                .sort((a, b) => (a.sort ?? a.id) - (b.sort ?? b.id))
+        })
+
+        // Параметры без специальных (для режима без групп).
+        const nonSpecialParams = computed<IFormattedData[]>(() => {
+            if (!props.form) return []
+            return props.form.filter((e: IFormattedData) => !e.special)
+        })
 
         // Для режима «sequential» показываем параметры друг за другом:
         // только отвеченные плюс первый неотвеченный. Для «group» — все сразу.
@@ -142,7 +177,9 @@ export default defineComponent({
             getParamsGroup,
             getGroupedParams,
             createLabelIconsComponent,
-            paramsFilter
+            paramsFilter,
+            specialParams,
+            nonSpecialParams
         }
     }
 });

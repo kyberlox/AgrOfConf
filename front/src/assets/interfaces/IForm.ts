@@ -10,6 +10,8 @@ export interface IFormattedData {
     visibility: boolean
     editable?: boolean
     error?: string
+    special?: boolean
+    sort?: number
 } 
 
 export interface IForm{

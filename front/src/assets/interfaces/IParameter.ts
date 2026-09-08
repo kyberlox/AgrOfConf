@@ -12,4 +12,5 @@ export interface IParameter {
     sort: number | boolean
     // Новая система формул: { func: "count_A", validate: "validate_nonzero", type: "formula" }
     formula_config?: Record<string, unknown>
+    special?: boolean
 }

@@ -32,6 +32,12 @@
                 </select>
             </label>
 
+            <label class="flex flex-row items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox"
+                       v-model="form.special" />
+                Специальный (отображать отдельным блоком справа)
+            </label>
+
             <template v-if="form.type == 'Table'">
                 <label class="flex flex-col gap-1 text-sm">
                     <span class="text-gray-700">Таблица (таблица, в которую добавить колонку)</span>
@@ -116,7 +122,8 @@ interface IParamForm {
     func: string,
     validate: string,
     drawing_of: string,
-    use_first_chars: number
+    use_first_chars: number,
+    special: boolean
 }
 
 const emptyForm = (): IParamForm => ({
@@ -127,7 +134,8 @@ const emptyForm = (): IParamForm => ({
     func: '',
     validate: '',
     drawing_of: '',
-    use_first_chars: 0
+    use_first_chars: 0,
+    special: false
 });
 
 export default defineComponent({
@@ -168,7 +176,8 @@ export default defineComponent({
                 table_name: form.type == 'Table' ? form.table_name : null,
                 field_of_view: null,
                 product_id: Number(props.productId),
-                sort: 0
+                sort: 0,
+                special: form.special
             }
             if (form.type == 'Formula') {
                 body.formula_config = {

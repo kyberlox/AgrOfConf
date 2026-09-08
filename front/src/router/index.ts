@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '@/views/homeView/HomeView.vue';
+import Api from '@/utils/Api';
+import { useUserStore } from '@/stores/user';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -54,6 +56,23 @@ const router = createRouter({
     },
 
   ]
+})
+
+router.beforeEach(async (to) => {
+    const adminRoutes = ['admin', 'productEdit']
+    if (adminRoutes.includes(String(to.name))) {
+        const userStore = useUserStore()
+        let isAdmin = userStore.getIsAdmin
+        if (!isAdmin) {
+            const userId = await Api.get('auth/user_id_by_session_id')
+            if (userId) {
+                isAdmin = Boolean(await Api.get(`roots/access_admin?user_id=${userId}`))
+                userStore.setIsAdmin(isAdmin)
+            }
+        }
+        if (!isAdmin) return { name: 'myRequests' }
+    }
+    return true
 })
 
 export default router

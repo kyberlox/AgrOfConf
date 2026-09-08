@@ -413,6 +413,7 @@ async def process_table_data(
                 visibility,
                 editable,
                 required_type,
+                special,
                 sort
             FROM parameter_schemas
             WHERE product_id = :product_id
@@ -482,6 +483,7 @@ async def process_table_data(
                 "visibility": item["visibility"],
                 "editable": item["editable"],
                 "required_type": item["required_type"],
+                "special": bool(item["special"]),
                 "sort": item["sort"],
             })
         response_params = await apply_new_and_legacy_formulas(
@@ -492,14 +494,28 @@ async def process_table_data(
             product_id,
         )
 
+        # response_params = sorted(
+        #     response_params,
+        #     key=lambda param: param.get("sort") or param["id"]
+        # )
+
+        stmt_product_files = await db.execute(select(ProductFiles).where(ProductFiles.product_id == product_id))
+        product_files = stmt_product_files.scalars().all()
+        # product_files = [dict(row) for row in rows]
+        # print(type(product_files), 'че получимли')
         response_params = sorted(
             response_params,
-            key=lambda param: param.get("sort") or param["id"]
+            key=lambda param: (
+                param["sort"]
+                if param.get("sort") is not None
+                else param["id"]
+            )
         )
 
         return {
             "product_id": product_id,
             "product_name": product_name,
+            "files": product_files,
             "parameters": response_params,
             "matched_rows": full_matched_rows,
             "request_time": time.perf_counter() - start_time,
@@ -720,6 +736,7 @@ async def process_table_data(
             "visibility": item["visibility"],
             "editable": item["editable"],
             "required_type": item["required_type"],
+            "special": bool(item["special"]),
             "filtered_values": filtered_value,
             "sort": item["sort"],
         }

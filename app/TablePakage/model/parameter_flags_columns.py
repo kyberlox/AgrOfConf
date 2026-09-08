@@ -16,3 +16,12 @@ async def ensure_parameter_flags(db: AsyncSession) -> None:
         "ADD COLUMN IF NOT EXISTS editable BOOLEAN DEFAULT TRUE"
     ))
     await db.commit()
+
+
+async def ensure_parameter_special(db: AsyncSession) -> None:
+    """Добавляет колонку special (специальный параметр) в parameter_schemas, если её нет."""
+    await db.execute(text(
+        "ALTER TABLE parameter_schemas "
+        "ADD COLUMN IF NOT EXISTS special BOOLEAN DEFAULT FALSE"
+    ))
+    await db.commit()

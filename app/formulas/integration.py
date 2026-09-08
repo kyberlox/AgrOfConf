@@ -58,6 +58,7 @@ async def _apply_new_formulas(
                 "visibility": param.visibility,
                 "editable": param.editable,
                 "required_type": param.required_type,
+                "special": bool(param.special),
                 "sort": param.sort,
             }
             response_params.append(entry)
@@ -128,6 +129,7 @@ async def _add_input_params(
             "visibility": param.visibility,
             "editable": param.editable,
             "required_type": param.required_type,
+            "special": bool(param.special),
             "sort": param.sort,
         }
         if error:
@@ -277,6 +279,7 @@ async def resolve_drawings(
             "visibility": param.visibility,
             "editable": False,
             "required_type": "drawing",
+            "special": bool(param.special),
             "sort": param.sort,
         })
 

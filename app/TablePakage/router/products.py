@@ -383,9 +383,9 @@ async def get_product_drawings(product_id: int, db: AsyncSession = Depends(get_d
 #Загрузка сертификатов для продукта
 @router.post("/upload_product_file", description="Загрузка сертификатов для продукта", status_code=201)
 async def upload_product_file(
-    product_id: int,
-    name: str, 
-    date_to: str,
+    product_id: int = Form(...),
+    name: str = Form(...),
+    date_to: str = Form(...),
     image: UploadFile = File(None),
     db: AsyncSession = Depends(get_db)
 ):
@@ -398,7 +398,7 @@ async def upload_product_file(
         with open(file_path, "wb") as f:
             f.write(await image.read())
 
-        file_url = f"/files/product_files/{new_filename}"
+        file_url = f"/api/files/product_files/{new_filename}"
 
         new_product_drawing = ProductFiles(
             product_id=product_id,

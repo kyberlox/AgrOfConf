@@ -58,12 +58,12 @@ async def create_session(session_id: str, user_id: int) -> bool:
     return True
 
 async def delete_session(session_id: str, key: Optional[str] = None) -> None:
-        """Удаление сессии"""
-        user_id = redis_storage.get_session(session_id)
-        
-        redis_storage.remove_from_set(key, session_id)
-        
-        redis_storage.delete_session(session_id)
+    """Удаление сессии"""
+    user_id = redis_storage.get_session(session_id)
+    
+    redis_storage.remove_from_set(key, session_id)
+    
+    redis_storage.delete_session(session_id)
 
 async def refresh_session_id(token: str):
     url = "http://intranet.emk.org.ru/api/auth_router/refresh"
