@@ -67,6 +67,32 @@ def validate_T_PK(ctx: FormulaContext, value):
     return None
 
 
+def validate_pressure_setting(ctx: FormulaContext, value):
+    """Давление настройки должно быть в диапазоне от 0 до 16 (кгс/см²)."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return "Давление настройки должно быть числом"
+    if v < 0 or v > 16:
+        return "Давление настройки не может быть меньше 0 и больше 16"
+    return None
+
+
+def validate_backpressure(ctx: FormulaContext, value):
+    """Противодавление не должно превышать 70% давления настройки и быть меньше 0."""
+    pn = ctx.get_opt("Давление настройки")
+    if pn is None:
+        return None
+    try:
+        v = float(value)
+        limit = float(pn) * 0.7
+    except (TypeError, ValueError):
+        return None
+    if v > limit or v < 0:
+        return f"Значение не может быть больше 70% давления настройки ({limit:.2f}) и меньше 0"
+    return None
+
+
 def validate_mixture_composition(ctx: FormulaContext, value):
     """
     Проверяет состав смеси из select-input параметра «Характеристики среды»:

@@ -573,6 +573,7 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
     isobaric_col = find_column("изобарная теплоёмкость", "изобарн", "cp")
     isochoric_col = find_column("изохорная теплоёмкость", "изохорн", "cv")
     factor_col = find_column("фактор сжимаемости", "сжимаемости")
+    latent_heat_col = find_column("удельная теплота парообразования", "теплота парообразования", "парообразован")
     material_col = find_column("материал")
 
     select_columns = [env_name_col]
@@ -591,6 +592,7 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
     _add_char_column(isobaric_col)
     _add_char_column(isochoric_col)
     _add_char_column(factor_col)
+    _add_char_column(latent_heat_col)
     _add_char_column(material_col)
 
     envs_json: list[dict] = []
@@ -622,6 +624,7 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
             "isochoric_capacity": _to_float(mapping.get(isochoric_col)),
             "pokazatel_adiabaty": _to_float(mapping.get(adiabatic_col)),
             "compressibility_factor": _to_float(mapping.get(factor_col), 1),
+            "latent_heat": _to_float(mapping.get(latent_heat_col)),
             "material": mapping.get(material_col),
         }
         env_types.add(env_json["environment"])
@@ -640,7 +643,14 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
         "isochoric_capacity": 0,
         "pokazatel_adiabaty": 0,
         "factor": 1,
+        "latent_heat": 0,
         "material": "",
+        # Двухфазный поток (метод Ω, ISO 4126-10):
+        "vapor_mass_fraction": 0,   # массовое паросодержание x0
+        "plotnost_liquid": 0,       # плотность жидкой фазы, кг/м³
+        "molar_mass_vapor": 0,      # молярная масса паровой фазы, г/моль
+        "cp_liquid": 0,             # изобарная теплоёмкость жидкой фазы, Дж/(кг·К)
+        "n_polytropic": 0,          # политропный показатель (для Ω)
     }
 
     homogeneous = len(env_types) == 1
@@ -654,6 +664,8 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
         mix_molar = 0
         mix_isobaric = 0
         mix_isochoric = 0
+        latent_num = 0
+        latent_den = 0
 
         for env in envs_json:
             r = env["r"]
@@ -670,11 +682,25 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
             mix_isobaric += float(env["isobaric_capacity"] or 0) * r
             mix_isochoric += float(env["isochoric_capacity"] or 0) * r
 
+            # Удельная теплота парообразования (Дж/кг): массовое усреднение.
+            # Доли состава — объёмные, переводим в массовые через плотность.
+            mass_share = float(env["plotnost_zhidkosti"] or 0) * r
+            latent_num += float(env["latent_heat"] or 0) * mass_share
+            latent_den += mass_share
+
         result["molekuljarnaja_massa"] = mix_molar
         result["plotnost_zhidkosti"] = ch_den / zn_den if zn_den else 0
         result["vjazkost_pa_s"] = 10 ** pre_viscosity
         result["isobaric_capacity"] = mix_isobaric
         result["isochoric_capacity"] = mix_isochoric
+        result["latent_heat"] = latent_num / latent_den if latent_den else 0
+
+        # Поля двухфазной ветки (однофазная жидкость): x0 = 0.
+        result["vapor_mass_fraction"] = 0
+        result["plotnost_liquid"] = result["plotnost_zhidkosti"]
+        result["molar_mass_vapor"] = 0
+        result["cp_liquid"] = mix_isobaric * 1000  # кДж/(кг·К) → Дж/(кг·К)
+        result["n_polytropic"] = 0
 
     elif homogeneous and "Газ" in env_types:
         result["agregatnoe_sostojanie"] = "Газ"
@@ -687,6 +713,7 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
         isobaric = 0
         isochoric = 0
         factor = 0
+        latent_num = 0
 
         for env in envs_json:
             r = env["r"]
@@ -703,6 +730,11 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
             isochoric += float(env["isochoric_capacity"] or 0) * r
             factor += float(env["compressibility_factor"] or 1) * r
 
+            # Удельная теплота парообразования (Дж/кг): пересчитываем в мольный
+            # вид (Дж/кмоль = Дж/кг * кг/кмоль), усредняем по мольным долям и
+            # делим на молярную массу смеси -> снова Дж/кг.
+            latent_num += float(env["latent_heat"] or 0) * r * M_i
+
         result["molekuljarnaja_massa"] = pre_M
         result["vjazkost_pa_s"] = viscosity_ch / viscosity_zn if viscosity_zn else 0
         result["pokazatel_adiabaty"] = adiabatic_index
@@ -710,6 +742,13 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
         result["isobaric_capacity"] = isobaric
         result["isochoric_capacity"] = isochoric
         result["factor"] = factor
+        result["latent_heat"] = latent_num / pre_M if pre_M else 0
+
+        # Поля двухфазной ветки (однофазный газ): x0 = 1, паровой фазы нет.
+        result["vapor_mass_fraction"] = 1
+        result["plotnost_liquid"] = 0
+        result["molar_mass_vapor"] = pre_M
+        result["n_polytropic"] = adiabatic_index
 
     elif homogeneous:
         result["agregatnoe_sostojanie"] = next(iter(env_types))
@@ -718,6 +757,7 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
         zn_den = 0
         pre_viscosity = 0
         pre_M = 0
+        latent = 0
 
         for env in envs_json:
             r = env["r"]
@@ -726,10 +766,18 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
             zn_den += r
             pre_viscosity += float(env["vjazkost_pa_s"] or 0) * r
             pre_M += float(env["molekuljarnaja_massa"] or 0) * r
+            latent += float(env["latent_heat"] or 0) * r
 
         result["plotnost_zhidkosti"] = ch_den / zn_den if zn_den else 0
         result["vjazkost_pa_s"] = pre_viscosity
         result["molekuljarnaja_massa"] = pre_M
+        result["latent_heat"] = latent
+
+        # Поля двухфазной ветки: состояние однородное, не газ/жидкость → x0 = 0.
+        result["vapor_mass_fraction"] = 0
+        result["plotnost_liquid"] = result["plotnost_zhidkosti"]
+        result["molar_mass_vapor"] = 0
+        result["n_polytropic"] = 0
 
     else:
         result["agregatnoe_sostojanie"] = "Двухфазный поток"
@@ -737,23 +785,52 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
         density_ch = 0
         density_zn = 0
         pre_u = 0
+        latent = 0
+
+        total_mass = 0
+        gas_mass = 0
+        gas_share = 0
+        liq_mass = 0
+        liq_mass_over_rho = 0
+        liq_cp_num = 0
+        adiabatic_num = 0
 
         for env in envs_json:
             r = env["r"]
             result["nazvanie_rabochej_sredy"] += f"{env['name']}:{r * 100:.0f}% "
 
+            M = float(env["molekuljarnaja_massa"] or 0)
+            mass = M * r
+            total_mass += mass
+            adiabatic_num += float(env["pokazatel_adiabaty"] or 0) * r
+
             if env["environment"] == "Газ":
-                M = float(env["molekuljarnaja_massa"] or 0)
+                gas_mass += mass
+                gas_share += r
                 density_ch += (M / 22.4) * r
                 density_zn += r
             elif env["environment"] == "Жидкость":
                 density_ch += float(env["plotnost_zhidkosti"] or 0) * r
                 density_zn += r
+                rho = float(env["plotnost_zhidkosti"] or 0)
+                liq_mass += mass
+                if rho > 0:
+                    liq_mass_over_rho += mass / rho
+                liq_cp_num += mass * float(env["isobaric_capacity"] or 0) * 1000
 
             pre_u += r * float(env["vjazkost_pa_s"] or 0) * float(env["molekuljarnaja_massa"] or 0)
+            latent += float(env["latent_heat"] or 0) * r
 
         result["plotnost_zhidkosti"] = density_ch / density_zn if density_zn else 0
         result["vjazkost_pa_s"] = pre_u
+        result["latent_heat"] = latent
+
+        # Двухфазный поток (метод Ω): x0 по массовым долям компонентов.
+        result["vapor_mass_fraction"] = gas_mass / total_mass if total_mass else 0
+        result["plotnost_liquid"] = liq_mass / liq_mass_over_rho if liq_mass_over_rho else 0
+        result["cp_liquid"] = liq_cp_num / liq_mass if liq_mass else 0
+        result["molar_mass_vapor"] = gas_mass / gas_share if gas_share else 0
+        result["n_polytropic"] = adiabatic_num
 
     # Материал: у среды с самой высокой долей (из компонентов), со спец-правилом H2S.
     material = []
@@ -812,6 +889,12 @@ async def mixture_isochoric_capacity(ctx: FormulaContext, config):
     return None if result is None else result["isochoric_capacity"]
 
 
+async def mixture_latent_heat(ctx: FormulaContext, config):
+    """Удельная теплота парообразования смеси, Дж/кг."""
+    result = await _mixture_properties(ctx, config)
+    return None if result is None else result["latent_heat"]
+
+
 async def mixture_factor(ctx: FormulaContext, config):
     """Фактор сжимаемости смеси."""
     result = await _mixture_properties(ctx, config)
@@ -850,5 +933,383 @@ async def mixture_characteristics(ctx: FormulaContext, config):
         "Изобарная теплоёмкость": result["isobaric_capacity"],
         "Изохорная теплоёмкость": result["isochoric_capacity"],
         "Фактор сжимаемости": result["factor"],
+        "Удельная теплота парообразования": result["latent_heat"],
         "Материал": result["material"],
     }
+
+
+# ============================================================================
+# Расчёт диаметра седла предохранительного клапана.
+#
+# Ветки по агрегатному состоянию среды:
+#   * «Газ»        — ГОСТ 12.2.085-2017 приложение Д (Д.22)–(Д.26);
+#   * «Жидкость»   — (Д.21);
+#   * «Двухфазный поток» — метод Ω (ISO 4126-10), структура.
+#
+# Параметры расчёта кэшируются в ctx.computed["_seat_full"], чтобы все выходные
+# параметры (давления, Kw, G, DN_s, площади, x0, Ω, ηc) считались однократно.
+# ============================================================================
+
+# Имена входных параметров расчёта седла (по умолчанию). Админ может переопределить
+# их в formula_config каждого выходного параметра ключами force_open_param /
+# pn_param / flow_param / count_param / membrane_param / backpressure_param /
+# temperature_param.
+_SEAT_FORCE_OPEN_PARAM = "Устройство принудительного открытия"
+_SEAT_PN_PARAM = "Давление настройки"
+_SEAT_FLOW_PARAM = "Максимальный аварийный расход жидкости и газа"
+_SEAT_COUNT_PARAM = "Количество параллельно установленных и одновременно работающих клапанов (шт)"
+_SEAT_MEMBRANE_PARAM = "Мембранно-предохранительное устройство"
+_SEAT_BACKPRESSURE_PARAM = "Противодавление статическое"
+_SEAT_TEMPERATURE_PARAM = "Температура рабочей среды, °C"
+
+
+def _linear_interpolation(x1: float, y1: float, x2: float, y2: float, x: float) -> float:
+    """Линейная интерполяция между точками (x1, y1) и (x2, y2) в точке x."""
+    return y1 + (y2 - y1) * (x - x1) / (x2 - x1)
+
+
+def _gas_kw(Ppo: float, Pn: float, Pp: float, Pno: float) -> float:
+    """Коэффициент Kw (Д.22)–(Д.26) для газовой среды, повторяет legacy-расчёт."""
+    ratio = Ppo / Pn
+    rp = Pp / Pno
+    # (Д.22)
+    if ratio == 1.1:
+        return 1 if rp <= 0.3 else 1.1027 + 0.4007 * rp - 2.4577 * rp ** 2
+    # (Д.23)
+    if ratio == 1.15:
+        return 1 if rp <= 0.37 else 1.2857 - 0.7603 * rp
+    # (Д.24)
+    if ratio > 1.2 and rp >= 0.5:
+        return 1
+    # (Д.25): интерполяция между (Д.22) и (Д.23)
+    if 1.1 < ratio <= 1.15:
+        kw_1 = 1.1027 + 0.4007 * rp - 2.4577 * rp ** 2
+        kw_2 = 1.2857 - 0.7603 * rp
+        return _linear_interpolation(1.1, kw_1, 1.15, kw_2, ratio)
+    # (Д.26): интерполяция между (Д.23) и (Д.24) — верх 1.21 (как в legacy)
+    if 1.15 < ratio <= 1.2:
+        kw_1 = 1.2857 - 0.7603 * rp
+        return _linear_interpolation(1.15, kw_1, 1.21, 1, ratio)
+    return 1
+
+
+async def _medium_properties(ctx: FormulaContext, config: dict | None) -> dict:
+    """Свойства рабочей среды для расчёта седла.
+
+    Если смесь собрана (чекбокс «Смесь» включён) — возвращает характеристики
+    смеси. Иначе — характеристики отдельной (не смесовой) среды из выбранных
+    параметров: агрегатное состояние, молярная масса, плотность жидкости,
+    вязкость, показатель адиабаты, теплота парообразования.
+
+    Кэшируется в ctx.computed["_medium_full"].
+    """
+    cached = ctx.computed.get("_medium_full")
+    if cached is not None:
+        return cached
+
+    config = config or {}
+
+    mix = await _mixture_properties(ctx, config)
+    if mix is not None:
+        ctx.computed["_medium_full"] = mix
+        return mix
+
+    result = {
+        "agregatnoe_sostojanie": ctx.get_opt(config.get("state_param") or "Агрегатное состояние") or "",
+        "molekuljarnaja_massa": _to_float(ctx.get_opt(config.get("molar_param") or "Молярная масса")),
+        "plotnost_zhidkosti": _to_float(ctx.get_opt(config.get("density_param") or "Плотность жидкости")),
+        "vjazkost_pa_s": _to_float(ctx.get_opt(config.get("viscosity_param") or "Вязкость (Па*с)")),
+        "pokazatel_adiabaty": _to_float(ctx.get_opt(config.get("adiabatic_param") or "Показатель адиабаты")),
+        "latent_heat": _to_float(ctx.get_opt(config.get("latent_heat_param") or "Удельная теплота парообразования")),
+        "material": ctx.get_opt(config.get("material_param") or "Материал") or "",
+    }
+    ctx.computed["_medium_full"] = result
+    return result
+
+
+def _omega_parameter(props: dict, P0: float, T0: float) -> float:
+    """Параметр Ω (ISO 4126-10, метод Ω).
+
+    props — свойства среды (vapor_mass_fraction, plotnost_liquid,
+    molar_mass_vapor, cp_liquid, latent_heat); P0 — абсолютное давление в МПа;
+    T0 — температура в К.
+
+    Структура: Ω = x0·(νg0/νl0) + слагаемое равновесного вскипания.
+    Точные коэффициенты калибруются по ISO 4126-10.
+    """
+    x0 = float(props.get("vapor_mass_fraction") or 0)
+    rho_l = float(props.get("plotnost_liquid") or 0)
+    M_v = float(props.get("molar_mass_vapor") or 0)
+    cp_l = float(props.get("cp_liquid") or 0)
+    h_lg = float(props.get("latent_heat") or 0)
+
+    if rho_l <= 0 or M_v <= 0:
+        raise ValueError("Для двухфазного расчёта нужны плотность жидкой фазы и молярная масса пара")
+
+    R = 8.31446261815324
+    P0_pa = P0 * 1e6
+    # Плотность пара по идеальному газу, кг/м³ (M_v в г/моль).
+    rho_g = P0_pa * M_v / (1000 * R * T0)
+    nu_l0 = 1.0 / rho_l
+    nu_g0 = 1.0 / rho_g
+
+    # Изотермическая часть (без вскипания).
+    omega = x0 * (nu_g0 / nu_l0)
+
+    # Равновесное вскипание при дросселировании (структура; калибровка по ISO 4126-10).
+    if h_lg > 0 and cp_l > 0:
+        omega += (1 - x0) * cp_l * T0 * P0_pa * (nu_g0 - nu_l0) ** 2 / (nu_l0 * h_lg ** 2)
+
+    return max(omega, 1e-9)
+
+
+def _two_phase_critical_ratio(omega: float) -> float:
+    """Критическое отношение давлений ηc = Pc/P0 (ISO 4126-10, структура)."""
+    return 2 * omega / (2 * omega + 1)
+
+
+def _two_phase_mass_flux(props: dict, P0: float, T0: float, B: float) -> float:
+    """Массовая скорость двухфазного потока G, кг/(м²·с) (ISO 4126-10, структура).
+
+    Критический режим (B <= ηc): Gc = C0·√(P0·ρl/ω).
+    Докритический (B > ηc): с понижающим коэффициентом по DR=1−(1−B)/(1−ηc)).
+    """
+    omega = _omega_parameter(props, P0, T0)
+    eta_c = _two_phase_critical_ratio(omega)
+    rho_l = float(props.get("plotnost_liquid") or 0)
+    C0 = 0.9  # коэффициент скорости (калибровка по ISO 4126-10)
+    G_c = C0 * math.sqrt(P0 * 1e6 * rho_l / omega)
+    if B <= eta_c:
+        return G_c
+    dr = (1 - B) / (1 - eta_c) if eta_c < 1 else 1
+    return G_c * math.sqrt(max(1 - (1 - dr) ** 2, 0))
+
+
+async def _seat_calc_full(ctx: FormulaContext, config: dict | None) -> dict:
+    """Полный расчёт диаметра седла ПК; результат кэшируется в _seat_full."""
+    cached = ctx.computed.get("_seat_full")
+    if cached is not None:
+        return cached
+
+    config = config or {}
+    P_atm = 0.101320
+    R = 8.31446261815324
+
+    def param(key: str, fallback: str) -> str:
+        return config.get(key) or fallback
+
+    # Гейт legacy-расчёта: седло считается, только когда выбран табличный
+    # параметр «Устройство принудительного открытия» (значение «Да» или «Нет»).
+    # Если он не выбран (продукт не подобран) — просим заполнить.
+    force_open = ctx.get_opt(param("force_open_param", _SEAT_FORCE_OPEN_PARAM))
+    if force_open is None or force_open == "":
+        raise MissingParamError(param("force_open_param", _SEAT_FORCE_OPEN_PARAM))
+
+    Pn = ctx.num(param("pn_param", _SEAT_PN_PARAM))
+    Gab = ctx.num(param("flow_param", _SEAT_FLOW_PARAM))
+    N = ctx.num(param("count_param", _SEAT_COUNT_PARAM))
+    pre_Kc = ctx.get(param("membrane_param", _SEAT_MEMBRANE_PARAM))
+    Pp = ctx.num(param("backpressure_param", _SEAT_BACKPRESSURE_PARAM))
+    T = ctx.num(param("temperature_param", _SEAT_TEMPERATURE_PARAM))
+
+    Kc = 0.9 if pre_Kc == "Да" else 1
+
+    # Давление начала открытия Pno и полного открытия Ppo.
+    if Pn <= 0.3:
+        Pno = Pn + 0.02
+        Ppo = Pn + 0.05
+    elif Pn <= 6:
+        Pno = 1.07 * Pn
+        Ppo = 1.15 * Pn
+    else:
+        Pno = 1.05 * Pn
+        Ppo = 1.1 * Pn
+
+    P1 = Ppo + P_atm
+    P2 = Pp + P_atm
+    B = P2 / P1
+
+    props = await _medium_properties(ctx, config)
+    state = props["agregatnoe_sostojanie"] or ""
+
+    u = props["vjazkost_pa_s"]
+    if not u:
+        raise MissingParamError("Вязкость (Па*с)")
+
+    x0 = 0
+    omega = None
+    eta_c = None
+
+    if "Газ" in state:
+        M = props["molekuljarnaja_massa"]
+        n = props["pokazatel_adiabaty"]
+        if not M:
+            raise MissingParamError("Молярная масса")
+        if not n:
+            raise MissingParamError("Показатель адиабаты")
+
+        p1 = P1 * 1000 * M / (R * (T + 273.15))
+        alpha = 0.8
+        Kw = _gas_kw(Ppo, Pn, Pp, Pno)
+
+        Bkr = (2 / (n + 1)) ** (n / (n - 1))
+        if B <= Bkr:
+            Kb = 1
+            if n == 1:
+                Kp_kr = 0.60653 ** 2
+            else:
+                Kp_kr = math.sqrt(2 * n / (n + 1)) * (2 / (n + 1)) ** (1 / (n - 1))
+        else:
+            Kp_kr = 1
+            if n == 1:
+                # Изотермическое истечение: экспонента e и натуральный логарифм.
+                Kb = B ** 2 * -2 * math.exp(1) * math.log(B)
+            else:
+                Kb = (((n + 1) / (n - 1)) * (B ** (2 / n) - B ** ((n + 1) / n)) * ((n + 1) / 2)) ** 2
+
+        Gideal = Kp_kr * Kb * math.sqrt(P1 * p1)
+        x0 = 1
+    elif "Жидкость" in state:
+        p1 = props["plotnost_zhidkosti"]
+        if not p1:
+            raise MissingParamError("Плотность жидкости")
+        alpha = 0.6
+        # (Д.21) с исправленной границей: legacy-ветка `>1.15 and <=0.25`
+        # недостижима, корректная граница — 0.15 (по ГОСТ 12.2.085 приложение Д).
+        ratio = Pp / Pno
+        if ratio <= 0.15:
+            Kw = 1
+        elif ratio <= 0.25:
+            Kw = 0.875 + 1.8333 * ratio - 6.6667 * ratio ** 2
+        else:
+            Kw = 1.149 - 0.988 * ratio
+
+        Kp = math.sqrt(2 * (1 - B))
+        Gideal = Kp * math.sqrt(P1 * p1)
+    else:
+        # Двухфазный поток — метод Ω (ISO 4126-10).
+        x0 = float(props.get("vapor_mass_fraction") or 0)
+        p1 = props.get("plotnost_liquid") or props.get("plotnost_zhidkosti") or 0
+        alpha = 0.8
+        Kw = 1
+        if p1 <= 0:
+            raise MissingParamError("Плотность жидкости")
+        omega = _omega_parameter(props, P1, T + 273.15)
+        eta_c = _two_phase_critical_ratio(omega)
+        Gideal = _two_phase_mass_flux(props, P1, T + 273.15, B)
+
+    # Итерационный расчёт предварительного диаметра седла (как в legacy-raschet).
+    DN_s = None
+    pre_DN = 0
+    Kv = 1
+    while DN_s != pre_DN:
+        pre_F = Gab / (3.6 * alpha * Kv * Kw * Kc * Gideal * N)
+        pre_DN = math.sqrt(4 * pre_F / math.pi)
+        Re = Gideal * p1 * pre_DN / u
+        if 1000 <= Re <= 100000:
+            Kv = (0.9935 + 2.8780 / Re ** 0.5 + 342.75 / Re ** 1.5) ** (-1)
+        elif Re < 1000:
+            Kv = 0.975 * math.sqrt(1 / 170 / (Re + 0.98))
+        else:
+            Kv = 1
+        F = Gab / (3.6 * alpha * Kv * Kw * Kc * Gideal * N)
+        DN_s = math.sqrt(4 * F / math.pi)
+    DN_s = math.ceil(DN_s * 10) / 10
+
+    S = math.pi * DN_s ** 2 / 4
+
+    result = {
+        "state": state,
+        "Pn": Pn,
+        "Pno": Pno,
+        "Ppo": Ppo,
+        "P1": P1,
+        "P2": P2,
+        "B": B,
+        "Kw": Kw,
+        "Gideal": Gideal,
+        "alpha": alpha,
+        "Kc": Kc,
+        "p1": p1,
+        "Kv": Kv,
+        "DN_s": DN_s,
+        "S": S,
+        "S_eff": S * alpha,
+        "x0": x0,
+        "omega": omega,
+        "eta_c": eta_c,
+    }
+    ctx.computed["_seat_full"] = result
+    return result
+
+
+async def valve_start_pressure(ctx: FormulaContext, config):
+    """Давление начала открытия с противодавлением, кгс/см²."""
+    r = await _seat_calc_full(ctx, config)
+    return r["Pno"] * 10.197162
+
+
+async def valve_full_pressure(ctx: FormulaContext, config):
+    """Давление полного открытия с противодавлением, кгс/см²."""
+    r = await _seat_calc_full(ctx, config)
+    return r["Ppo"] * 10.197162
+
+
+async def valve_inlet_pressure(ctx: FormulaContext, config):
+    """Давление на входе, кгс/см² абс."""
+    r = await _seat_calc_full(ctx, config)
+    return r["P1"] * 10.197162
+
+
+async def valve_outlet_pressure(ctx: FormulaContext, config):
+    """Давление на выходе, кгс/см² абс."""
+    r = await _seat_calc_full(ctx, config)
+    return r["P2"] * 10.197162
+
+
+async def valve_kw(ctx: FormulaContext, config):
+    """Коэффициент Kw, учитывающий эффект неполного открытия из-за противодавления."""
+    r = await _seat_calc_full(ctx, config)
+    return r["Kw"]
+
+
+async def valve_mass_velocity(ctx: FormulaContext, config):
+    """Массовая скорость, кг/(м²·с)."""
+    r = await _seat_calc_full(ctx, config)
+    return r["Gideal"]
+
+
+async def valve_seat_diameter(ctx: FormulaContext, config):
+    """Предварительный диаметр седла клапана, мм."""
+    r = await _seat_calc_full(ctx, config)
+    return r["DN_s"]
+
+
+async def valve_seat_area(ctx: FormulaContext, config):
+    """Площадь седла клапана, мм²."""
+    r = await _seat_calc_full(ctx, config)
+    return r["S"]
+
+
+async def valve_effective_area(ctx: FormulaContext, config):
+    """Эффективная площадь седла клапана, мм²."""
+    r = await _seat_calc_full(ctx, config)
+    return r["S_eff"]
+
+
+async def valve_vapor_quality(ctx: FormulaContext, config):
+    """Массовое паросодержание x0 (0 — жидкость, 1 — газ, иначе из состава)."""
+    r = await _seat_calc_full(ctx, config)
+    return r["x0"]
+
+
+async def valve_omega(ctx: FormulaContext, config):
+    """Параметр Ω (двухфазный поток; для газа/жидкости — None)."""
+    r = await _seat_calc_full(ctx, config)
+    return r["omega"]
+
+
+async def valve_critical_ratio(ctx: FormulaContext, config):
+    """Критическое отношение давлений ηc (двухфазный поток; иначе None)."""
+    r = await _seat_calc_full(ctx, config)
+    return r["eta_c"]
