@@ -69,7 +69,7 @@
     </div>
     <!-- Блок подсказки и ошибка -->
     <div class="sidebar-block p-[24px] bg-[#FFF2E5] border-[#FFCBA5]! text-[#B8461F]"
-         :class="[{ 'border-red-600! text-gray-800 bg-[#ff00000f]': errorStatus == 'error' }]">
+         :class="[{ 'border-red-600! text-gray-800 bg-[#ffe1e1]': errorStatus == 'error' }]">
         <div class=" text-[#963314] font-[600]">
             {{ errorStatus == 'error' ? 'Ошибка!' : 'Подсказка' }}
         </div>

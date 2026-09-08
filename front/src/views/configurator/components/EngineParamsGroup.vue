@@ -2,7 +2,9 @@
 <div class="grid grid-cols-1 ">
     <div v-for="(param, index) in items"
          :key="param.id"
-         class="flex flex-row items-center px-[10px]  hover:bg-(--color-information-orange-50) ">
+         class="flex flex-row items-center px-[10px] hover:bg-(--color-information-orange-50) relative"
+         @mouseenter="activeError = index"
+         @mouseleave="activeError = null">
         <!-- Смежный селект + инпут для сред -->
         <SelectInput v-if="(param as IFormattedData).required_type == 'select-input'"
                      :param="(param as IFormattedData)"
@@ -23,15 +25,25 @@
 
         <!-- Статус вопроса -->
         <QuestionStatus v-if="type == 'auto'"
+                        :error="param.error"
                         :status="paramsLoading ? 'loading' : param.error ? 'canceled' : param.response_value ? 'checked' : ''"
                         @resetValue="$emit('resetValue', param.name)" />
+
+        <!-- Подсказка с ошибкой -->
+        <Transition name="fade">
+            <Tooltip v-if="param.error && index == activeError"
+                     class="ml-[-10px]"
+                     :type="'error'"
+                     :params="{ value: param.error }" />
+        </Transition>
+
     </div>
 </div>
 </template>
 
 <script lang='ts'>
 import type { IFormattedData } from '@/assets/interfaces/IForm';
-import { defineComponent, type PropType, computed } from 'vue';
+import { defineComponent, type PropType, computed, ref } from 'vue';
 import { BaseButton, BaseInput, BaseSelect } from 'beans-ui-kit';
 import SelectInput from '@/components/SelectInput.vue';
 import { useConfiguratorStore } from '@/stores/configurator';
@@ -39,6 +51,7 @@ import { createLabelIconsComponent } from '@/composables/createComponent';
 import AlertCircle from '@/assets/icons/AlertCircle.svg?component';
 import QuestionStatus from '@/components/layout/QuestionStatus.vue';
 import { replaceSpotOrComma } from '@/utils/replaceSpotOrComma';
+import Tooltip from '@/components/layout/Tooltip.vue';
 
 export default defineComponent({
     components: {
@@ -47,7 +60,8 @@ export default defineComponent({
         BaseInput,
         SelectInput,
         QuestionStatus,
-        AlertCircle
+        Tooltip,
+        AlertCircle,
     },
     emits: ['valueChanged', 'resetValue'],
     props: {
@@ -74,6 +88,7 @@ export default defineComponent({
     setup(props) {
         const freeConfigMode = computed(() => configurator.getFreeModeConfig);
         const configurator = useConfiguratorStore();
+        const activeError = ref<null | number>(null);
 
         const checkParams = (param: IFormattedData) => {
             switch (freeConfigMode.value) {
@@ -129,7 +144,7 @@ export default defineComponent({
 
         return {
             freeConfigMode,
-            AlertCircle,
+            AlertCircle, activeError,
             setPropsValue,
             createLabelIconsComponent,
             checkParams,

@@ -5,10 +5,7 @@
      @mouseleave="isHover = false">
     <Transition name="fade"
                 mode="out-in">
-        <!-- <div v-if="isHover">
-            <Recovery @click="isHover ? $emit('resetValue') : ''" />
-        </div> -->
-        <div>
+        <div class="peer">
             <Checked v-if="status == 'checked'" />
             <Canceled v-else-if="status == 'canceled'" />
             <Loader v-else-if="status == 'loading'" />
@@ -21,18 +18,16 @@ import { defineComponent, type PropType, ref } from 'vue';
 import Checked from '@/assets/icons/Checked.svg?component';
 import Canceled from '@/assets/icons/Cross.svg?component';
 import Loader from './Loader.vue';
-import Recovery from '@/assets/icons/RecoveryIcon.svg?component';
 
 export default defineComponent({
     components: {
         Checked,
         Canceled,
         Loader,
-        Recovery
     },
     emits: ['resetValue'],
     props: {
-        status: String as PropType<'checked' | 'canceled' | 'loading' | ''>
+        status: String as PropType<'checked' | 'canceled' | 'loading' | ''>,
     },
     setup() {
         const isHover = ref(false);
@@ -43,15 +38,3 @@ export default defineComponent({
     }
 });
 </script>
-
-<style>
-.fade-enter-active,
-.fade-leave-active {
-    transition: opacity 0.1s ease-in-out;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-    opacity: 0;
-}
-</style>

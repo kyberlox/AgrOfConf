@@ -15,7 +15,7 @@
            :disabled="disabled"
            @change="uploadFile" />
 
-    <div class="w-full p-[14px]"
+    <div class="w-full p-[14px] "
          @click="handleClick">
         <slot></slot>
     </div>

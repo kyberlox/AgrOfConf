@@ -29,11 +29,14 @@
          class="engine-params__loader">
         <Loader />
     </div>
+    <CreateRequestModal />
 </div>
 </template>
 <script lang="ts">
 import { defineComponent, type PropType, computed, shallowRef } from 'vue';
 import { AgGridVue } from 'ag-grid-vue3';
+import CreateRequestModal from './createRequestModal/CreateRequestModal.vue';
+
 import {
     ModuleRegistry,
     type ColDef,
@@ -53,7 +56,7 @@ import { useUserStore } from '@/stores/user.ts';
 import { historyTableTheme } from '@/assets/static/historyThemeAdGrid.ts';
 import Pagination from './TablePagination.vue';
 import Loader from '@/components/layout/Loader.vue';
-import TextTooltip from '@/components/layout/TextTooltip.vue';
+import TextTooltip from '@/components/layout/Tooltip.vue';
 
 ModuleRegistry.registerModules([
     ClientSideRowModelModule,
@@ -67,7 +70,7 @@ const theme = themeAlpine
 
 export default defineComponent({
     name: 'HistoryTable',
-    components: { AgGridVue, EmptyHistoryPlug, CellRenderer, Pagination, Loader, TextTooltip },
+    components: { AgGridVue, EmptyHistoryPlug, CellRenderer, Pagination, Loader, TextTooltip, CreateRequestModal },
     emits: ['createOl'],
     props: {
         currentTableNav: {

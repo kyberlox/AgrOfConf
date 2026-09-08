@@ -23,7 +23,7 @@
 
         <!-- Статус вопроса -->
         <QuestionStatus v-if="type == 'auto'"
-                        class="mt-[15px]"
+                        class="mt-[20px]"
                         :status="paramsLoading ? 'loading' : param.error ? 'canceled' : param.response_value ? 'checked' : ''"
                         @resetValue="$emit('resetValue', param.name)" />
     </div>

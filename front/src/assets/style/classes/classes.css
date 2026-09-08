@@ -1,7 +1,8 @@
 @import './classes/button';
 @import './classes/icons';
 @import './classes/sidebar';
-@import './classes/input.css';
-@import './classes/select.css';
 @import './classes/loader.css';
 @import './classes/toastify.css';
+
+@import './classes/input/input.css';
+@import './classes/select/select.css';

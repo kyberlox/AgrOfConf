@@ -1,7 +1,8 @@
 @import './fonts.css';
 @import './variables.css';
+@import './animation/animation.css';
 @import 'vue3-toastify/dist/index.css';
-@import './classes.css';
+@import './classes/classes.css';
 @import 'tailwindcss';
 
 @theme {

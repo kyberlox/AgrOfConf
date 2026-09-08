@@ -200,6 +200,9 @@ export default defineComponent({
                         userInputs.value[e.name] = e.response_value
                         answeredCounter++
                     }
+                    if (e.name == 'Есть рычаг') {
+                        console.log(e)
+                    }
                     questionCounter++
                 })
                 configuratorStore.setCalcParams(data.parameters.filter((e: IFormattedData) => e.required_type == 'raschet' && e.response_value && e.visibility));

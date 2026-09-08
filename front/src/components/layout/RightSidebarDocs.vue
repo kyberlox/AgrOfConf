@@ -14,11 +14,15 @@
             <span class="mr-[10px]">
                 <FileIcon />
             </span>
-            <span class="truncate block mr-[12px] font-normal! grow relative peer">
+            <span class="truncate block mr-[12px] font-normal! grow relative"
+                  @mouseenter="activeDocId = doc.id"
+                  @mouseleave="activeDocId = null">
                 {{ doc.name }}
             </span>
-            <TextTooltip class="invisible! peer-hover:visible!"
+            <Transition name="fade">
+                <Tooltip v-if="activeDocId == doc.id"
                          :params="{ value: doc.name }" />
+            </Transition>
             <div
                  class="p-[4px] bg-(--color-information-gray-50) group-hover:bg-(--color-information-gray-100) duration-100 rounded-md">
                 <DownloadIcon />
@@ -44,7 +48,7 @@ import { checkDateStatus } from '@/utils/checkDateStatus';
 import DownloadIcon from '@/assets/icons/DownloadIcon.svg?component';
 import FileIcon from '@/assets/icons/FileIcon.svg?component';
 import { BaseButton } from 'beans-ui-kit';
-import TextTooltip from '@/components/layout/TextTooltip.vue';
+import Tooltip from '@/components/layout/Tooltip.vue';
 
 type docType = { id: number, name: string, date_to: string, file_url: string };
 
@@ -52,7 +56,7 @@ export default defineComponent({
     emits: ['downloadZip'],
     components: {
         BaseButton,
-        TextTooltip,
+        Tooltip,
         DownloadIcon,
         FileIcon
     },
@@ -69,6 +73,7 @@ export default defineComponent({
     setup(props) {
         const apiUrl = import.meta.env.VITE_API_URL;
         const formattedDocs = ref<{ id: number, name: string, date_to: string, status: string, file_url: string }[]>();
+        const activeDocId = ref<null | number>(null);
 
         const formatDocs = () => {
             formattedDocs.value = props.docs.map((doc) => {
@@ -87,6 +92,7 @@ export default defineComponent({
         return {
             formattedDocs,
             apiUrl,
+            activeDocId,
             checkDateStatus,
             displayTitle: computed(() => props.type == 'actual' ?
                 `<span class="text-green-500">Актуальные</span> документы` :
