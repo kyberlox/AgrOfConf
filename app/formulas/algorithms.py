@@ -1280,10 +1280,11 @@ async def _seat_calc_full(ctx: FormulaContext, config: dict | None) -> dict:
         ctx, config, "backpressure_param",
         "противодавление статическое", "противодавление",
         default=_SEAT_BACKPRESSURE_PARAM,
+        exclude=("динамическ",),
     )
     temperature_name = await _actual_param_name(
         ctx, config, "temperature_param",
-        "температура рабочей среды", "рабочая среда",
+        "температура рабочей среды",
         default=_SEAT_TEMPERATURE_PARAM,
     )
 
