@@ -478,7 +478,7 @@ async def _filtered_media_names(ctx: FormulaContext, mode: str) -> list[str]:
         state = mapping.get(aggregate_col)
         if not name or not state:
             continue
-        if str(state).strip() in allowed:
+        if _normalize_aggregate_state(state) in allowed:
             names.append(str(name).strip())
 
     return names
@@ -502,6 +502,15 @@ async def _schema_param_names(ctx: FormulaContext) -> list[str]:
 
     ctx.computed["_schema_param_names"] = names
     return names
+
+
+def _norm_lower(text: str) -> str:
+    """Нормализация для поиска по подстроке: нижний регистр и «ё»→«е».
+
+    Админ часто пишет «теплоемкость» вместо «теплоёмкость»; без замены «ё»
+    подстроковый поиск не находит параметр даже при прочих совпадениях.
+    """
+    return str(text or "").strip().lower().replace("ё", "е")
 
 
 async def _actual_param_name(
@@ -539,14 +548,14 @@ async def _actual_param_name(
             if candidate in ctx.selected or candidate in ctx.computed:
                 return candidate
 
-    kws = [str(k).strip().lower() for k in keywords if k and str(k).strip()]
+    kws = [_norm_lower(k) for k in keywords if k and str(k).strip()]
     if not kws:
         return default
-    excluded = [str(e).strip().lower() for e in (exclude or ()) if e and str(e).strip()]
+    excluded = [_norm_lower(e) for e in (exclude or ()) if e and str(e).strip()]
 
     def _best(matched: list[str]) -> str | None:
         for name in matched:
-            low = name.lower()
+            low = _norm_lower(name)
             if any(e in low for e in excluded):
                 continue
             return name
@@ -558,12 +567,12 @@ async def _actual_param_name(
     ]
 
     for kw in kws:
-        best = _best([n for n in candidates if kw in n.lower()])
+        best = _best([n for n in candidates if kw in _norm_lower(n)])
         if best is not None:
             return best
 
     for kw in kws:
-        best = _best([n for n in await _schema_param_names(ctx) if kw in n.lower()])
+        best = _best([n for n in await _schema_param_names(ctx) if kw in _norm_lower(n)])
         if best is not None:
             return best
 
@@ -587,6 +596,22 @@ def _to_float(value, default=None):
         return float(text_value)
     except (TypeError, ValueError):
         return default
+
+
+def _normalize_aggregate_state(value) -> str:
+    """Сворачивает «Агрегатное состояние» среды из таблицы к каноническому виду.
+
+    В таблицах возможны «Газ», «Пар», «Газообразный», «Жидкость», «Жидкий» и пр.
+    Для определения фазы достаточно подстрок: жидк/пар/газ (тот же принцип,
+    что в legacy-алгоритме метода Ω: `if "Газ" in state`).
+    """
+    s = str(value or "").strip()
+    low = s.lower()
+    if "жидк" in low:
+        return "Жидкость"
+    if "пар" in low or "газ" in low:
+        return "Газ"
+    return s
 
 
 async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
@@ -656,8 +681,8 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
     # Находим основные характеристики по русским названиям параметров продукта.
     def find_column(*keywords: str) -> str | None:
         for name, translit in columns.items():
-            lowered = name.lower()
-            if any(keyword.lower() in lowered for keyword in keywords):
+            lowered = _norm_lower(name)
+            if any(_norm_lower(keyword) in lowered for keyword in keywords):
                 return translit
         return None
 
@@ -716,7 +741,7 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
         env_json = {
             "name": env_name,
             "r": share,
-            "environment": str(mapping.get(aggregate_col) or "") if aggregate_col else "",
+            "environment": _normalize_aggregate_state(mapping.get(aggregate_col)) if aggregate_col else "",
             "molekuljarnaja_massa": _to_float(mapping.get(molar_mass_col)),
             "plotnost_zhidkosti": _to_float(mapping.get(density_col)),
             "vjazkost_pa_s": _to_float(mapping.get(viscosity_col)),
@@ -737,6 +762,7 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
         "nazvanie_rabochej_sredy": "",
         "agregatnoe_sostojanie": "",
         "molekuljarnaja_massa": 0,
+        "molar_mass": 0,
         "plotnost_zhidkosti": 0,
         "vjazkost_pa_s": 0,
         "isobaric_capacity": 0,
@@ -789,6 +815,7 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
             latent_den += mass_share
 
         result["molekuljarnaja_massa"] = mix_molar
+        result["molar_mass"] = mix_molar
         result["plotnost_zhidkosti"] = ch_den / zn_den if zn_den else 0
         result["vjazkost_pa_s"] = 10 ** pre_viscosity
         result["isobaric_capacity"] = mix_isobaric
@@ -836,6 +863,7 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
             latent_num += float(env["latent_heat"] or 0) * r * M_i
 
         result["molekuljarnaja_massa"] = pre_M
+        result["molar_mass"] = pre_M
         result["vjazkost_pa_s"] = viscosity_ch / viscosity_zn if viscosity_zn else 0
         result["pokazatel_adiabaty"] = adiabatic_index
         result["plotnost_zhidkosti"] = density / 22.4
@@ -871,6 +899,7 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
         result["plotnost_zhidkosti"] = ch_den / zn_den if zn_den else 0
         result["vjazkost_pa_s"] = pre_viscosity
         result["molekuljarnaja_massa"] = pre_M
+        result["molar_mass"] = pre_M
         result["latent_heat"] = latent
 
         # Поля двухфазной ветки: состояние однородное, не газ/жидкость → x0 = 0.
@@ -882,15 +911,17 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
     else:
         result["agregatnoe_sostojanie"] = "Двухфазный поток"
 
-        density_ch = 0
-        density_zn = 0
         pre_u = 0
         latent = 0
 
         total_mass = 0
         gas_mass = 0
         gas_share = 0
+        gas_cv = 0
+        adiabatic_gas = 0
         liq_mass = 0
+        liq_share = 0
+        liq_molar = 0
         liq_mass_over_rho = 0
         liq_cp_num = 0
         adiabatic_num = 0
@@ -907,13 +938,13 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
             if env["environment"] == "Газ":
                 gas_mass += mass
                 gas_share += r
-                density_ch += (M / 22.4) * r
-                density_zn += r
+                gas_cv += float(env["isochoric_capacity"] or 0) * r
+                adiabatic_gas += float(env["pokazatel_adiabaty"] or 0) * r
             elif env["environment"] == "Жидкость":
-                density_ch += float(env["plotnost_zhidkosti"] or 0) * r
-                density_zn += r
                 rho = float(env["plotnost_zhidkosti"] or 0)
                 liq_mass += mass
+                liq_share += r
+                liq_molar += M * r
                 if rho > 0:
                     liq_mass_over_rho += mass / rho
                 liq_cp_num += mass * float(env["isobaric_capacity"] or 0) * 1000
@@ -921,7 +952,6 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
             pre_u += r * float(env["vjazkost_pa_s"] or 0) * float(env["molekuljarnaja_massa"] or 0)
             latent += float(env["latent_heat"] or 0) * r
 
-        result["plotnost_zhidkosti"] = density_ch / density_zn if density_zn else 0
         result["vjazkost_pa_s"] = pre_u
         result["latent_heat"] = latent
 
@@ -931,6 +961,19 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
         result["cp_liquid"] = liq_cp_num / liq_mass if liq_mass else 0
         result["molar_mass_vapor"] = gas_mass / gas_share if gas_share else 0
         result["n_polytropic"] = adiabatic_num
+
+        # Характеристики смеси для интерфейса (набор параметров один, единицы
+        # сохранены как в однофазных ветках):
+        #   плотность — только жидкая фаза;
+        result["plotnost_zhidkosti"] = result["plotnost_liquid"]
+        #   молекулярная масса — жидкая фаза, молярная масса — паровая;
+        result["molekuljarnaja_massa"] = liq_molar / liq_share if liq_share else 0
+        result["molar_mass"] = result["molar_mass_vapor"]
+        #   изобарная теплоёмкость — жидкая фаза (обратно к кДж/(кг·К));
+        result["isobaric_capacity"] = liq_cp_num / (liq_mass * 1000) if liq_mass else 0
+        #   изохорная теплоёмкость и показатель адиабаты — паровая фаза.
+        result["isochoric_capacity"] = gas_cv / gas_share if gas_share else 0
+        result["pokazatel_adiabaty"] = adiabatic_gas / gas_share if gas_share else 0
 
     # Материал: у среды с самой высокой долей (из компонентов), со спец-правилом H2S.
     material = []
@@ -960,7 +1003,13 @@ async def mixture_density(ctx: FormulaContext, config):
 
 
 async def mixture_molar_mass(ctx: FormulaContext, config):
-    """Молярная масса смеси, г/моль."""
+    """Молярная масса смеси, г/моль (газовая фаза — в двухфазном потоке)."""
+    result = await _mixture_properties(ctx, config)
+    return None if result is None else result["molar_mass"]
+
+
+async def mixture_molecular_mass(ctx: FormulaContext, config):
+    """Молекулярная масса смеси, г/моль (жидкая фаза — в двухфазном потоке)."""
     result = await _mixture_properties(ctx, config)
     return None if result is None else result["molekuljarnaja_massa"]
 
@@ -1026,7 +1075,8 @@ async def mixture_characteristics(ctx: FormulaContext, config):
     return {
         "Агрегатное состояние": result["agregatnoe_sostojanie"],
         "Состав": result["nazvanie_rabochej_sredy"].strip() or "—",
-        "Молярная масса": result["molekuljarnaja_massa"],
+        "Молекулярная масса": result["molekuljarnaja_massa"],
+        "Молярная масса": result["molar_mass"],
         "Плотность": result["plotnost_zhidkosti"],
         "Вязкость": result["vjazkost_pa_s"],
         "Показатель адиабаты": result["pokazatel_adiabaty"],
@@ -1139,6 +1189,11 @@ async def _medium_properties(ctx: FormulaContext, config: dict | None) -> dict:
         "показатель адиабаты", "адиабат",
         default="Показатель адиабаты",
     )
+    isobaric_name = await _actual_param_name(
+        ctx, config, "isobaric_param",
+        "изобарная теплоёмкость", "изобарная теплоемкость", "изобарн",
+        default="Удельная изобарная теплоемкость (кДж/(кг·К))",
+    )
     latent_name = await _actual_param_name(
         ctx, config, "latent_heat_param",
         "удельная теплота парообразования", "теплота парообразования", "парообразован",
@@ -1156,9 +1211,12 @@ async def _medium_properties(ctx: FormulaContext, config: dict | None) -> dict:
         "density_param": density_name,
         "viscosity_param": viscosity_name,
         "adiabatic_param": adiabatic_name,
+        "isobaric_param": isobaric_name,
         "latent_heat_param": latent_name,
         "material_param": material_name,
     }
+
+    isobaric_capacity = _to_float(ctx.get_opt(isobaric_name))  # кДж/(кг·К)
 
     result = {
         "agregatnoe_sostojanie": ctx.get_opt(state_name) or "",
@@ -1166,10 +1224,20 @@ async def _medium_properties(ctx: FormulaContext, config: dict | None) -> dict:
         "plotnost_zhidkosti": _to_float(ctx.get_opt(density_name)),
         "vjazkost_pa_s": _to_float(ctx.get_opt(viscosity_name)),
         "pokazatel_adiabaty": _to_float(ctx.get_opt(adiabatic_name)),
+        "isobaric_capacity": isobaric_capacity,
         "latent_heat": _to_float(ctx.get_opt(latent_name)),
         "material": ctx.get_opt(material_name) or "",
         "param_names": idx_config,
     }
+
+    # Алиасы для двухфазной ветки: в смеси плотность жидкой фазы и молярная
+    # масса пара читаются как plotnost_liquid/molar_mass_vapor, а у одиночной
+    # среды те же значения лежат в plotnost_zhidkosti/molekuljarnaja_massa.
+    result["plotnost_liquid"] = result["plotnost_zhidkosti"]
+    result["molar_mass_vapor"] = result["molekuljarnaja_massa"]
+    result["cp_liquid"] = (isobaric_capacity or 0) * 1000  # кДж → Дж/(кг·К)
+    result["vapor_mass_fraction"] = 0
+
     ctx.computed["_medium_full"] = result
     return result
 
@@ -1185,9 +1253,9 @@ def _omega_parameter(props: dict, P0: float, T0: float) -> float:
     Точные коэффициенты калибруются по ISO 4126-10.
     """
     x0 = float(props.get("vapor_mass_fraction") or 0)
-    rho_l = float(props.get("plotnost_liquid") or 0)
-    M_v = float(props.get("molar_mass_vapor") or 0)
-    cp_l = float(props.get("cp_liquid") or 0)
+    rho_l = float(props.get("plotnost_liquid") or props.get("plotnost_zhidkosti") or 0)
+    M_v = float(props.get("molar_mass_vapor") or props.get("molekuljarnaja_massa") or props.get("molar_mass") or 0)
+    cp_l = float(props.get("cp_liquid") or (float(props.get("isobaric_capacity") or 0) * 1000))
     h_lg = float(props.get("latent_heat") or 0)
 
     if rho_l <= 0 or M_v <= 0:
@@ -1223,7 +1291,7 @@ def _two_phase_mass_flux(props: dict, P0: float, T0: float, B: float) -> float:
     """
     omega = _omega_parameter(props, P0, T0)
     eta_c = _two_phase_critical_ratio(omega)
-    rho_l = float(props.get("plotnost_liquid") or 0)
+    rho_l = float(props.get("plotnost_liquid") or props.get("plotnost_zhidkosti") or 0)
     C0 = 0.9  # коэффициент скорости (калибровка по ISO 4126-10)
     G_c = C0 * math.sqrt(P0 * 1e6 * rho_l / omega)
     if B <= eta_c:

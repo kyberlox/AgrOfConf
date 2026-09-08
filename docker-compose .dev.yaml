@@ -12,7 +12,7 @@ services:
     environment:
       - NGINX_HOST=${DOMAIN}
     volumes:
-      - ./nginx/:/etc/nginx/conf.d/
+      - ./nginx/dev.conf:/etc/nginx/conf.d/default.conf
       - ./app_logs/nginx:/var/log/nginx  # Логи nginx
     networks:
       - app-network

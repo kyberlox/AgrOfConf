@@ -125,7 +125,10 @@ async def _finalize_mixture_visibility(
 # расчёта смеси (_mixture_properties). Такой параметр становится нередактируемым.
 _MIXTURE_OVERRIDE_MATCHERS = [
     ("agregatnoe_sostojanie", ("агрегатное состояние",)),
-    ("molekuljarnaja_massa", ("молярн", "молекул")),
+    # «Молекулярная масса» — молекулярная (в двухфазном потоке — жидкая фаза).
+    ("molekuljarnaja_massa", ("молекул",)),
+    # «Молярная масса» — молярная (в двухфазном потоке — паровая фаза).
+    ("molar_mass", ("молярн",)),
     ("plotnost_zhidkosti", ("плотност",)),
     ("vjazkost_pa_s", ("вязкост",)),
     ("pokazatel_adiabaty", ("адиабат",)),
