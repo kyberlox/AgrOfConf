@@ -15,10 +15,10 @@ async def get_user_id_by_session_id(request: Request):
     from .dev_session import is_dev_enabled, dev_user_id
 
     if is_dev_enabled():
-        print('ОТрабатывает')
         return dev_user_id()
 
     try:
+        print('ОТрабатывает')
         session_id = request.cookies.get("session_id")
         if not session_id:
             auth_header = request.headers.get("session_id")

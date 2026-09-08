@@ -46,7 +46,6 @@ async def get_user(
         is_auth = is_active.get('authenticated', False)
         if not is_auth:
             raise HTTPException(status_code=401, detail="Проверьте авторизацию в Интранете")
-        
         user_id = int(is_active['user']['ID'])
         stmt = await db.execute(select(Users).filter(Users.id == user_id))
         user = stmt.scalar_one_or_none()
