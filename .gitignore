@@ -11,3 +11,6 @@
 /uploads
 /redis_data
 /elasticsearch
+
+#для dev-авторизации
+docker-compose.yaml
