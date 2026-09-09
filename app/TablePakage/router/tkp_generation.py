@@ -84,8 +84,6 @@ async def tkp_generation(
         if not all(key in user_dict for key in contact_info):
             raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
 
-        
-
         # Сохраняем статистику
         stat_info = await build_statistic_data(db, user_id, product_id)
 
@@ -146,8 +144,8 @@ async def tkp_generation(
                     if isinstance(value, (int, float)):
                         value = str(value).replace('.', ',')
                     elif isinstance(value, str):
-                        # if 'Заполните' in value:
-                        #     continue
+                        if 'Заполните' in value:
+                            continue
                         stripped = value.strip()
                         try:
                             if param == "Цена /шт. руб без НДС" or param == "Цена /шт. руб с НДС 22%":
