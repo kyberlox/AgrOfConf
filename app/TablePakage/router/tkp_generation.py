@@ -100,7 +100,7 @@ async def tkp_generation(
         user_dict['id'] = is_dump.data['elastic_response'].get("_id")
 
         user_dict = await convert_data(user_dict, stat_info)
-        user_dict['document_number'] =  is_dump.data['elastic_response'].get("document_number")
+        user_dict['document_number'] = document_number + 1
         mark = user_dict.get("Маркировка")
         if mark:
             search_mark = mark[0:5]
