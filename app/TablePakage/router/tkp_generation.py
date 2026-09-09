@@ -73,7 +73,6 @@ async def tkp_generation(
         statistic_router = Depends(get_selection_router),
 ):
     try:
-        print(123)
         # Получаем файл из БД по id
         stmt = select(TKP).where(TKP.id == file_id)
         result = await db.execute(stmt)
@@ -84,44 +83,43 @@ async def tkp_generation(
         contact_info = ["Маркировка"]
         if not all(key in user_dict for key in contact_info):
             raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
-        print(123)
+        
         # Сохраняем статистику
         stat_info = await build_statistic_data(db, user_id, product_id)
 
         stat_info['parameters'] = user_dict
-        print(123)
+
         document_number = await statistic_router.get_number_document(user_id)
 
         stat_info['document_number'] = document_number + 1
-        print(123)
+
         is_dump = await statistic_router.save_selection(stat_info)
 
         user_dict['id'] = is_dump.data['elastic_response'].get("_id")
-        print(123)
+
         user_dict = await convert_data(user_dict, stat_info)
-        print(123)
+
         user_dict['document_number'] = document_number + 1
-        print(123)
+
         mark = user_dict.get("Маркировка")
-        print(123)
+
         if mark:
             search_mark = mark[0:5]
-            print(123)
             row = await db.execute(text(
                 "SELECT file_path FROM parameter_files "
                 "WHERE product_id = :pid AND name ILIKE :pattern LIMIT 1"
             ), {"pid": product_id, "pattern": f"%{search_mark}%"})
             drawing_path = row.scalar_one_or_none()
-            print(123)
+
         else:
             drawing_path = None
-        print(123)
+
         filename = f"TKP+TO_{to_sql_name_lat(user_dict.get('ФИО Заказчика', '_'))}_{to_sql_name_lat(user_dict['Маркировка'])}_{user_dict.get('id', '')}"
-        print(123)
+
         if template_path.endswith(".docx"):
             
             doc = DocxTemplate(template_path)
-            print(123)
+
             #Рендерим изображение
             if drawing_path:
                 # Читаем файл как bytes
@@ -144,7 +142,7 @@ async def tkp_generation(
                 pil_image.save(new_buffer, format='PNG', dpi=(96, 96))
                 new_buffer.seek(0)
                 user_dict["Чертеж"] = InlineImage(doc, new_buffer, width=Mm(120))
-            print(123)
+
             #Переводит на латиницу
             new_user_dict = dict()
             for param, value in user_dict.items():
@@ -166,9 +164,9 @@ async def tkp_generation(
                         except ValueError:
                             pass
                     new_user_dict[KEY_MAPPING[param]] = value
-            print(123)
+
             doc.render(new_user_dict)
-            print(123)
+
             result_stream = BytesIO()
             doc.save(result_stream)
             result_stream.seek(0)
