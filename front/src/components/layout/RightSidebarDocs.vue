@@ -1,5 +1,6 @@
 <template>
-<div class="sidebar-block p-[24px]">
+<div class="sidebar-block p-[24px]"
+     v-if="getFilteredDocType(formattedDocs).length">
     <div class="text-13 text-[#343B4C] font-semibold"
          v-html="displayTitle">
     </div>
@@ -7,22 +8,18 @@
        target="_blank"
        class="mt-[8px] relative grid grid-cols-[1fr] items-center gap-[6px] border-b border-b-(--color-information-gray-100) py-[12px]"
        :class="'sidebar-block__date__wrapper--' + doc.status"
-       v-for="doc in formattedDocs?.filter((doc) => type == 'actual' ? doc.status !== 'outdated' : doc.status === 'outdated')"
+       v-for="doc in getFilteredDocType(formattedDocs)"
        :key="doc.id">
         <div
              class="flex text-sm truncate flex-row items-center flex-nowrap  justify-between group cursor-pointer hover:text-gray-600">
             <span class="mr-[10px]">
                 <FileIcon />
             </span>
-            <span class="truncate block mr-[12px] font-normal! grow relative"
-                  @mouseenter="activeDocId = doc.id"
-                  @mouseleave="activeDocId = null">
+            <span class="truncate block mr-[12px] font-normal! grow relative peer">
                 {{ doc.name }}
             </span>
-            <Transition name="fade">
-                <Tooltip v-if="activeDocId == doc.id"
+            <TextTooltip class="invisible! peer-hover:visible!"
                          :params="{ value: doc.name }" />
-            </Transition>
             <div
                  class="p-[4px] bg-(--color-information-gray-50) group-hover:bg-(--color-information-gray-100) duration-100 rounded-md">
                 <DownloadIcon />
@@ -48,7 +45,7 @@ import { checkDateStatus } from '@/utils/checkDateStatus';
 import DownloadIcon from '@/assets/icons/DownloadIcon.svg?component';
 import FileIcon from '@/assets/icons/FileIcon.svg?component';
 import { BaseButton } from 'beans-ui-kit';
-import Tooltip from '@/components/layout/Tooltip.vue';
+import TextTooltip from '@/components/layout/TextTooltip.vue';
 
 type docType = { id: number, name: string, date_to: string, file_url: string };
 
@@ -56,7 +53,7 @@ export default defineComponent({
     emits: ['downloadZip'],
     components: {
         BaseButton,
-        Tooltip,
+        TextTooltip,
         DownloadIcon,
         FileIcon
     },
@@ -72,9 +69,7 @@ export default defineComponent({
     },
     setup(props) {
         const apiUrl = import.meta.env.VITE_API_URL;
-        const formattedDocs = ref<{ id: number, name: string, date_to: string, status: string, file_url: string }[]>();
-        const activeDocId = ref<null | number>(null);
-
+        const formattedDocs = ref<{ id: number, name: string, date_to: string, status: string, file_url: string }[]>([]);
         const formatDocs = () => {
             formattedDocs.value = props.docs.map((doc) => {
                 return {
@@ -82,6 +77,10 @@ export default defineComponent({
                     status: checkDateStatus(doc.date_to)
                 }
             })
+        }
+
+        const getFilteredDocType = (docs: { id: number, status: string, file_url: string, name: string, date_to: string }[]) => {
+            return docs?.filter((doc) => props.type == 'actual' ? doc.status !== 'outdated' : doc.status === 'outdated')
         }
 
         onMounted(() => {
@@ -92,8 +91,8 @@ export default defineComponent({
         return {
             formattedDocs,
             apiUrl,
-            activeDocId,
             checkDateStatus,
+            getFilteredDocType,
             displayTitle: computed(() => props.type == 'actual' ?
                 `<span class="text-green-500">Актуальные</span> документы` :
                 `<span class="text-red-500">Истекшие</span> документы`),
