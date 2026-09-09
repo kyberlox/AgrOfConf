@@ -235,7 +235,7 @@ export default defineComponent({
                     if ('error' in e && e.error) {
                         errors.push(e.error)
                     }
-                    if ('response_value' in e && !(typeof e.response_value === 'object') && userInputs.value[e.name] !== e.response_value) {
+                    if ('response_value' in e && userInputs.value[e.name] !== e.response_value) {
                         userInputs.value[e.name] = e.response_value
                         answeredCounter++
                     }
