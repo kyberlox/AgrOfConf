@@ -99,17 +99,23 @@ async def tkp_generation(
         user_dict['id'] = is_dump.data['elastic_response'].get("_id")
         print(123)
         user_dict = await convert_data(user_dict, stat_info)
+        print(123)
         user_dict['document_number'] = document_number + 1
+        print(123)
         mark = user_dict.get("Маркировка")
+        print(123)
         if mark:
             search_mark = mark[0:5]
+            print(123)
             row = await db.execute(text(
                 "SELECT file_path FROM parameter_files "
                 "WHERE product_id = :pid AND name ILIKE :pattern LIMIT 1"
             ), {"pid": product_id, "pattern": f"%{search_mark}%"})
             drawing_path = row.scalar_one_or_none()
+            print(123)
         else:
             drawing_path = None
+        print(123)
         filename = f"TKP+TO_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}_{user_dict.get('id', '')}"
         print(123)
         if template_path.endswith(".docx"):
