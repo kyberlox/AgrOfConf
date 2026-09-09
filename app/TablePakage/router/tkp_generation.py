@@ -100,9 +100,8 @@ async def tkp_generation(
         user_dict['id'] = is_dump.data['elastic_response'].get("_id")
 
         user_dict = await convert_data(user_dict, stat_info)
-        
+        user_dict['document_number'] =  is_dump.data['elastic_response'].get("document_number")
         mark = user_dict.get("Маркировка")
-        
         if mark:
             search_mark = mark[0:5]
             row = await db.execute(text(
@@ -214,31 +213,6 @@ async def tkp_generation(
                             # Заменяем все плейсхолдеры
                             cell.value = pattern.sub(replace_match, cell.value)
 
-             # Вставка изображения "Чертеж" на второй лист
-            
-            # if len(workbook.worksheets) > 1 and drawing_path:
-            #     try:
-            #         with open(drawing_path, 'rb') as file:
-            #             image_data = BytesIO(file.read())
-                    
-            #         # Теперь файл закрыт, но данные сохранены в BytesIO
-            #         img = XLImage(image_data)
-            #         max_width = 400
-            #         max_height = 300
-            #         if img.width > max_width or img.height > max_height:
-            #             ratio = min(max_width / img.width, max_height / img.height)
-            #             img.width = int(img.width * ratio)
-            #             img.height = int(img.height * ratio)
-            #         # Якорь на ячейку A1 второго листа
-            #         img.anchor = 'A1'
-            #         second_sheet = workbook.worksheets[1]
-            #         second_sheet.add_image(img)
-            #     except Exception as img_err:
-            #         # Если не удалось загрузить изображение — просто пропускаем
-            #         print(f"Не удалось вставить изображение: {img_err}")
-            # else:
-            #     print('Не найден файл по заданной маркировке')
-            # filename = f"TKP_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}"
             result_stream = BytesIO()
             workbook.save(result_stream)
             result_stream.seek(0)
