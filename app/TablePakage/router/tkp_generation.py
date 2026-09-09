@@ -110,10 +110,11 @@ async def tkp_generation(
         else:
             drawing_path = None
         filename = f"TKP+TO_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}_{user_dict.get('id', '')}"
+        print(123)
         if template_path.endswith(".docx"):
             
             doc = DocxTemplate(template_path)
-            
+            print(123)
             #Рендерим изображение
             if drawing_path:
                 # Читаем файл как bytes
@@ -136,7 +137,7 @@ async def tkp_generation(
                 pil_image.save(new_buffer, format='PNG', dpi=(96, 96))
                 new_buffer.seek(0)
                 user_dict["Чертеж"] = InlineImage(doc, new_buffer, width=Mm(120))
-                
+            print(123)
             #Переводит на латиницу
             new_user_dict = dict()
             for param, value in user_dict.items():
@@ -158,9 +159,9 @@ async def tkp_generation(
                         except ValueError:
                             pass
                     new_user_dict[KEY_MAPPING[param]] = value
-            
+            print(123)
             doc.render(new_user_dict)
-
+            print(123)
             result_stream = BytesIO()
             doc.save(result_stream)
             result_stream.seek(0)
