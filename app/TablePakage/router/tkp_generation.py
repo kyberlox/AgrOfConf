@@ -146,8 +146,8 @@ async def tkp_generation(
                     if isinstance(value, (int, float)):
                         value = str(value).replace('.', ',')
                     elif isinstance(value, str):
-                        if 'Заполните' in value:
-                            continue
+                        # if 'Заполните' in value:
+                        #     continue
                         stripped = value.strip()
                         try:
                             if param == "Цена /шт. руб без НДС" or param == "Цена /шт. руб с НДС 22%":
