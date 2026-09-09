@@ -2,7 +2,7 @@
 <div v-if="currentTableNav !== 'statistics'"
      class="w-full">
     <!-- Заглушка если нет истории -->
-    <div v-if="(!tableData.length && tableReady)"
+    <div v-if="(!tableData?.length && tableReady)"
          class="2xl:mt-[100px] xl:mt-[20px]">
         <EmptyHistoryPlug @createOl="$emit('createOl')"
                           :isSearchResult="isSearchResult" />
