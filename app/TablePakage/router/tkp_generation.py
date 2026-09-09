@@ -73,6 +73,7 @@ async def tkp_generation(
         statistic_router = Depends(get_selection_router),
 ):
     try:
+        print(123)
         # Получаем файл из БД по id
         stmt = select(TKP).where(TKP.id == file_id)
         result = await db.execute(stmt)
@@ -83,20 +84,20 @@ async def tkp_generation(
         contact_info = ["Маркировка"]
         if not all(key in user_dict for key in contact_info):
             raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
-
+        print(123)
         # Сохраняем статистику
         stat_info = await build_statistic_data(db, user_id, product_id)
 
         stat_info['parameters'] = user_dict
-
+        print(123)
         document_number = await statistic_router.get_number_document(user_id)
 
         stat_info['document_number'] = document_number + 1
-
+        print(123)
         is_dump = await statistic_router.save_selection(stat_info)
 
         user_dict['id'] = is_dump.data['elastic_response'].get("_id")
-
+        print(123)
         user_dict = await convert_data(user_dict, stat_info)
         user_dict['document_number'] = document_number + 1
         mark = user_dict.get("Маркировка")
