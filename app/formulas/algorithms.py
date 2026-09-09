@@ -17,6 +17,8 @@ import json
 import re
 import math
 
+from typing import Any
+
 from .engine import FormulaContext, MissingParamError
 
 # Имена параметров смеси (захардкожены по решению пользователя).
@@ -411,6 +413,240 @@ async def _existing_table_columns(ctx: FormulaContext, table_name: str) -> set[s
     return {row[0] for row in rows.all() if row and row[0]}
 
 
+async def _resolve_pressure_table(ctx: FormulaContext) -> dict[str, str] | None:
+    """Возвращает карту «русское имя параметра -> колонка» для таблицы давления.
+
+    Таблица давления — отдельная физическая таблица продукта, содержащая
+    параметры «Материал», «T максимальное», «Давление настройки max (МПа)» и
+    «PN (МПа)». Ищется по Table-параметрам продукта: таблица, в которой есть
+    параметр материала и хотя бы один из параметров T макс / давление max / PN.
+    """
+    from sqlalchemy import text
+
+    rows = await ctx.db.execute(text(
+        """
+        SELECT name, transliterated_name, table_name
+        FROM parameter_schemas
+        WHERE product_id = :product_id AND type = 'Table'
+          AND table_name IS NOT NULL
+        """
+    ), {"product_id": ctx.product_id})
+
+    by_table: dict[str, dict[str, str]] = {}
+    for row in rows.mappings().all():
+        name = (row["name"] or "").strip()
+        translit = (row["transliterated_name"] or "").strip()
+        tbl = (row["table_name"] or "").strip()
+        if not name or not translit or not tbl:
+            continue
+        by_table.setdefault(tbl, {})[name] = translit
+
+    # Среди всех таблиц ищем ту, в которой есть материал + давление/T/PN.
+    for tbl, columns in by_table.items():
+        has_material = any("материал" in _norm_lower(n) or _norm_lower(n) == "material" for n in columns)
+        has_pressure = any(
+            _norm_lower(n) in ("t максимальное", "т максимальное") or "t макс" in _norm_lower(n)
+            or "давление настройки max" in _norm_lower(n)
+            or _norm_lower(n) == "pn (мпа)" or _norm_lower(n) == "pn" or _norm_lower(n) == "pn (мпa)"
+            for n in columns
+        )
+        if has_material and has_pressure:
+            return columns
+    return None
+
+
+async def select_pressure_table(
+    ctx: FormulaContext,
+    material: str | None,
+    temperature: float | None = None,
+    pressure_setting: float | None = None,
+) -> dict | None:
+    """Подбирает строку в таблице давления для выбранного материала.
+
+    Возвращает dict с колонками найденной строки (значения «T максимальное»,
+    «Давление настройки max (МПа)», «PN (МПа)») или None, если: нет материала,
+    не найдена таблица/колонки, нет подходящей строки, либо не заданы требования.
+
+    Правило (одна строка на материал):
+      material == материал И T_макс >= температура И Давл.max >= Давл.настройки,
+    среди подходящих строк выбирается минимально подходящая
+    (наименьшие T_макс и Давл.max), из неё берутся все три значения.
+    """
+    from sqlalchemy import text
+
+    if not material or material == "":
+        return None
+
+    columns = await _resolve_pressure_table(ctx)
+    if not columns:
+        return None
+
+    def _col(*keywords: str) -> str | None:
+        for name, translit in columns.items():
+            low = _norm_lower(name)
+            if any(_norm_lower(k) in low for k in keywords):
+                return translit
+        return None
+
+    mat_col = _col("материал", "material")
+    t_col = _col("t максимальное", "т максимальное", "t макс", "максимальная температура")
+    p_col = _col("давление настройки max", "давление настройки максимальное", "давление max")
+    pn_col = _col("pn")
+
+    if not mat_col:
+        return None
+
+    table = None
+    # Определяем table_name для найденной колонки материала (первая подходящая).
+    result = await ctx.db.execute(text(
+        """
+        SELECT table_name FROM parameter_schemas
+        WHERE product_id = :product_id AND type = 'Table'
+          AND transliterated_name = :col AND table_name IS NOT NULL
+        LIMIT 1
+        """
+    ), {"product_id": ctx.product_id, "col": mat_col})
+    table = result.scalar_one_or_none()
+    if not table:
+        return None
+
+    existing = await _existing_table_columns(ctx, table)
+
+    select_cols = [c for c in (mat_col, t_col, p_col, pn_col) if c and c in existing]
+    if len(select_cols) < 2:
+        return None
+
+    cols_sql = ", ".join(f'"{c}"' for c in select_cols)
+    sql = f'SELECT {cols_sql} FROM "{table}" WHERE "{mat_col}" = :mat'
+    rows = await ctx.db.execute(text(sql), {"mat": material})
+    raw_rows = rows.mappings().all()
+    if not raw_rows:
+        return None
+
+    # Если требования не заданы — ничего подставить нельзя.
+    if temperature is None and pressure_setting is None:
+        return None
+
+    best = None
+    for mapping in raw_rows:
+        t_val = _to_float(mapping.get(t_col)) if t_col else None
+        p_val = _to_float(mapping.get(p_col)) if p_col else None
+        if temperature is not None and (t_val is None or t_val < temperature):
+            continue
+        if pressure_setting is not None and (p_val is None or p_val < pressure_setting):
+            continue
+        # «Минимально подходящая»: сортируем по (t_val, p_val).
+        if best is None or (
+            (t_val or 0) < (best[0] or 0)
+            or ((t_val or 0) == (best[0] or 0) and (p_val or 0) < (best[1] or 0))
+        ):
+            best = (t_val, p_val, mapping)
+
+    if best is None:
+        return None
+
+    _, _, mapping = best
+    selected: dict = {"_table": table, "material": material}
+    if t_col:
+        selected["t_max"] = mapping.get(t_col)
+    if p_col:
+        selected["pressure_max"] = mapping.get(p_col)
+    if pn_col:
+        selected["pn"] = mapping.get(pn_col)
+    return selected
+
+
+async def _selected_value_by_keyword(
+    ctx: FormulaContext,
+    keywords: tuple[str, ...],
+    exclude: tuple[str, ...] = (),
+) -> Any:
+    """Первое выбранное/вычисленное значение параметра по ключевым словам в имени.
+
+    Смотрит сначала вычисленные формульные параметры, затем выбранные
+    пользователем. `exclude` отсекает похожие имена (например «Давление
+    настройки max» при поиске «Давление настройки»).
+    """
+    excluded = [_norm_lower(e) for e in exclude if e and str(e).strip()]
+    kws = [_norm_lower(k) for k in keywords if k and str(k).strip()]
+    if not kws:
+        return None
+
+    for name in list(ctx.computed or {}) + list(ctx.selected or {}):
+        low = _norm_lower(name)
+        if any(e in low for e in excluded):
+            continue
+        if not any(kw in low for kw in kws):
+            continue
+        value = ctx.computed.get(name)
+        if value is None:
+            value = ctx.selected.get(name)
+        if value is None or str(value).strip() == "":
+            continue
+        return value
+    return None
+
+
+async def _selected_text(
+    ctx: FormulaContext,
+    keywords: tuple[str, ...],
+    exclude: tuple[str, ...] = (),
+    default: str | None = None,
+) -> str | None:
+    """Строковое значение параметра по ключевым словам (см. _selected_value_by_keyword)."""
+    value = await _selected_value_by_keyword(ctx, keywords, exclude)
+    return default if value is None else str(value).strip()
+
+
+async def _selected_float(
+    ctx: FormulaContext,
+    keywords: tuple[str, ...],
+    exclude: tuple[str, ...] = (),
+    default: float | None = None,
+) -> float | None:
+    """Числовое значение параметра по ключевым словам (см. _selected_value_by_keyword)."""
+    value = await _selected_value_by_keyword(ctx, keywords, exclude)
+    return default if value is None else _to_float(value, default)
+
+
+async def nominal_pressure(ctx: FormulaContext, config: dict | None = None) -> float | None:
+    """Предварительное номинальное давление (PN) по таблице давления материала.
+
+    Формула-драйвер таблицы давления: подбирает строку по выбранному материалу
+    («Материал»/«material»), температуре рабочей среды и давлению настройки и
+    возвращает PN подобранной строки.
+
+    Результат подбора кладётся в ctx.computed["_pressure_table"] (материал,
+    T максимальное, Давление настройки max, PN) — интеграция записывает эти
+    значения в соответствующие табличные параметры и скрывает их.
+
+    Если для материала нет подходящей строки — возвращает None.
+    """
+    material = await _selected_text(ctx, ("материал", "material"))
+    if not material:
+        raise MissingParamError("Материал")
+
+    temperature = await _selected_float(
+        ctx,
+        ("температура рабочей среды", "температура рабочей", "температура"),
+        exclude=("максимальная", "макс"),
+    )
+    pressure = await _selected_float(
+        ctx,
+        ("давление настройки",),
+        exclude=("max", "макс"),
+    )
+
+    sel = await select_pressure_table(
+        ctx, material, temperature=temperature, pressure_setting=pressure
+    )
+    if sel is None:
+        return None
+
+    ctx.computed["_pressure_table"] = sel
+    return sel.get("pn")
+
+
 async def _resolve_media_table(ctx: FormulaContext) -> str | None:
     """Возвращает имя физической таблицы продукта (из Table-параметров) или None."""
     from sqlalchemy import text
@@ -699,7 +935,7 @@ async def _mixture_properties(ctx: FormulaContext, config: dict | None) -> dict:
     isochoric_col = find_column("изохорная теплоёмкость", "изохорн", "cv")
     factor_col = find_column("фактор сжимаемости", "сжимаемости")
     latent_heat_col = find_column("удельная теплота парообразования", "теплота парообразования", "парообразован")
-    material_col = find_column("материал")
+    material_col = find_column("материал", "material")
 
     select_columns = [env_name_col]
     env_keys = [env_name_col]

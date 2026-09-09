@@ -6,7 +6,7 @@
 `formula_config` модели `ParameterSchema`.
 
 Публичное API:
-    compute_formulas(db, formula_params, selected) -> dict[name, {response_value|error}]
+    compute_formulas(db, formula_params, selected) -> (results, computed)
     FormulaContext            - контекст доступа к значениям внутри функций
     MissingParamError         - поднимается, когда требуемый параметр не выбран
     ALGORITHMS / VALIDATORS   - реестры имён функций

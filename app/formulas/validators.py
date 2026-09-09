@@ -88,8 +88,8 @@ def validate_pressure_setting(ctx: FormulaContext, value):
         v = float(value)
     except (TypeError, ValueError):
         return "Давление настройки должно быть числом"
-    if v < 0 or v > 16:
-        return "Давление настройки не может быть меньше 0 и больше 16"
+    if v < 0 or v > 160:
+        return "Давление настройки не может быть меньше 0 и больше 160 Мпа"
     return None
 
 

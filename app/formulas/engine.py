@@ -217,7 +217,11 @@ async def compute_formulas(
         selected — словарь выбранных значений: {имя_параметра: значение}.
 
     Возвращает:
-        dict {имя_параметра: {"response_value": ..., "error": ... | None}}
+        кортеж (results, computed):
+          results  — dict {имя_параметра: {"response_value": ..., "error": ... | None}}
+          computed — dict {имя_параметра: вычисленное_значение} + побочные записи
+                     функций (например ctx.computed["_pressure_table"]), которые
+                     интеграция записывает в табличные параметры.
     """
     formula_names = {
         spec["name"] for spec in formula_params
@@ -294,4 +298,4 @@ async def compute_formulas(
         if name not in results:
             results[name] = {"error": "Не удалось вычислить параметр (возможна циклическая зависимость)"}
 
-    return results
+    return results, computed
