@@ -21,9 +21,9 @@ def _find_actual_key(ctx: FormulaContext, *keywords: str, fallback: str) -> str:
     валидатор применяется к конкретному параметру, а зависимости ищутся
     по ключевым словам (устойчиво к суффиксам размерности и переименованиям).
     """
-    lowered = [str(k).strip().lower() for k in keywords if k and str(k).strip()]
+    lowered = [str(k).strip().lower().replace("ё", "е") for k in keywords if k and str(k).strip()]
     for name in list(ctx.selected or {}) + list(ctx.computed or {}):
-        if name and any(kw in str(name).lower() for kw in lowered):
+        if name and any(kw in str(name).lower().replace("ё", "е") for kw in lowered):
             return name
     return fallback
 
