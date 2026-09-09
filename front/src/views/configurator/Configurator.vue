@@ -196,11 +196,11 @@ export default defineComponent({
             // На поиск отправляем только явно выбранные пользователем параметры.
             // Авто-подставленные значения сервер пересчитает сам, поэтому они
             // «адаптируются» при изменении выбора и не залипают как старый выбор.
-            if (newBody && Object.keys(newBody).length) {
-                newBody = Object.fromEntries(
-                    Object.entries(newBody).filter(([key]) => manuallyChanged.value[key])
-                )
-            }
+            // if (newBody && Object.keys(newBody).length) {
+            //     (
+            //         Object.entries(newBody).filter(([key]) => manuallyChanged.value[key])
+            //     )
+            // }
             if (freeConfigMode.value && Object.keys(newBody).length) {
                 return
             }
