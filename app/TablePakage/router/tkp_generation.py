@@ -116,7 +116,7 @@ async def tkp_generation(
         else:
             drawing_path = None
         print(123)
-        filename = f"TKP+TO_{to_sql_name_lat(user_dict.get('ФИО Заказчика', ''))}_{to_sql_name_lat(user_dict['Маркировка'])}_{user_dict.get('id', '')}"
+        filename = f"TKP+TO_{to_sql_name_lat(user_dict.get('ФИО Заказчика', '_'))}_{to_sql_name_lat(user_dict['Маркировка'])}_{user_dict.get('id', '')}"
         print(123)
         if template_path.endswith(".docx"):
             
