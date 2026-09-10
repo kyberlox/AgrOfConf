@@ -1,4 +1,5 @@
 # app/requests/router/requests.py
+import json
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import case, func, select
@@ -17,6 +18,42 @@ from ...UserService.model.Users import Users
 from ...UserService.utils.auth_utils import get_user_id_by_session_id
 
 logger = logging.getLogger(__name__)
+
+CUSTOMER_FIELDS = (
+    "organization",
+    "address",
+    "telephone",
+    "email",
+    "inn",
+    "registered_address",
+    "international_address",
+    "website",
+    "customer_type",
+    "additional_information",
+)
+
+CONTACT_FIELDS = (
+    "full_name",
+    "job_title",
+    "work_phone",
+    "mobile_phone",
+    "email",
+    "visibility",
+    "field_of_view",
+)
+
+
+def _contact_signature(contact) -> str:
+    return json.dumps(
+        {
+            field_name: getattr(contact, field_name)
+            for field_name in CONTACT_FIELDS
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        default=str,
+    )
+
 
 router = APIRouter(
     prefix="/requests",
@@ -156,6 +193,89 @@ async def get_or_create_customer(
         db.add(contact)
 
     return customer
+
+
+def get_customer_differences(
+        customer: Customer,
+        data: CustomerRequest,
+) -> list[str]:
+    """Возвращает переданные поля, отличающиеся от сохранённой организации."""
+    differences = [
+        field_name
+        for field_name in CUSTOMER_FIELDS
+        if field_name in data.model_fields_set
+           and getattr(customer, field_name) != getattr(data, field_name)
+    ]
+
+    if "contacts" in data.model_fields_set:
+        stored_contacts = sorted(
+            _contact_signature(contact)
+            for contact in customer.contacts
+        )
+        incoming_contacts = sorted(
+            _contact_signature(contact)
+            for contact in data.contacts
+        )
+        if stored_contacts != incoming_contacts:
+            differences.append("contacts")
+
+    return differences
+
+
+async def update_customer(
+        customer: Customer,
+        data: CustomerRequest,
+        db: AsyncSession,
+) -> Customer:
+    """Обновляет переданные поля организации без создания новой строки."""
+    for field_name in CUSTOMER_FIELDS:
+        if field_name in data.model_fields_set:
+            setattr(customer, field_name, getattr(data, field_name))
+
+    if "contacts" in data.model_fields_set:
+        customer.contacts.clear()
+        customer.contacts.extend(
+            ContactPerson(**contact.model_dump())
+            for contact in data.contacts
+        )
+
+    await db.flush()
+    return customer
+
+
+async def resolve_customer_update(
+        data: CustomerRequest,
+        current_customer: Customer | None,
+        role_name: str,
+        forced: bool,
+        db: AsyncSession,
+) -> Customer:
+    """Переиспользует, проверяет или принудительно обновляет организацию."""
+    if data.id is not None:
+        target_customer = await get_or_create_customer(data, role_name, db)
+    elif current_customer is not None:
+        target_customer = current_customer
+    else:
+        return await get_or_create_customer(data, role_name, db)
+
+    differences = get_customer_differences(target_customer, data)
+    if not differences:
+        return target_customer
+
+    if not forced:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": (
+                    f"Переданные данные для роли '{role_name}' отличаются "
+                    "от сохранённых"
+                ),
+                "differences": differences,
+                "hint": "Повторите запрос с forced=true для замены данных",
+            },
+        )
+
+    return await update_customer(target_customer, data, db)
 
 
 @router.post(
@@ -405,7 +525,16 @@ async def update_request(
 ):
     try:
         result = await db.execute(
-            select(Request).where(
+            select(Request)
+            .options(
+                selectinload(Request.customer)
+                .selectinload(Customer.contacts),
+                selectinload(Request.organization)
+                .selectinload(Customer.contacts),
+                selectinload(Request.end_customer)
+                .selectinload(Customer.contacts),
+            )
+            .where(
                 Request.id == request_id,
                 Request.user_id == user_id,
             )
@@ -436,25 +565,31 @@ async def update_request(
                 )
 
         if payload.customer is not None:
-            customer = await get_or_create_customer(
+            customer = await resolve_customer_update(
                 payload.customer,
+                db_request.customer,
                 "Заказчик",
+                payload.forced,
                 db,
             )
             db_request.customer_id = customer.id
 
         if payload.organization is not None:
-            organization = await get_or_create_customer(
+            organization = await resolve_customer_update(
                 payload.organization,
+                db_request.organization,
                 "Проектная организация",
+                payload.forced,
                 db,
             )
             db_request.organization_id = organization.id
 
         if payload.end_customer is not None:
-            end_customer = await get_or_create_customer(
+            end_customer = await resolve_customer_update(
                 payload.end_customer,
+                db_request.end_customer,
                 "Конечный заказчик",
+                payload.forced,
                 db,
             )
             db_request.end_customer_id = end_customer.id
