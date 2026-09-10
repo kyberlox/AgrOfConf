@@ -171,6 +171,13 @@ async def has_product_device(ctx: FormulaContext):
         return "Рычаг"
     return None
 
+async def has_product_device_v2(ctx: FormulaContext):
+    """Проверяет, есть ли у продукта рычаг."""
+    has_device  = ctx.get('Устройство принудительного открытия')
+    if has_device and has_device == 'требуется':
+        return "да (Рычаг)"
+    return "нет"
+
 async def has_product_seal(ctx: FormulaContext):
     """Проверяет, есть ли у продукта сильфон."""
     has_seal  = ctx.get('Тип уплотнения')
