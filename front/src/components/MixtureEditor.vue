@@ -111,6 +111,10 @@ export default defineComponent({
             type: Boolean,
             default: false,
         },
+        mediaOptions: {
+            type: Array as PropType<string[]>,
+            default: () => [],
+        },
         modelValue: {
             type: Array as PropType<Array<{ [key: string]: number }>>,
             default: () => [],
@@ -155,7 +159,8 @@ export default defineComponent({
         });
 
         const availableOptions = (row: IMixtureRow, index: number): string[] => {
-            const all = props.param?.all_values || [];
+            const fromParam = Array.isArray(props.param?.all_values) ? props.param.all_values : [];
+            const all = fromParam.length ? fromParam : props.mediaOptions;
             const taken = rows.value
                 .filter((r, i) => i !== index)
                 .map(r => r.name)

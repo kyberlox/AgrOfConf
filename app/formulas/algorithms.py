@@ -957,19 +957,152 @@ async def _valve_diameter_value(ctx: FormulaContext, config: dict | None = None)
     return None if sel is None else _to_float(sel.get("seat_diameter"))
 
 
+async def _optional_value_by_keyword(
+    ctx: FormulaContext,
+    keywords: tuple[str, ...],
+    exclude: tuple[str, ...] = (),
+):
+    """Как _required_value_by_keyword, но не требует обычного (не формульного) параметра.
+
+    Если значения нет и это НЕ формульный параметр — возвращает None (параметр
+    просто не заполнен, очереди ждать не нужно). Если параметр — формула, которая
+    ещё не вычислена, поднимается MissingParamError, чтобы движок отложил расчёт.
+    """
+    try:
+        return await _required_value_by_keyword(ctx, keywords, exclude)
+    except MissingParamError as exc:
+        if exc.param_name in (ctx.formula_names or ()):
+            raise  # ждём готовности формулы
+        return None  # обычный входной параметр просто не заполнен
+
+
+def _normalize_yes_no(value) -> str | None:
+    """Приводит значение к каноническому «Да»/«Нет» (или возвращает как есть)."""
+    if value is None:
+        return None
+    low = str(value).strip().lower()
+    if low == "да":
+        return "Да"
+    if low == "нет":
+        return "Нет"
+    text = str(value).strip()
+    return text or None
+
+
+async def _manual_bellows_choice(ctx: FormulaContext) -> str | None:
+    """Ручной выбор «Сильфонного уплотнения»: значение из выбранного пользователем."""
+    value = await _selected_value_by_keyword(
+        ctx, ("сильфонное уплотнение",), exclude=("тип уплотнения",)
+    )
+    return _normalize_yes_no(value)
+
+
+async def bellows_seal(ctx: FormulaContext, config: dict | None = None) -> str | None:
+    """«Сильфонное уплотнение» — формульный select-параметр (Да/Нет).
+
+    Автоматика:
+      - «Тип клапана» = «Пилотный (П)»  =>  «Нет»;
+      - «Тип клапана» = «Пружинный (В)» и
+          («Материал пружины» = «51ХФА» при «Температура рабочей среды» > 120
+           или «Материал пружины» = «50ХФА» при температуре > 250)  =>  «Да».
+
+    Во всех остальных случаях — ручной выбор пользователя (возвращается его
+    значение или None, если ещё не выбрано).
+
+    Настройки formula_config (опционально):
+      "pilot_type"   — строковое значение «Типа клапана» для пилотного (default «Пилотный (П)»);
+      "spring_type"  — строковое значение для пружинного (default «Пружинный (В)»);
+      "temp_hfa51"   — порог температуры для 51ХФА (default 120);
+      "temp_hfa50"   — порог температуры для 50ХФА (default 250).
+    """
+    config = config or {}
+
+    pilot_type = str(config.get("pilot_type") or "Пилотный (П)").strip()
+    spring_type = str(config.get("spring_type") or "Пружинный (В)").strip()
+
+    t_hfa51 = 120.0
+    t_hfa50 = 250.0
+    try:
+        t_hfa51 = float(config.get("temp_hfa51", t_hfa51))
+    except (TypeError, ValueError):
+        pass
+    try:
+        t_hfa50 = float(config.get("temp_hfa50", t_hfa50))
+    except (TypeError, ValueError):
+        pass
+
+    valve_type = await _required_value_by_keyword(ctx, ("тип клапана",))
+    valve_type = _normalize_yes_no(str(valve_type).strip()) or str(valve_type).strip()
+
+    if valve_type == pilot_type:
+        return "Нет"
+
+    if valve_type != spring_type:
+        # Ни пилотный, ни пружинный — ручной выбор пользователя.
+        return await _manual_bellows_choice(ctx)
+
+    # Пружинный: нужно знать материал пружины (из подобранной строки клапана)
+    # и температуру рабочей среды.
+    temperature = await _optional_value_by_keyword(
+        ctx,
+        ("температура рабочей среды", "температура рабочей", "температура"),
+        exclude=("максимальная", "макс"),
+    )
+    temp = _to_float(temperature, default=None)
+    if temp is not None:
+        sel = await _valve_selected(ctx, config)
+        if sel is not None:
+            material = str(sel.get("spring_material") or "").strip()
+            if material == "51ХФА" and temp > t_hfa51:
+                return "Да"
+            if material == "50ХФА" and temp > t_hfa50:
+                return "Да"
+
+    return await _manual_bellows_choice(ctx)
+
+
 async def _resolve_media_table(ctx: FormulaContext) -> str | None:
-    """Возвращает имя физической таблицы продукта (из Table-параметров) или None."""
+    """Возвращает имя физической таблицы сред продукта или None.
+
+    Таблица сред — та Table-таблица, у которой среди параметров есть
+    «Название рабочей среды»/«среда» и «Агрегатное состояние». Раньше бралась
+    первая попавшаяся таблица (LIMIT 1 без ORDER BY) — у продукта с несколькими
+    таблицами (давление, типоразмеры) могла вернуться не таблица сред, и состав
+    смеси оказывался пуст. Перебираем все таблицы продукта и ищем «средовую».
+    """
     from sqlalchemy import text
 
     result = await ctx.db.execute(text(
         """
-        SELECT table_name
+        SELECT DISTINCT table_name
         FROM parameter_schemas
         WHERE product_id = :product_id AND type = 'Table' AND table_name IS NOT NULL
-        LIMIT 1
         """
     ), {"product_id": ctx.product_id})
-    return result.scalar_one_or_none()
+    tables = [r[0] for r in result.all() if r and r[0]]
+
+    if not tables:
+        return None
+
+    async def _is_media_table(table_name: str) -> bool:
+        columns = await _resolve_media_columns(ctx, table_name)
+        has_name = any(
+            "рабочей среды" in n.lower()
+            or "рабочая среда" in n.lower()
+            or "среда" in n.lower()
+            for n in columns
+        )
+        has_state = any(
+            "агрегатное состояние" in n.lower() or "состояние" in n.lower()
+            for n in columns
+        )
+        return has_name and has_state
+
+    for table_name in tables:
+        if await _is_media_table(table_name):
+            return table_name
+
+    return tables[0]
 
 
 async def _filtered_media_names(ctx: FormulaContext, mode: str) -> list[str]:
