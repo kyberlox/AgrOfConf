@@ -70,7 +70,7 @@ origins = ["http://localhost:5173", DOMAIN]
 # )
 
 #Открытые эндпоинты
-open_links = ["/api/docs", "/api/openapi.json"]
+open_links = ["/api/docs", "/api/openapi.json", '/api/auth/redirect']
 
 redis_storage = RedisStorage()
 
