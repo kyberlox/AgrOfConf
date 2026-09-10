@@ -114,7 +114,7 @@ async def session_middleware(request: Request, call_next):
         if ttl > 0 and ttl <= ttl_refresh_threshold:
             # Вызываем внешнее API для получения нового session_id
             refresh_data = await refresh_session_id(session_id)
-            if refresh_data['status'] != "success":
+            if not refresh_data refresh_data['status'] != "success":
                 # Не удалось обновить – можно либо вернуть 401, либо продолжить с той же сессией
                 # По логике – лучше вернуть 401, так как сессия скоро истечёт и токен не продлён
                 raise HTTPException(status_code=401, detail="Session refresh failed")
