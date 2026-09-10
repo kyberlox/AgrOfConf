@@ -68,6 +68,7 @@ KEY_MAPPING = {
     # Служебные
     "id": "id",
     "Проектная организация": "design_organization",
+    "document_number": "ol_num",
 
     # Для чертежей вставлять если подходят эти параметры
     "Есть сильфон": "has_seal",

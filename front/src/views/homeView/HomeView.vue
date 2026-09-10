@@ -41,7 +41,7 @@
         </div>
 
         <!-- Создать запрос -->
-        <div v-if="tableData.length && !(currentTableNav == 'statistics')"
+        <div v-if="tableData?.length && !(currentTableNav == 'statistics')"
              class="flex items-center justify-end w-full px-[24px]">
             <BaseButton :buttonSettings="{ class: 'button-primary' }"
                         @clicked="showEngineModal = true">

@@ -76,67 +76,67 @@ redis_storage = RedisStorage()
 
 
 
-# @app.middleware("http")
-# async def session_middleware(request: Request, call_next):
-#     try:
-#         ttl_refresh_threshold = 300
-#         path = request.url.path
-#         # Пропускаем открытые эндпоинты
-#         if path in open_links:
-#             return await call_next(request)
+@app.middleware("http")
+async def session_middleware(request: Request, call_next):
+    try:
+        ttl_refresh_threshold = 300
+        path = request.url.path
+        # Пропускаем открытые эндпоинты
+        if path in open_links:
+            return await call_next(request)
 
-#         # Получаем session_id из cookie
-#         session_id = request.cookies.get("session_id")
-#         if not session_id:
-#             raise HTTPException(status_code=401, detail="Missing session cookie")
+        # Получаем session_id из cookie
+        session_id = request.cookies.get("session_id")
+        if not session_id:
+            raise HTTPException(status_code=401, detail="Missing session cookie")
 
-#         # Проверяем существование и TTL сессии в Redis
-#         user_id = redis_storage.get_session(session_id)
-#         if user_id is None:
-#             raise HTTPException(status_code=401, detail="Invalid or expired session")
+        # Проверяем существование и TTL сессии в Redis
+        user_id = redis_storage.get_session(session_id)
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid or expired session")
 
-#         ttl = redis_storage.get_ttl(session_id)
-#         # Если ключ есть, но TTL == -1 (нет истечения) – не нужно обновлять
-#         # Если TTL < 0 (ошибка) – считаем, что сессия не валидна
-#         if ttl < 0 and ttl != -1:
-#             raise HTTPException(status_code=401, detail="Session error")
+        ttl = redis_storage.get_ttl(session_id)
+        # Если ключ есть, но TTL == -1 (нет истечения) – не нужно обновлять
+        # Если TTL < 0 (ошибка) – считаем, что сессия не валидна
+        if ttl < 0 and ttl != -1:
+            raise HTTPException(status_code=401, detail="Session error")
 
-#         # Обновление сессии, если осталось меньше порога
-#         if ttl > 0 and ttl <= ttl_refresh_threshold:
-#             # Вызываем внешнее API для получения нового session_id
-#             refresh_data = await refresh_session_id(session_id)
-#             if refresh_data['status'] != "success":
-#                 # Не удалось обновить – можно либо вернуть 401, либо продолжить с той же сессией
-#                 # По логике – лучше вернуть 401, так как сессия скоро истечёт и токен не продлён
-#                 raise HTTPException(status_code=401, detail="Session refresh failed")
+        # Обновление сессии, если осталось меньше порога
+        if ttl > 0 and ttl <= ttl_refresh_threshold:
+            # Вызываем внешнее API для получения нового session_id
+            refresh_data = await refresh_session_id(session_id)
+            if refresh_data['status'] != "success":
+                # Не удалось обновить – можно либо вернуть 401, либо продолжить с той же сессией
+                # По логике – лучше вернуть 401, так как сессия скоро истечёт и токен не продлён
+                raise HTTPException(status_code=401, detail="Session refresh failed")
 
-#             new_session_id = refresh_data["session_id"]
+            new_session_id = refresh_data["session_id"]
 
-#             # Удаляем все старые сессии пользователя
-#             await validate_users_sessions(user_id)
+            # Удаляем все старые сессии пользователя
+            await validate_users_sessions(user_id)
 
-#             # Создаём новую сессию
-#             await create_session(new_session_id, user_id)  # create_session асинхронная
+            # Создаём новую сессию
+            await create_session(new_session_id, user_id)  # create_session асинхронная
 
-#             # Устанавливаем новую cookie
-#             resp = await call_next(request)
-#             resp.set_cookie(
-#                 key="session_id",
-#                 value=new_session_id,
-#                 samesite="lax"
-#             )
-#             return resp
+            # Устанавливаем новую cookie
+            resp = await call_next(request)
+            resp.set_cookie(
+                key="session_id",
+                value=new_session_id,
+                samesite="lax"
+            )
+            return resp
 
-#         # Если TTL > порога – просто продлеваем время жизни (скользящая сессия)
-#         if ttl > 0:
-#             # Продлеваем на стандартное время (например, 1 час)
-#             redis_storage.expire_session(session_id, int(redis_storage.session_ttl.total_seconds()))
+        # Если TTL > порога – просто продлеваем время жизни (скользящая сессия)
+        if ttl > 0:
+            # Продлеваем на стандартное время (например, 1 час)
+            redis_storage.expire_session(session_id, int(redis_storage.session_ttl.total_seconds()))
 
-#         # Обычный случай – вызываем следующий обработчик
-#         response = await call_next(request)
-#         return response
-#     except HTTPException as e:
-#         return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+        # Обычный случай – вызываем следующий обработчик
+        response = await call_next(request)
+        return response
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
 
 
 
