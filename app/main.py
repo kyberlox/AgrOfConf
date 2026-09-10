@@ -92,6 +92,7 @@ async def session_middleware(request: Request, call_next):
             if auth_header:
                 session_id = auth_header
             else:
+                print('Тут это происходит', print(request.headers))
                 raise HTTPException(status_code=401, detail="Missing session cookie")
 
         # Проверяем существование и TTL сессии в Redis
