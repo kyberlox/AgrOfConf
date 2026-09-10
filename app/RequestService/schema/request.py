@@ -32,6 +32,7 @@ class RequestCreate(BaseModel):
 
 
 class RequestUpdate(BaseModel):
+    forced: bool = False
     request: RequestDataUpdate | None = None
 
     customer: CustomerRequest | None = None
