@@ -104,6 +104,8 @@ async def _build_config(db: AsyncSession, product_id: int) -> dict:
             "name": product.name,
             "description": product.description,
             "manufacturer": product.manufacturer,
+            "image": product.image,
+            "image_url": product.image_url,
         },
         "blocks": [
             {
@@ -251,6 +253,8 @@ async def import_product(
             name=product_data.get("name") or "Импортированный продукт",
             description=product_data.get("description"),
             manufacturer=product_data.get("manufacturer"),
+            image=product_data.get("image"),
+            image_url=product_data.get("image_url"),
         )
         db.add(product)
         await db.flush()
@@ -331,7 +335,18 @@ async def import_product(
                 ).scalar_one_or_none()
                 if found:
                     target = found
+                    # Переносим на существующий табличный параметр все настраиваемые
+                    # поля из конфигурации (formula_config для табличных формульных
+                    # параметров, флаги, поля видимости и пр.).
                     target.block_id = block_id
+                    target.description = common["description"]
+                    target.measuring_unit = common["measuring_unit"]
+                    target.visibility = common["visibility"]
+                    target.editable = common["editable"]
+                    target.special = common["special"]
+                    target.required_type = common["required_type"]
+                    target.field_of_view = common["field_of_view"]
+                    target.formula_config = common["formula_config"]
                     target.sort = common["sort"]
                 else:
                     target = ParameterSchema(

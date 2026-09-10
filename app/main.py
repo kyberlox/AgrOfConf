@@ -85,6 +85,11 @@ async def session_middleware(request: Request, call_next):
         if path in open_links:
             return await call_next(request)
 
+        # DEV-режим: не требуем сессию — авторизацию обеспечивает get_user_id_by_session_id
+        from .UserService.utils.dev_session import is_dev_enabled
+        if is_dev_enabled():
+            return await call_next(request)
+
         # Получаем session_id из cookie
         session_id = request.cookies.get("session_id")
         if not session_id:

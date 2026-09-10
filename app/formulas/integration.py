@@ -224,6 +224,50 @@ def _fill_pressure_entries(response_params: list[dict], sel: dict | None) -> Non
             entry["response_value"] = pn
 
 
+# Ключи результата подбора таблицы клапана (_select_valve) по ключевым словам
+# в названии табличного параметра.
+def _match_valve_entry(lower_name: str) -> str | None:
+    """Определяет, к какой колонке таблицы клапана относится параметр (или None)."""
+    groups = [
+        ("тип_пк", ("тип пк",)),
+        ("seat_diameter", ("номинальный диаметр седла", "диаметр седла")),
+        ("pn_in", ("pn входн",)),
+        ("pn_out", ("pn выходн",)),
+        ("dn_in", ("dn входн",)),
+        ("dn_out", ("dn выходн",)),
+        ("range_pressure", ("диапазон давления настройки", "диапазон давления")),
+        ("spring_no", ("№ пружины", "номер пружины")),
+        ("spring_material", ("материал пружины",)),
+    ]
+    for key, kws in groups:
+        if any(kw in lower_name for kw in kws):
+            return key
+    return None
+
+
+def _fill_valve_entries(response_params: list[dict], sel: dict | None) -> None:
+    """Записывает результат подбора таблицы клапана в табличные параметры.
+
+    `sel` — dict из _select_valve (тип_пк, seat_diameter, pn_in, pn_out, dn_in,
+    dn_out, range_pressure, spring_no, spring_material, _table). Заполняет только
+    параметры таблицы клапана (по table_name), помечает их нередактируемыми и
+    скрывает.
+    """
+    if not sel:
+        return
+
+    table = sel.get("_table")
+    for entry in response_params:
+        if table and entry.get("table_name") != table:
+            continue
+        key = _match_valve_entry(str(entry.get("name") or "").lower())
+        if key is None:
+            continue
+        entry["response_value"] = sel.get(key, entry.get("response_value"))
+        entry["editable"] = False
+        entry["visibility"] = False
+
+
 async def apply_mixture_overrides(
     db: AsyncSession,
     response_params: list[dict],
@@ -364,6 +408,11 @@ async def _apply_new_formulas(
     # подбор таблицы давления в ctx.computed — записываем его в табличные
     # параметры (material / T max / Давл. max / PN) и скрываем их.
     _fill_pressure_entries(response_params, computed.get("_pressure_table"))
+
+    # Формулы подбора клапана (valve_selection и др.) кладут подбор строки
+    # таблицы клапана в ctx.computed["_valve_selection"] — записываем его в
+    # табличные параметры клапана и скрываем их.
+    _fill_valve_entries(response_params, computed.get("_valve_selection"))
 
 
 async def _add_input_params(

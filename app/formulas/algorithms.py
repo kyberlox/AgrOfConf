@@ -647,6 +647,316 @@ async def nominal_pressure(ctx: FormulaContext, config: dict | None = None) -> f
     return sel.get("pn")
 
 
+def _existing_value(ctx: FormulaContext, name: str):
+    """Значение параметра из computed/selected или None (без исключения)."""
+    if name in ctx.computed and ctx.computed[name] is not None:
+        return ctx.computed[name]
+    raw = ctx.selected.get(name)
+    if raw is None:
+        return None
+    if isinstance(raw, str) and not raw.strip():
+        return None
+    return raw
+
+
+async def _required_value_by_keyword(
+    ctx: FormulaContext,
+    keywords: tuple[str, ...],
+    exclude: tuple[str, ...] = (),
+):
+    """Значение параметра по ключевым словам с корректным ожиданием формул.
+
+    Возвращает значение первого совпавшего параметра. Совпадение ищется:
+
+      1) среди имён формульных параметров (ctx.formula_names) — если формула ещё
+         не вычислена, поднимается MissingParamError с её именем, и движок
+         откладывает текущую формулу на следующий проход;
+      2) среди выбранных/вычисленных значений (ctx.selected / ctx.computed).
+
+    Если параметр не найден — поднимается MissingParamError с первым ключевым
+    словом (в форме вернётся «Заполните параметр "..."»).
+    """
+    kws = [_norm_lower(k) for k in keywords if k and str(k).strip()]
+    excluded = [_norm_lower(e) for e in exclude if e and str(e).strip()]
+    if not kws:
+        raise MissingParamError(keywords[0] if keywords else "Параметр")
+
+    # 1) Формульные параметры: ждём их завершения на следующих проходах.
+    candidates = [
+        name for name in (ctx.formula_names or ())
+        if name and str(name).strip()
+        and any(k in _norm_lower(name) for k in kws)
+        and not any(e in _norm_lower(name) for e in excluded)
+    ]
+    candidates.sort(key=len)
+    for name in candidates:
+        value = _existing_value(ctx, name)
+        if value is not None:
+            return value
+    if candidates:
+        return ctx.get(candidates[0])  # поднимет MissingParamError, если не готово
+
+    # 2) Обычные выбранные/вычисленные параметры.
+    value = await _selected_value_by_keyword(ctx, keywords, exclude)
+    if value is None:
+        raise MissingParamError(keywords[0])
+    return value
+
+
+async def _resolve_valve_table(ctx: FormulaContext) -> dict[str, str] | None:
+    """Возвращает карту «русское имя -> колонка» таблицы клапана.
+
+    Таблица клапана — отдельная физическая таблица с параметрами «Тип ПК»,
+    «Номинальный диаметр седла клапана, мм», «PN входное», «PN выходное»,
+    «DN входной», «DN выходной», «Диапазон давления настройки», «№ пружины»,
+    «Материал пружины». Ищется как таблица, содержащая «Тип ПК» и
+    диаметр седла / PN входное.
+    """
+    from sqlalchemy import text
+
+    rows = await ctx.db.execute(text(
+        """
+        SELECT name, transliterated_name, table_name
+        FROM parameter_schemas
+        WHERE product_id = :product_id AND type = 'Table'
+          AND table_name IS NOT NULL
+        """
+    ), {"product_id": ctx.product_id})
+
+    by_table: dict[str, dict[str, str]] = {}
+    for row in rows.mappings().all():
+        name = (row["name"] or "").strip()
+        translit = (row["transliterated_name"] or "").strip()
+        tbl = (row["table_name"] or "").strip()
+        if not name or not translit or not tbl:
+            continue
+        by_table.setdefault(tbl, {})[name] = translit
+
+    for tbl, columns in by_table.items():
+        has_type = any("тип пк" in _norm_lower(n) for n in columns)
+        has_seat = any("диаметр седла" in _norm_lower(n) for n in columns)
+        has_pn_in = any("pn входн" in _norm_lower(n) for n in columns)
+        if has_type and (has_seat or has_pn_in):
+            return columns
+    return None
+
+
+async def _select_valve(ctx: FormulaContext, config: dict | None = None) -> dict | None:
+    """Подбирает строку таблицы клапана по введённым параметрам.
+
+    Правило:
+      «Тип ПК» == выбранный «Тип клапана»
+      И «Номинальный диаметр седла клапана, мм» >= «Предварительный диаметр
+         седла клапана» (среди подходящих — минимальный)
+      И «PN входное» == «Предварительное номинальное давление»
+
+    Возвращает dict с колонками выбранной строки (+ "_table") или None.
+    """
+    from sqlalchemy import text
+
+    columns = await _resolve_valve_table(ctx)
+    if not columns:
+        raise MissingParamError("Тип клапана")
+
+    def _col(*keywords: str) -> str | None:
+        for name, translit in columns.items():
+            low = _norm_lower(name)
+            if any(_norm_lower(k) in low for k in keywords):
+                return translit
+        return None
+
+    type_col = _col("тип пк")
+    seat_col = _col("номинальный диаметр седла", "диаметр седла")
+    pn_in_col = _col("pn входн")
+    pn_out_col = _col("pn выходн")
+    dn_in_col = _col("dn входн")
+    dn_out_col = _col("dn выходн")
+    range_col = _col("диапазон давления настройки", "диапазон давления")
+    spring_no_col = _col("№ пружины", "номер пружины")
+    spring_mat_col = _col("материал пружины")
+
+    if not type_col:
+        raise MissingParamError("Тип клапана")
+
+    otype = await _required_value_by_keyword(ctx, ("тип клапана",))
+    pre_d = await _required_value_by_keyword(
+        ctx, ("предварительный диаметр седла", "предварительный диаметр", "диаметр седла")
+    )
+    pre_d = _to_float(pre_d, default=None)
+    if pre_d is None:
+        raise MissingParamError("Предварительный диаметр седла клапана")
+
+    pn_value = await _required_value_by_keyword(ctx, ("номинальное давление",))
+    pn_float = _to_float(pn_value, default=None)
+    if pn_float is None:
+        raise MissingParamError("Предварительное номинальное давление")
+
+    # Определяем table_name по колонке «Тип ПК».
+    result = await ctx.db.execute(text(
+        """
+        SELECT table_name FROM parameter_schemas
+        WHERE product_id = :product_id AND type = 'Table'
+          AND transliterated_name = :col AND table_name IS NOT NULL
+        LIMIT 1
+        """
+    ), {"product_id": ctx.product_id, "col": type_col})
+    table = result.scalar_one_or_none()
+    if not table:
+        raise MissingParamError("Тип клапана")
+
+    existing = await _existing_table_columns(ctx, table)
+    select_cols = [c for c in (
+        seat_col, pn_in_col, pn_out_col, dn_in_col, dn_out_col,
+        range_col, spring_no_col, spring_mat_col,
+    ) if c and c in existing]
+    if not seat_col or seat_col not in existing:
+        raise MissingParamError("Номинальный диаметр седла клапана, мм")
+    select_cols = [seat_col] + [c for c in select_cols if c != seat_col]
+
+    cols_sql = ", ".join(f'"{c}"' for c in select_cols)
+    sql = f'SELECT {cols_sql} FROM "{table}" WHERE "{type_col}" = :tp'
+    raw_rows = (await ctx.db.execute(text(sql), {"tp": otype})).mappings().all()
+    if not raw_rows:
+        return None
+
+    best = None
+    for mapping in raw_rows:
+        seat = _to_float(mapping.get(seat_col))
+        if seat is None or seat < pre_d:
+            continue
+        if pn_in_col:
+            pn_cell = mapping.get(pn_in_col)
+            pn_num = _to_float(pn_cell, default=None)
+            pn_ok = pn_num is not None and abs(pn_num - pn_float) < 1e-9
+            if not pn_ok and str(pn_cell or "").strip() != str(pn_value).strip():
+                continue
+        if best is None or seat < best[0]:
+            best = (seat, mapping)
+
+    if best is None:
+        return None
+
+    _, mapping = best
+    selected: dict = {
+        "_table": table,
+        "тип_пк": str(otype).strip(),
+        "seat_diameter": mapping.get(seat_col),
+    }
+    if pn_in_col:
+        selected["pn_in"] = mapping.get(pn_in_col)
+    if pn_out_col:
+        selected["pn_out"] = mapping.get(pn_out_col)
+    if dn_in_col:
+        selected["dn_in"] = mapping.get(dn_in_col)
+    if dn_out_col:
+        selected["dn_out"] = mapping.get(dn_out_col)
+    if range_col:
+        selected["range_pressure"] = mapping.get(range_col)
+    if spring_no_col:
+        selected["spring_no"] = mapping.get(spring_no_col)
+    if spring_mat_col:
+        selected["spring_material"] = mapping.get(spring_mat_col)
+    return selected
+
+
+async def _valve_selected(ctx: FormulaContext, config: dict | None = None) -> dict | None:
+    """Подбор строки таблицы клапана с кэшированием в ctx.computed.
+
+    Используется и формулой-драйвером «valve_selection», и формулами площадей —
+    чтобы подбор выполнялся один раз.
+    """
+    cached = ctx.computed.get("_valve_selection")
+    if cached is not None:
+        return cached
+    sel = await _select_valve(ctx, config)
+    ctx.computed["_valve_selection"] = sel
+    return sel
+
+
+async def valve_selection(ctx: FormulaContext, config: dict | None = None) -> float | None:
+    """Предварительный подбор седла клапана (формула-драйвер таблицы клапана).
+
+    По выбранным «Типу клапана», «Предварительному диаметру седла клапана» и
+    «Предварительному номинальному давлению» подбирает строку таблицы клапана
+    (Тип ПК совпадает, диаметр — минимально подходящий, PN входное совпадает)
+    и возвращает «Номинальный диаметр седла клапана, мм».
+
+    Результат подбора кладётся в ctx.computed["_valve_selection"] — интеграция
+    записывает его в табличные параметры клапана и скрывает их.
+    """
+    sel = await _valve_selected(ctx, config)
+    return None if sel is None else _to_float(sel.get("seat_diameter"))
+
+
+async def seat_circle_area(ctx: FormulaContext, config: dict | None = None) -> float | None:
+    """Площадь седла клапана, мм²: π·d²/4 по диаметру из «Выбора седла клапана»."""
+    d = await _valve_diameter_value(ctx, config)
+    if d is None:
+        return None
+    return math.pi * (d ** 2) / 4.0
+
+
+async def seat_effective_area(ctx: FormulaContext, config: dict | None = None) -> float | None:
+    """Эффективная площадь седла клапана, мм².
+
+    По умолчанию равна геометрической площади π·d²/4 по диаметру из «Выбора
+    седла клапана». При необходимости в formula_config можно задать коэффициент
+    «effective_factor» (по умолчанию 1.0): A = π·(d·k)²/4.
+    """
+    d = await _valve_diameter_value(ctx, config)
+    if d is None:
+        return None
+    factor = 1.0
+    if config:
+        try:
+            factor = float(config.get("effective_factor", 1.0))
+        except (TypeError, ValueError):
+            factor = 1.0
+    return math.pi * (d * factor) ** 2 / 4.0
+
+
+async def _valve_diameter_value(ctx: FormulaContext, config: dict | None = None) -> float | None:
+    """Диаметр седла клапана из значения формульного параметра «Выбор седла клапана».
+
+    Порядок поиска:
+      1) явное имя параметра из formula_config["diameter_of"];
+      2) формульный параметр, в имени которого есть «выбор седла»
+         (движок отложит расчёт до его готовности через MissingParamError);
+      3) запасной вариант — собственный подбор строки (_valve_selected),
+         чтобы подход работал и без отдельного драйвера.
+    """
+    config = config or {}
+
+    explicit = str(config.get("diameter_of") or "").strip()
+    if explicit:
+        if explicit in ctx.computed:
+            return _to_float(ctx.computed[explicit], default=None)
+        value = _existing_value(ctx, explicit)
+        if value is not None:
+            return _to_float(value, default=None)
+        if explicit in (ctx.formula_names or ()):
+            return _to_float(ctx.get(explicit), default=None)  # ждём формулы
+
+    candidates = [
+        name for name in (ctx.formula_names or ())
+        if name and str(name).strip() and "выбор седла" in _norm_lower(name)
+    ]
+    candidates.sort(key=len)
+    for name in candidates:
+        if name in ctx.computed:
+            return _to_float(ctx.computed[name], default=None)  # уже вычислен (или None)
+        value = _existing_value(ctx, name)
+        if value is not None:
+            d = _to_float(value, default=None)
+            if d is not None:
+                return d
+    if candidates:
+        return _to_float(ctx.get(candidates[0]), default=None)  # ждём формулы
+
+    sel = await _valve_selected(ctx, config)
+    return None if sel is None else _to_float(sel.get("seat_diameter"))
+
+
 async def _resolve_media_table(ctx: FormulaContext) -> str | None:
     """Возвращает имя физической таблицы продукта (из Table-параметров) или None."""
     from sqlalchemy import text
