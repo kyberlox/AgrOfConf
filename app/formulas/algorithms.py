@@ -172,7 +172,7 @@ async def has_product_device(ctx: FormulaContext):
     return None
 
 async def has_product_device_v2(ctx: FormulaContext):
-    """Проверяет, есть ли у продукта рычаг."""
+    """Проверяет, есть ли у продукта рычаг. (для ТКП)"""
     has_device  = ctx.get('Устройство принудительного открытия')
     if has_device and has_device == 'требуется':
         return "да (Рычаг)"
@@ -185,7 +185,16 @@ async def has_product_seal(ctx: FormulaContext):
         return "Сильфон"
     return None
 
-
+async def interval_pressure_settings(ctx: FormulaContext):
+    """Расчитывает диапозон настройки с противодавлением"""
+    has_diametr = ctx.get('Номинальный диаметр входной, мм')
+    if not has_diametr:
+        return None
+    if int(has_diametr) = 25:
+        return '0.04...25'
+    else:
+        return '0.05...25'
+    
 
 # === Расчёт характеристик смесей ===
 
