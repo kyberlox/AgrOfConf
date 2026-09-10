@@ -130,13 +130,6 @@ async def upload_OL(
             # model='deepseek/deepseek-v4-flash-vision-exp',
             max_tokens=8000,
             messages=[{"role": "user", "content": content}],
-            extra_body={
-                "provider": {
-                    "order": ["deepinfra", "siliconflow", "atlas-cloud", "novita"],
-                    # или "only": ["deepinfra"] — если хотите строго одного
-                    "allow_fallbacks": True
-                }
-            }
             # response_format={"type": "json_object"}
         )
         res = response.model_dump()
@@ -237,7 +230,8 @@ async def convert_ai_result(
         response = await client.chat.completions.create(
             # model="deepseek/deepseek-v4-flash", 
             # model='deepseek/deepseek-v4-pro',
-            model='deepseek/deepseek-v4-flash-vision-exp',
+            # model='deepseek/deepseek-v4-flash-vision-exp',
+            model=model_type,
             max_tokens=4000,
             messages=messages,
             response_format={"type": "json_object"}
