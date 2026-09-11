@@ -1,12 +1,6 @@
 import re
 from typing import Dict, Any, Optional
 
-# import os
-# from pathlib import Path
-# import shutil
-
-# from gigachat import GigaChat
-# from gigachat.models import Chat, Messages, MessagesRole
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.TablePakage.model.database import get_db
 import requests
@@ -24,13 +18,22 @@ from datetime import datetime
 from fastapi import Request, HTTPException, status
 import os
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
 from app.UserService.utils.auth_utils import get_user_id_by_session_id
 from app.StatisticsService.utils.deps import build_statistic_data
 from app.StatisticsService.router.recognition_router import get_recognition_router
 
 from ..utils.convert_ol_file import get_params_and_values_of_product, convert_file_to_jpeg_content
-from ..utils.promt_ol import get_promt, VALIDATION_PROMPT, UNIFIED_PROMPT, RULES_TABLE
+from ..utils.promt_ol import VALIDATION_PROMPT, UNIFIED_PROMPT
+from ..utils.prompt_storage import (
+    delete_product_validation_prompt,
+    get_product_validation_prompt,
+    has_product_validation_prompt,
+    save_product_validation_prompt,
+    save_product_rules,
+    get_product_rules
+)
 
 load_dotenv()
 #делаю изменения
@@ -42,6 +45,13 @@ client = AsyncOpenAI(api_key = key_api, base_url=vseGPTurl)
 
 router = APIRouter(prefix="/AI", tags=[""])
 
+class Rule(BaseModel):
+    name: str
+    default: str
+
+class ProductPromptPayload(BaseModel):
+    payload: Optional[str] = None
+    rules: Optional[list[Rule]] = None
 
 def _extract_json_from_response(text: str) -> dict:
     """Извлекает JSON из ответа нейросети.
@@ -84,17 +94,7 @@ async def upload_OL(
     from copy import deepcopy
     try:
         start_all = time.time()
-        # params = await get_params_and_values_of_product(db, product_id)
-        
-        # res_params = {key: value for key, value in params.items() if key not in ['Цена /шт. руб без НДС', 'Цена /шт. руб с НДС 22%']}
-        
-        # agent_info = {
-        #     "Имя заказчика": '', 
-        #     "Телефон заказчика": '',
-        #     "Email заказчика": '',
-        #     "Организация заказчика": ''
-        # }
-        # total_params = res_params | agent_info
+
         PROMT = f"""
         Из документа, который я прислал, извлеки все параметры и их значения.
         Верни результат строго в формате Markdown-таблицы с двумя колонками.
@@ -155,6 +155,58 @@ async def upload_OL(
         raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")
 
 
+@router.get("/get_product_prompt/{product_id}")
+async def get_product_prompt(
+    product_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Возвращает промты для продукта.
+
+    - `validation_prompt` — свой промт продукта;
+    - `unified_prompt` — общий промт распознавания (один на все продукты);
+    - `rules_table` — массив дефолтных значений для параметров;
+    """
+    return {
+        "product_id": product_id,
+        "validation_prompt": get_product_validation_prompt(product_id),
+        "unified_prompt": UNIFIED_PROMPT,
+        "rules_table": get_product_rules(product_id)
+    }
+
+
+@router.post("/save_product_prompt/{product_id}")
+async def save_product_prompt(
+    product_id: int,
+    body: ProductPromptPayload,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Сохраняет VALIDATION-промт и RULESD_TABLE продукта (для редактирования в админке).
+    Возвращает промты для продукта.
+    - `validation_prompt` — свой промт продукта;
+    - `rules_table` — массив дефолтных значений для параметров;
+    """
+    if body.payload:
+        prompt = body.payload.strip()
+        save_product_validation_prompt(product_id, prompt)
+    if body.rules:
+        save_product_rules(body.rules, product_id)
+    return {
+        "product_id": product_id,
+        "validation_prompt": get_product_validation_prompt(product_id),
+        "rules_table": get_product_rules(product_id)
+    }
+
+
+@router.delete("/delete_product_prompt/{product_id}")
+async def delete_product_prompt(
+    product_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Удаляет сохранённый VALIDATION-промт продукта (вернётся стандартный)."""
+    return {"deleted": delete_product_validation_prompt(product_id)}
+
+
 @router.post("/convert-ai-result")
 async def convert_ai_result(
     # raw_json: dict = Body(...)
@@ -183,37 +235,14 @@ async def convert_ai_result(
         }
         total_params = res_params | agent_info
         start_all = time.time()
-        # if user_promt:
-        #     messages = [
-        #     {
-        #         "role": "user",
-        #         "content": f"""
-        #         {VALIDATION_PROMPT} (см. выше)
-
-        #         RAW_MD:
-
-        #         {raw_md}
-
-        #         TEMPLATE_JSON:
-        #         {json.dumps(total_params, ensure_ascii=False, indent=2)}
-
-        #         RULES:
-        #         - Сопоставь ключи из Markdown с TEMPLATE_JSON по смыслу
-        #         - Выбери только допустимые значения из TEMPLATE_JSON
-        #         - Если точного совпадения нет — выбери ближайшее
-        #         - Пропусти параметры, которых нет в TEMPLATE_JSON
-        #         - Верни JSON в формате: {{"параметр": "значение"}}
-        #         - Размерность НЕ включай в результат
-        #         - {user_promt}
-        #         """
-        #         }
-        #     ]
-        # else:
+        # Промт валидации — свой для продукта (если сохранён в админке), иначе стандартный.
+        product_prompt = get_product_validation_prompt(product_id)
+        rules_table = get_product_rules(product_id)
         messages = [
             {
                 "role": "user",
                 "content": f"""
-                {VALIDATION_PROMPT} (см. выше)
+                {product_prompt} (см. выше)
 
                 RAW_MD:
 
@@ -223,7 +252,7 @@ async def convert_ai_result(
                 {json.dumps(total_params, ensure_ascii=False, indent=2)}
 
                 RULES_TABLE:
-                {RULES_TABLE}
+                {rules_table}
                 """
             }
         ]
