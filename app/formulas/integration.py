@@ -369,6 +369,19 @@ async def _apply_new_formulas(
         db, new_specs, selected_values, product_id=product_id
     )
 
+    # Формула «По способу сброса рабочей среды» (discharge_type) при «Открытом
+    # типе» принудительно перебивает значение «Сильфонное уплотнение» на «Нет»
+    # поверх его собственной логики.
+    bellows_override = computed.get("_bellows_override")
+    if bellows_override:
+        for name in list(results):
+            low = str(name or "").lower().replace("ё", "е")
+            if "тип уплотнения" in low:
+                continue
+            if "сильфонное уплотнение" in low:
+                results[name]["response_value"] = bellows_override
+                break
+
     name_to_existing = {item["name"]: item for item in response_params}
 
     for spec in new_specs:

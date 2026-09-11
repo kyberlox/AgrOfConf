@@ -997,68 +997,158 @@ async def _manual_bellows_choice(ctx: FormulaContext) -> str | None:
     return _normalize_yes_no(value)
 
 
-async def bellows_seal(ctx: FormulaContext, config: dict | None = None) -> str | None:
-    """«Сильфонное уплотнение» — формульный select-параметр (Да/Нет).
-
-    Автоматика:
-      - «Тип клапана» = «Пилотный (П)»  =>  «Нет»;
-      - «Тип клапана» = «Пружинный (В)» и
-          («Материал пружины» = «51ХФА» при «Температура рабочей среды» > 120
-           или «Материал пружины» = «50ХФА» при температуре > 250)  =>  «Да».
-
-    Во всех остальных случаях — ручной выбор пользователя (возвращается его
-    значение или None, если ещё не выбрано).
-
-    Настройки formula_config (опционально):
-      "pilot_type"   — строковое значение «Типа клапана» для пилотного (default «Пилотный (П)»);
-      "spring_type"  — строковое значение для пружинного (default «Пружинный (В)»);
-      "temp_hfa51"   — порог температуры для 51ХФА (default 120);
-      "temp_hfa50"   — порог температуры для 50ХФА (default 250).
-    """
+def _bellows_config(config: dict | None) -> dict:
+    """Нормализованные настройки логики сильфона/сброса из formula_config."""
     config = config or {}
+    out = {
+        "pilot_type": str(config.get("pilot_type") or "Пилотный (П)").strip(),
+        "spring_type": str(config.get("spring_type") or "Пружинный (В)").strip(),
+        "temp_hfa51": 120.0,
+        "temp_hfa50": 250.0,
+    }
+    for key in ("temp_hfa51", "temp_hfa50"):
+        try:
+            out[key] = float(config.get(key, out[key]))
+        except (TypeError, ValueError):
+            pass
+    return out
 
-    pilot_type = str(config.get("pilot_type") or "Пилотный (П)").strip()
-    spring_type = str(config.get("spring_type") or "Пружинный (В)").strip()
 
-    t_hfa51 = 120.0
-    t_hfa50 = 250.0
-    try:
-        t_hfa51 = float(config.get("temp_hfa51", t_hfa51))
-    except (TypeError, ValueError):
-        pass
-    try:
-        t_hfa50 = float(config.get("temp_hfa50", t_hfa50))
-    except (TypeError, ValueError):
-        pass
+async def _spring_high_temp_condition(ctx: FormulaContext, config: dict | None = None) -> bool:
+    """«Пружинный высокотемпературный режим»: клапан пружинный и материал пружины с
+    температурой дают «горячий» вариант.
 
-    valve_type = await _required_value_by_keyword(ctx, ("тип клапана",))
-    valve_type = _normalize_yes_no(str(valve_type).strip()) or str(valve_type).strip()
+      «Тип клапана» = «Пружинный (В)» и
+      («Материал пружины» = «51ХФА» при t > 120 или «Материал пружины» = «50ХФА» при t > 250).
 
-    if valve_type == pilot_type:
-        return "Нет"
+    Если нужные данные ещё не готовы (это формулы — ждём их на следующем проходе)
+    или просто не заполнены (обычные входные) — возвращает False.
+    """
+    s = _bellows_config(config)
 
-    if valve_type != spring_type:
-        # Ни пилотный, ни пружинный — ручной выбор пользователя.
-        return await _manual_bellows_choice(ctx)
+    vtype = await _optional_value_by_keyword(ctx, ("тип клапана",))
+    if vtype is None or str(vtype).strip() != s["spring_type"]:
+        return False
 
-    # Пружинный: нужно знать материал пружины (из подобранной строки клапана)
-    # и температуру рабочей среды.
     temperature = await _optional_value_by_keyword(
         ctx,
         ("температура рабочей среды", "температура рабочей", "температура"),
         exclude=("максимальная", "макс"),
     )
     temp = _to_float(temperature, default=None)
-    if temp is not None:
+    if temp is None:
+        return False
+
+    try:
         sel = await _valve_selected(ctx, config)
-        if sel is not None:
-            material = str(sel.get("spring_material") or "").strip()
-            if material == "51ХФА" and temp > t_hfa51:
-                return "Да"
-            if material == "50ХФА" and temp > t_hfa50:
-                return "Да"
+    except MissingParamError as exc:
+        if exc.param_name in (ctx.formula_names or ()):
+            raise  # подбор клапана ждёт выпущений формул (PN и т.п.) — откладываем
+        return False
+    if sel is None:
+        return False
+
+    material = str(sel.get("spring_material") or "").strip()
+    return (material == "51ХФА" and temp > s["temp_hfa51"]) or (
+        material == "50ХФА" and temp > s["temp_hfa50"]
+    )
+
+
+async def bellows_seal(ctx: FormulaContext, config: dict | None = None) -> str | None:
+    """«Сильфонное уплотнение» — формульный select-параметр (Да/Нет).
+
+    Автоматика:
+      - «Тип клапана» = «Пилотный (П)»  =>  «Нет»;
+      - «Пружинный высокотемпературный режим» (см. _spring_high_temp_condition)
+        =>  «Да».
+
+    Во всех остальных случаях — ручной выбор пользователя (возвращается его
+    значение или None, если ещё не выбрано). Принудительное «перебивание»
+    значения на «Нет» возможен формулой «По способу сброса рабочей среды»
+    (ctx.computed["_bellows_override"]).
+
+    Настройки formula_config (опционально):
+      "pilot_type"   — значение «Типа клапана» для пилотного (default «Пилотный (П)»);
+      "spring_type"  — значение для пружинного (default «Пружинный (В)»);
+      "temp_hfa51"   — порог температуры для 51ХФА (default 120);
+      "temp_hfa50"   — порог температуры для 50ХФА (default 250).
+    """
+    s = _bellows_config(config)
+
+    vtype = await _optional_value_by_keyword(ctx, ("тип клапана",))
+    if vtype is not None and str(vtype).strip() == s["pilot_type"]:
+        return "Нет"
+
+    if await _spring_high_temp_condition(ctx, config):
+        return "Да"
 
     return await _manual_bellows_choice(ctx)
+
+
+# Среда считается «неагрессивной» для сброса открытого типа, если её название
+# входит в этот список (без учёта регистра).
+AGGRESSIVE_MEDIA = {"вода", "водяной пар", "воздух", "азот"}
+
+
+async def _working_media_names(ctx: FormulaContext, config: dict | None = None) -> list[str] | None:
+    """Названия рабочих сред: из состава смеси или из единичного параметра среды.
+
+    Возвращает список названий или None, если среда ещё не выбрана.
+    """
+    mode = await _resolve_mixture_mode(ctx, config)
+    if mode is not None:
+        pairs = _gather_composition(ctx, config)
+        return [str(name).strip() for name, _share in pairs if name and str(name).strip()]
+
+    name = await _selected_text(
+        ctx,
+        ("рабочая среда", "рабочей среды"),
+        exclude=("температура", "давление", "тип смеси", "состав", "доля", "агрегатное"),
+    )
+    if not name:
+        return None
+    return [name]
+
+
+async def discharge_type(ctx: FormulaContext, config: dict | None = None) -> str:
+    """«По способу сброса рабочей среды» — нередактируемый select (Открытого/Закрытого типа).
+
+    Правило (=> «Открытого типа»):
+      рабочая среда (единичная) или ВСЕ среды смеси — только из «неагрессивных»:
+        «Вода», «Водяной пар», «Воздух», «Азот»
+      И выполняется «Пружинный высокотемпературный режим»
+        («Тип клапана» = «Пружинный (В)» и 51ХФА при t > 120 / 50ХФА при t > 250).
+
+    При этом значение параметра «Сильфонное уплотнение» принудительно
+    становится «Нет» (поверх его собственной логики): интеграция записывает
+    ctx.computed["_bellows_override"].
+
+    Во всех остальных случаях => «Закрытого типа».
+
+    Настройки formula_config (опционально):
+      "aggressive_media" — переопределяющий список «неагрессивных» сред;
+      "pilot_type"/"spring_type" — значения «Типа клапана» (как у bellows_seal);
+      "temp_hfa51"/"temp_hfa50" — пороги температур (как у bellows_seal).
+    """
+    config = config or {}
+    aggressive = {
+        _norm_lower(m)
+        for m in (["Вода", "Водяной пар", "Воздух", "Азот"] or AGGRESSIVE_MEDIA)
+        if m and str(m).strip()
+    }
+
+    media = await _working_media_names(ctx, config)
+    if media is None:
+        # Среда ещё не выбрана — по умолчанию закрытый тип.
+        return "Закрытого типа"
+    if any(_norm_lower(m) not in aggressive for m in media):
+        return "Закрытого типа"
+
+    if not await _spring_high_temp_condition(ctx, config):
+        return "Закрытого типа"
+
+    ctx.computed["_bellows_override"] = "Нет"
+    return "Открытого типа"
 
 
 async def _resolve_media_table(ctx: FormulaContext) -> str | None:
