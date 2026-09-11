@@ -44,11 +44,13 @@ async def parse_user_data(data: dict) -> dict:
             ),
             "work_position": data.get("WORK_POSITION"),
             "work_city": data.get("PERSONAL_CITY"),
-            "office": int(data.get("UF_USR_1586854037086")),
+            "office": int(data.get("UF_USR_1586854037086")) if data.get("UF_USR_1586854037086") else None,
             "photo": data.get("PERSONAL_PHOTO")
         }
     except KeyError as e:
         raise HTTPException(status_code=400, detail=f"Отсутствует обязательное поле: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка парсинга пользовательских данных: {e}")
 
 
 
