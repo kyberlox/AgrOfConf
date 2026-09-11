@@ -70,7 +70,7 @@ origins = ["http://localhost:5173", DOMAIN]
 # )
 
 #Открытые эндпоинты
-open_links = ["/api/docs", "/api/openapi.json"]
+open_links = ["/api/docs", "/api/openapi.json", '/api/auth/redirect']
 
 redis_storage = RedisStorage()
 
@@ -86,6 +86,10 @@ async def session_middleware(request: Request, call_next):
             return await call_next(request)
         if "http://127.0.0.1" in str(request.url): 
             return await call_next(request)#
+        # DEV-режим: не требуем сессию — авторизацию обеспечивает get_user_id_by_session_id
+        from .UserService.utils.dev_session import is_dev_enabled
+        if is_dev_enabled():
+            return await call_next(request)
         # Получаем session_id из cookie
         session_id = request.cookies.get("session_id")
         if not session_id:
@@ -106,7 +110,7 @@ async def session_middleware(request: Request, call_next):
         if ttl > 0 and ttl <= ttl_refresh_threshold:
             # Вызываем внешнее API для получения нового session_id
             refresh_data = await refresh_session_id(session_id)
-            if refresh_data['status'] != "success":
+            if not refresh_data or refresh_data['status'] != "success":
                 # Не удалось обновить – можно либо вернуть 401, либо продолжить с той же сессией
                 # По логике – лучше вернуть 401, так как сессия скоро истечёт и токен не продлён
                 raise HTTPException(status_code=401, detail="Session refresh failed")

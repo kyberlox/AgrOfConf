@@ -57,6 +57,7 @@ class FormulaContext:
         computed: dict[str, Any],
         db: Any = None,
         product_id: Optional[int] = None,
+        formula_names: Optional[set[str]] = None,
     ):
         # Значения входных/табличных параметров (из запроса пользователя).
         self.selected = selected
@@ -66,6 +67,10 @@ class FormulaContext:
         self.db = db
         # Опционально: идентификатор продукта (для запросов к файлам/чертежам).
         self.product_id = product_id
+        # Имена всех формульных параметров продукта: позволяет функции корректно
+        # «дождаться» другого формульного параметра через MissingParamError
+        # (движок отложит расчёт на следующий проход).
+        self.formula_names = formula_names or set()
 
     # ---- внутренние помощники ----
 
@@ -217,7 +222,11 @@ async def compute_formulas(
         selected — словарь выбранных значений: {имя_параметра: значение}.
 
     Возвращает:
-        dict {имя_параметра: {"response_value": ..., "error": ... | None}}
+        кортеж (results, computed):
+          results  — dict {имя_параметра: {"response_value": ..., "error": ... | None}}
+          computed — dict {имя_параметра: вычисленное_значение} + побочные записи
+                     функций (например ctx.computed["_pressure_table"]), которые
+                     интеграция записывает в табличные параметры.
     """
     formula_names = {
         spec["name"] for spec in formula_params
@@ -226,7 +235,9 @@ async def compute_formulas(
 
     results: dict[str, dict] = {}
     computed: dict[str, Any] = {}
-    ctx = FormulaContext(selected, computed, db=db, product_id=product_id)
+    ctx = FormulaContext(
+        selected, computed, db=db, product_id=product_id, formula_names=formula_names
+    )
 
     pending = [spec for spec in formula_params if (spec.get("formula_config") or {}).get("func")]
     max_passes = len(pending) + 5
@@ -294,4 +305,4 @@ async def compute_formulas(
         if name not in results:
             results[name] = {"error": "Не удалось вычислить параметр (возможна циклическая зависимость)"}
 
-    return results
+    return results, computed

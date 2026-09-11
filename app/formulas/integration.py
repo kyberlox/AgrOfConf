@@ -136,8 +136,136 @@ _MIXTURE_OVERRIDE_MATCHERS = [
     ("isochoric_capacity", ("изохорн",)),
     ("factor", ("сжимаемост",)),
     ("latent_heat", ("удельная теплота парообразования", "теплота парообразования", "парообразован", "скрытая теплота")),
-    ("material", ("материал",)),
+    ("material", ("материал", "material")),
 ]
+
+
+def _to_float_safe(value, default=None):
+    """Безопасное приведение значения к float (пустые строки, «нет», запятая)."""
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return float(value)
+    text_value = str(value).strip().replace(",", ".")
+    if not text_value or text_value.lower() in ("нет", "none", "n/a", "-"):
+        return default
+    try:
+        return float(text_value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _match_pressure_entry(lower_name: str) -> str | None:
+    """Определяет, является ли параметр частью таблицы давления, и какой это ключ.
+
+    По подстроке в имени (lowercase) возвращает ключ результата:
+      «material», «t_max», «pressure_max» или «pn»; иначе None.
+    """
+    groups = [
+        ("material", ("материал", "material")),
+        ("t_max", ("t максимальное", "т максимальное", "t макс", "максимальная температура")),
+        ("pressure_max", ("давление настройки max", "давление настройки максимальное", "давление max", "давление максимальное")),
+        ("pn", ("pn",)),
+    ]
+    for key, kws in groups:
+        if any(kw in lower_name for kw in kws):
+            return key
+    return None
+
+
+# Формульный параметр «Предварительное номинальное давление»: в дополнение к
+# заполнению табличных параметров давления синхронизируем его значение с PN.
+_PRESSURE_FORMULA_KEYWORDS = (
+    "предварительное номинальное давление",
+    "номинальное давление",
+    "pn",
+)
+
+
+def _fill_pressure_entries(response_params: list[dict], sel: dict | None) -> None:
+    """Записывает результат подбора таблицы давления в табличные параметры.
+
+    `sel` — dict из select_pressure_table (material, t_max, pressure_max, pn,
+    _table). Заполняет только параметры таблицы давления (по table_name),
+    помечает их нередактируемыми и скрывает. Значение формульного параметра
+    «Предварительное номинальное давление» синхронизируется с подобранным PN.
+    """
+    if not sel:
+        return
+
+    pres_table = sel.get("_table")
+    for entry in response_params:
+        # Не трогаем одноимённые параметры других таблиц (например «Материал»
+        # из таблицы сред).
+        if pres_table and entry.get("table_name") != pres_table:
+            continue
+        key = _match_pressure_entry(str(entry.get("name") or "").lower())
+        if key is None:
+            continue
+        if key == "material":
+            entry["response_value"] = sel.get("material", entry.get("response_value"))
+        else:
+            entry["response_value"] = sel.get(key, entry.get("response_value"))
+        entry["editable"] = False
+        entry["visibility"] = False
+
+    pn = sel.get("pn")
+    if pn is None:
+        return
+    for entry in response_params:
+        # Параметры таблицы давления уже заполнены выше.
+        if pres_table and entry.get("table_name") == pres_table:
+            continue
+        # Значение формульного параметра «Предварительное номинальное давление»
+        # держим актуальным (в смеси оно пересчитывается после переопределения
+        # материала).
+        low_name = str(entry.get("name") or "").lower()
+        if any(kw in low_name for kw in _PRESSURE_FORMULA_KEYWORDS):
+            entry["response_value"] = pn
+
+
+# Ключи результата подбора таблицы клапана (_select_valve) по ключевым словам
+# в названии табличного параметра.
+def _match_valve_entry(lower_name: str) -> str | None:
+    """Определяет, к какой колонке таблицы клапана относится параметр (или None)."""
+    groups = [
+        ("тип_пк", ("тип пк",)),
+        ("seat_diameter", ("номинальный диаметр седла", "диаметр седла")),
+        ("pn_in", ("pn входн",)),
+        ("pn_out", ("pn выходн",)),
+        ("dn_in", ("dn входн",)),
+        ("dn_out", ("dn выходн",)),
+        ("range_pressure", ("диапазон давления настройки", "диапазон давления")),
+        ("spring_no", ("№ пружины", "номер пружины")),
+        ("spring_material", ("материал пружины",)),
+    ]
+    for key, kws in groups:
+        if any(kw in lower_name for kw in kws):
+            return key
+    return None
+
+
+def _fill_valve_entries(response_params: list[dict], sel: dict | None) -> None:
+    """Записывает результат подбора таблицы клапана в табличные параметры.
+
+    `sel` — dict из _select_valve (тип_пк, seat_diameter, pn_in, pn_out, dn_in,
+    dn_out, range_pressure, spring_no, spring_material, _table). Заполняет только
+    параметры таблицы клапана (по table_name), помечает их нередактируемыми и
+    скрывает.
+    """
+    if not sel:
+        return
+
+    table = sel.get("_table")
+    for entry in response_params:
+        if table and entry.get("table_name") != table:
+            continue
+        key = _match_valve_entry(str(entry.get("name") or "").lower())
+        if key is None:
+            continue
+        entry["response_value"] = sel.get(key, entry.get("response_value"))
+        entry["editable"] = False
+        entry["visibility"] = False
 
 
 async def apply_mixture_overrides(
@@ -163,9 +291,19 @@ async def apply_mixture_overrides(
     if not _is_mixture_on(selected_values):
         return response_params
 
-    from .algorithms import MissingParamError, _mixture_properties
+    from .algorithms import MissingParamError, _mixture_properties, select_pressure_table
 
     ctx = FormulaContext(dict(selected_values), {}, db=db, product_id=product_id)
+
+    def _sel_value(*keywords: str):
+        """Значение выбранного параметра по ключевым словам (через keyword-поиск)."""
+        for name in selected_values or {}:
+            low = str(name).lower().replace("ё", "е")
+            if any(kw in low for kw in keywords):
+                v = selected_values[name]
+                if v is not None and str(v).strip() != "":
+                    return v
+        return None
 
     for comp_name in comp_names:
         try:
@@ -187,6 +325,27 @@ async def apply_mixture_overrides(
                     entry["response_value"] = props.get(key, entry.get("response_value"))
                     entry["editable"] = False
                     break
+
+        # Подбор строки таблицы давления (Т макс / Давл.max / PN) по материалу
+        # смеси. Значения записывает _fill_pressure_entries (такие же, как в
+        # формуле nominal_pressure), которая также синхронизирует формульный
+        # параметр «Предварительное номинальное давление» с подобранным PN.
+        material = props.get("material")
+        if material:
+            try:
+                temperature_raw = _sel_value("температура рабочей среды", "температура")
+                pressure_raw = _sel_value("давление настройки")
+                temperature = _to_float_safe(temperature_raw)
+                pressure = _to_float_safe(pressure_raw)
+                sel = await select_pressure_table(
+                    ctx, material, temperature=temperature, pressure_setting=pressure
+                )
+            except Exception as exc:  # noqa: BLE001
+                print(f"[mixture override] ошибка подбора таблицы давления '{comp_name}': {exc}")
+                sel = None
+
+            if sel:
+                _fill_pressure_entries(response_params, sel)
         break
     return response_params
 
@@ -205,7 +364,9 @@ async def _apply_new_formulas(
     product_id: int,
 ) -> None:
     """Вычисляет новые формульные параметры и добавляет их в response_params."""
-    results = await compute_formulas(db, new_specs, selected_values, product_id=product_id)
+    results, computed = await compute_formulas(
+        db, new_specs, selected_values, product_id=product_id
+    )
 
     name_to_existing = {item["name"]: item for item in response_params}
 
@@ -242,6 +403,16 @@ async def _apply_new_formulas(
             entry["is_validation"] = res.get("is_validation", False)
         if "response_value" in res:
             entry["response_value"] = res["response_value"]
+
+    # Формула «Предварительное номинальное давление» (nominal_pressure) кладёт
+    # подбор таблицы давления в ctx.computed — записываем его в табличные
+    # параметры (material / T max / Давл. max / PN) и скрываем их.
+    _fill_pressure_entries(response_params, computed.get("_pressure_table"))
+
+    # Формулы подбора клапана (valve_selection и др.) кладут подбор строки
+    # таблицы клапана в ctx.computed["_valve_selection"] — записываем его в
+    # табличные параметры клапана и скрываем их.
+    _fill_valve_entries(response_params, computed.get("_valve_selection"))
 
 
 async def _add_input_params(

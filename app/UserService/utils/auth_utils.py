@@ -37,8 +37,8 @@ async def get_user_id_by_session_id(request: Request):
             )
         return user_id
     except HTTPException:
-        # raise
-        return 4133
+        raise
+        # return 4133
 
 async def validate_users_sessions(user_id: int) -> bool:
     user_sessions_key = f"user_sessions:{user_id}"
@@ -54,7 +54,7 @@ async def validate_users_sessions(user_id: int) -> bool:
 async def create_session(session_id: str, user_id: int) -> bool:
     redis_storage.save_session(session_id=session_id, user_id=user_id)
     
-    user_sessions_key = f"user_sessions:{'user_id'}"
+    user_sessions_key = f"user_sessions:{user_id}"
     redis_storage.add_to_set(user_sessions_key, session_id)
     return True
 

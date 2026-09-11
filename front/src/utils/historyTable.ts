@@ -16,6 +16,7 @@ export const headerComparsion = {
 
 export const formatResultToHistory = (historyData: IHistory[]) => {
     const result: string[][] = [];
+    if (!historyData.length) return
     historyData.forEach(historyElement => {
         const res: string[] = []
         Object.keys(headerComparsion).forEach(header => {
