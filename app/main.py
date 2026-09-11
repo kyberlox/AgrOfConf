@@ -81,9 +81,6 @@ async def session_middleware(request: Request, call_next):
     try:
         ttl_refresh_threshold = 300
         path = request.url.path
-        # Пропускаем запросы preflight
-        if request.method == "OPTIONS":
-            return await call_next(request)
         # Пропускаем открытые эндпоинты
         if path in open_links:
             return await call_next(request)
@@ -100,22 +97,21 @@ async def session_middleware(request: Request, call_next):
             if auth_header:
                 session_id = auth_header
             else:
-                print(request.method, 'перед каким методом проблема')
-                return RedirectResponse(url='https://intranet.emk.ru/auth_router/argconf')
-                # raise HTTPException(status_code=401, detail="Missing session cookie")
+                # return RedirectResponse(url='https://intranet.emk.ru/auth_router/argconf')
+                raise HTTPException(status_code=401, detail="Missing session cookie")
 
         # Проверяем существование и TTL сессии в Redis
         user_id = redis_storage.get_session(session_id)
         if user_id is None:
-            # raise HTTPException(status_code=401, detail="Invalid or expired session")
-            return RedirectResponse(url='https://intranet.emk.ru/auth_router/argconf')
+            raise HTTPException(status_code=401, detail="Invalid or expired session")
+            # return RedirectResponse(url='https://intranet.emk.ru/auth_router/argconf')
 
         ttl = redis_storage.get_ttl(session_id)
         # Если ключ есть, но TTL == -1 (нет истечения) – не нужно обновлять
         # Если TTL < 0 (ошибка) – считаем, что сессия не валидна
         if ttl < 0 and ttl != -1:
-            # raise HTTPException(status_code=401, detail="Session error")
-            return RedirectResponse(url='https://intranet.emk.ru/auth_router/argconf')
+            raise HTTPException(status_code=401, detail="Session error")
+            # return RedirectResponse(url='https://intranet.emk.ru/auth_router/argconf')
 
         # Обновление сессии, если осталось меньше порога
         if ttl > 0 and ttl <= ttl_refresh_threshold:
@@ -124,8 +120,8 @@ async def session_middleware(request: Request, call_next):
             if not refresh_data or refresh_data['status'] != "success":
                 # Не удалось обновить – можно либо вернуть 401, либо продолжить с той же сессией
                 # По логике – лучше вернуть 401, так как сессия скоро истечёт и токен не продлён
-                # raise HTTPException(status_code=401, detail="Session refresh failed")
-                return RedirectResponse(url='https://intranet.emk.ru/auth_router/argconf')
+                raise HTTPException(status_code=401, detail="Session refresh failed")
+                # return RedirectResponse(url='https://intranet.emk.ru/auth_router/argconf')
 
             new_session_id = refresh_data["session_id"]
 
