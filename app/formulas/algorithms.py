@@ -191,9 +191,9 @@ async def interval_pressure_settings(ctx: FormulaContext):
     if not has_diametr:
         return None
     if int(has_diametr) == 25:
-        return '0.04...25'
+        return '0,04...25'
     else:
-        return '0.05...25'
+        return '0,05...25'
     
 
 # === Расчёт характеристик смесей ===
