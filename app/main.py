@@ -100,6 +100,7 @@ async def session_middleware(request: Request, call_next):
             if auth_header:
                 session_id = auth_header
             else:
+                print(request.method, 'перед каким методом проблема')
                 return RedirectResponse(url='https://intranet.emk.ru/auth_router/argconf')
                 # raise HTTPException(status_code=401, detail="Missing session cookie")
 
