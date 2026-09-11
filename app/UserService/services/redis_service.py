@@ -8,7 +8,7 @@ class RedisStorage:
 
     def __init__(
         self,
-        session_ttl: timedelta = timedelta(hours=1) 
+        session_ttl: timedelta = timedelta(days=7) 
     ):
         self.session_ttl = session_ttl  # время жизни сессии
         try:

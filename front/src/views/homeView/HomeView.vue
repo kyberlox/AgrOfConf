@@ -56,7 +56,7 @@
         <!--  Таблица запросов-->
         <HistoryTable :currentTableNav="currentTableNav"
                       :tableReady="tableReady"
-                      :tableData="tableData"
+                      :tableData="tableData || []"
                       :tableHead="Object.keys(headerComparsion)"
                       :isSearchResult="!!textToSearch"
                       @create-ol="showEngineModal = true" />
