@@ -81,6 +81,9 @@ async def session_middleware(request: Request, call_next):
     try:
         ttl_refresh_threshold = 300
         path = request.url.path
+        # Пропускаем запросы preflight
+        if request.method == "OPTIONS":
+            return await call_next(request)
         # Пропускаем открытые эндпоинты
         if path in open_links:
             return await call_next(request)
