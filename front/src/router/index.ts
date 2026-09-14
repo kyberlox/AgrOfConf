@@ -11,7 +11,7 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       beforeEnter: (to, from, next) => {
-        window.open('https://intranet.emk.ru/auth_router/argconf');
+        window.location.href = 'https://intranet.emk.ru/auth_router/argconf';
         next(false)
       },
       redirect: '',
