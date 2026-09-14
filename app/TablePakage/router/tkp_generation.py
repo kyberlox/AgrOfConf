@@ -143,19 +143,23 @@ def render_docx(template_path: str, context: dict, drawing_path: Optional[str] =
 
 
 def render_xlsx(template_path: str, context: dict) -> BytesIO:
-    workbook = load_workbook(template_path, data_only=True)
+    workbook = load_workbook(template_path, data_only=False)  # ← формулы сохраняются
     for sheet in workbook.worksheets:
         for row in sheet.iter_rows():
             for cell in row:
-                if isinstance(cell.value, str):
+                if isinstance(cell.value, str) and not cell.value.startswith("="):
                     cell.value = PLACEHOLDER_PATTERN.sub(
                         lambda match: str(context.get(match.group(1).strip(), "")),
                         cell.value,
                     )
+    # Пересчитать формулы при открытии в Excel (важно! без этого может
+    # показаться старое кэшированное значение из шаблона)
+    workbook.calculation.fullCalcOnLoad = True
     stream = BytesIO()
     workbook.save(stream)
     stream.seek(0)
     return stream
+
 
 
 def file_response(stream: BytesIO, media_type: str, filename: str) -> StreamingResponse:
