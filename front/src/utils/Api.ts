@@ -1,5 +1,5 @@
 import axios, { AxiosError, type AxiosProgressEvent, type AxiosRequestConfig } from 'axios';
-import { handleApiErrors } from './apiStatusCodeErrors';
+import { handleApiErrors } from '../composables/apiStatusCodeErrors';
 import type { IProduct } from '@/assets/interfaces/IProduct';
 import type { IParameter } from '@/assets/interfaces/IParameter';
 
@@ -13,11 +13,13 @@ const api = axios.create({
 // добавляю токен
 // const authCookie = computed(() => useUserData().getAuthKey);
 // const id = computed(() => useUserData().getMyId);
+if (import.meta.env.DEV) {
+    api.interceptors.request.use((config) => {
+        config.headers.session_id = 'ee32c386-a57a-4e2f-b2f2-d933d08fee07';
+        return config
+    })
+}
 
-// api.interceptors.request.use((config) => {
-//     config.headers.session_id = 'zalupa';
-//     return config
-// })
 // vendorApi.interceptors.request.use((config) => {
 //     config.headers.session_id = authCookie.value || '';
 //     config.headers.user_id = id.value;
@@ -27,9 +29,12 @@ const api = axios.create({
 export default class Api {
     static async get(url: string, config?: AxiosRequestConfig, signal?: AbortSignal) {
         const mergedConfig: AxiosRequestConfig = { ...config, signal: signal ?? config?.signal }
-        return await api.get(url, mergedConfig)
-            .then(resp => resp.data)
-            .catch(e => handleApiErrors(e))
+        try {
+            const request = await api.get(url, mergedConfig)
+            return request?.data
+        } catch (error) {
+            return handleApiErrors(error as AxiosError)
+        }
     }
 
     static async post(url: string, data?: unknown, config?: AxiosRequestConfig & {
@@ -49,12 +54,20 @@ export default class Api {
     }
 
     static async put(url: string, data?: IProduct | IParameter[] | FormData | Record<string, unknown>) {
-        return await api.put(url, data)
-            .catch(e => handleApiErrors(e))
+        try {
+            return await api.put(url, data);
+        }
+        catch (error) {
+            handleApiErrors(error as AxiosError)
+        }
     }
 
     static async delete(url: string, data?: IProduct) {
-        return await api.delete(url, { data })
-            .catch(e => handleApiErrors(e))
+        try {
+           return await api.delete(url, { data })
+        }
+        catch (error) {
+            handleApiErrors(error as AxiosError)
+        }
     }
 }

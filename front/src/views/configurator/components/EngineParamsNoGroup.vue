@@ -1,5 +1,5 @@
 <template>
-<div class="grid grid-cols-4 gap-x-[12px] gap-y-[16px]">
+<div class="grid 3xl:grid-cols-4 xl:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-x-[6px] gap-y-[16px]">
     <div v-for="(param, index) in items"
          :key="param.id"
          class="px-[10px] hover:none flex flex-row">
@@ -12,7 +12,6 @@
         <!-- Редактор состава смеси (type='FormulaMix' или имя «Состав смеси»): попап по клику на параметр -->
         <MixtureEditor v-else-if="(param as IFormattedData).type == 'FormulaMix' || (param as IFormattedData).name == 'Состав смеси'"
                        :param="(param as IFormattedData)"
-                       :media-options="mixtureMediaOptions"
                        :model-value="(userParams && userParams[param.name as keyof typeof userParams] && Array.isArray(userParams[param.name as keyof typeof userParams])) ? (userParams[param.name as keyof typeof userParams] as Array<{ [key: string]: number }>) : []"
                        :disabled="paramsLoading"
                        @valueChanged="(value: Array<{ [key: string]: number }>) => $emit('valueChanged', value, param.name)" />
@@ -38,6 +37,7 @@
 
         <!-- Статус вопроса -->
         <QuestionStatus v-if="type == 'auto'"
+                        class="mt-[15px]"
                         :status="paramsLoading ? 'loading' : param.error ? 'canceled' : param.response_value ? 'checked' : ''"
                         @resetValue="$emit('resetValue', param.name)" />
     </div>
@@ -93,21 +93,6 @@ export default defineComponent({
         const freeConfigMode = computed(() => configurator.getFreeModeConfig);
         const configurator = useConfiguratorStore();
 
-        // Список сред для редактора состава смеси. Сервер может не прислать
-        // all_values у параметра-состава смеси — тогда берём его из соседнего
-        // табличного параметра «Название рабочей среды» внутри той же группы.
-        const mixtureMediaOptions = computed<string[]>(() => {
-            const options: string[] = [];
-            for (const param of props.items) {
-                const name = (param.name || '').toLowerCase();
-                const isMediaList = name.includes('рабочей среды') || name.includes('рабочая среда');
-                if (isMediaList && Array.isArray(param.all_values)) {
-                    options.push(...param.all_values);
-                }
-            }
-            return Array.from(new Set(options));
-        })
-
         const checkParams = (param: IFormattedData) => {
             switch (freeConfigMode.value) {
                 case true:
@@ -149,7 +134,7 @@ export default defineComponent({
                 placeholder: !param.filtered_values?.length && 'filtered_values' in param ? '' : 'Выберите значение',
                 needReq: true,
                 labelIcon: createLabelIconsComponent(param, () => console.log('testComp')),
-                error: 'error' in param ? param.error : '',
+                error: '',
                 errorIcon: AlertCircle,
                 disabled: (((!param.filtered_values?.length && 'filtered_values' in param) || (param as IFormattedData).filtered_values?.includes('нет')) && props.type == 'auto') || props.paramsLoading
             }
@@ -170,7 +155,6 @@ export default defineComponent({
         return {
             freeConfigMode,
             AlertCircle,
-            mixtureMediaOptions,
             setPropsValue,
             createLabelIconsComponent,
             checkParams,

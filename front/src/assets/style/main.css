@@ -1,11 +1,12 @@
 @import './fonts.css';
 @import './variables.css';
 @import 'vue3-toastify/dist/index.css';
-@import 'tailwindcss';
 @import './classes.css';
+@import 'tailwindcss';
 
 @theme {
   --breakpoint-3xl: 120rem;
+  --breakpoint-xxl: 1600px;
 }
 
 body {

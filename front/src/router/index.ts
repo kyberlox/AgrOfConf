@@ -11,7 +11,7 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       beforeEnter: (to, from, next) => {
-        window.open('https://intranet.emk.ru/api/auth_router/argconf');
+        window.open('https://intranet.emk.ru/auth_router/argconf');
         next(false)
       },
       redirect: '',
@@ -59,20 +59,20 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
-    const adminRoutes = ['admin', 'productEdit']
-    if (adminRoutes.includes(String(to.name))) {
-        const userStore = useUserStore()
-        let isAdmin = userStore.getIsAdmin
-        if (!isAdmin) {
-            const userId = await Api.get('auth/user_id_by_session_id')
-            if (userId) {
-                isAdmin = Boolean(await Api.get(`roots/access_admin?user_id=${userId}`))
-                userStore.setIsAdmin(isAdmin)
-            }
-        }
-        if (!isAdmin) return { name: 'myRequests' }
+  const adminRoutes = ['admin', 'productEdit']
+  if (adminRoutes.includes(String(to.name))) {
+    const userStore = useUserStore()
+    let isAdmin = userStore.getIsAdmin
+    if (!isAdmin) {
+      const userId = await Api.get('auth/user_id_by_session_id')
+      if (userId) {
+        isAdmin = Boolean(await Api.get(`roots/access_admin?user_id=${userId}`))
+        userStore.setIsAdmin(isAdmin)
+      }
     }
-    return true
+    if (!isAdmin) return { name: 'myRequests' }
+  }
+  return true
 })
 
 export default router

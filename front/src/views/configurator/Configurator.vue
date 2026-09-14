@@ -193,23 +193,14 @@ export default defineComponent({
                 abortController.abort();
             }
             let newBody = clone(body);
-            // Параметры, которые сервер пометил нередактируемыми (editable: false),
-            // пересчитываются сервером самостоятельно (вязкость/плотность смеси,
-            // подбор таблицы давления/клапана и т.п.). Не отправляем их обратно как
-            // «выбор пользователя»: расчётное значение отсутствует в таблице, сервер
-            // помечает его ошибочным и сбрасывает, фронт повторно запрашивает подбор,
-            // сервер снова вписывает значение — запросы зацикливаются.
-            if (newBody && Object.keys(newBody).length && form.value.length) {
-                const nonEditable = new Set(
-                    form.value
-                        .filter(formEl => formEl.editable === false)
-                        .map(formEl => formEl.name)
-                );
-                if (nonEditable.size) {
-                    newBody = Object.fromEntries(
-                        Object.entries(newBody).filter(([key]) => !nonEditable.has(key))
-                    );
-                }
+            // На поиск отправляем только явно выбранные пользователем параметры.
+            // Авто-подставленные значения сервер пересчитает сам, поэтому они
+            // «адаптируются» при изменении выбора и не залипают как старый выбор.
+            if (newBody && Object.keys(newBody).length) {
+                // newBody = Object.fromEntries(
+                //     Object.entries(newBody).filter(([key]) => manuallyChanged.value[key])
+                // )
+                console.log(newBody)
             }
             if (freeConfigMode.value && Object.keys(newBody).length) {
                 return
@@ -245,12 +236,13 @@ export default defineComponent({
                     if ('error' in e && e.error) {
                         errors.push(e.error)
                     }
-                    if ('response_value' in e  && !(typeof e.response_value === 'object') && userInputs.value[e.name] !== e.response_value) {
+                    if ('response_value' in e && !(typeof e.response_value === 'object') && userInputs.value[e.name] !== e.response_value) {
                         userInputs.value[e.name] = e.response_value
                         answeredCounter++
-                    } else if('response_value' in e && e.response_value == null){
+                    } else if (e.response_value == null) {
                         delete userInputs.value[e.name]
                     }
+
                     questionCounter++
                 })
                 // Параметры, которые сервер пометил как ошибочные, стали несовместимыми
@@ -313,8 +305,9 @@ export default defineComponent({
 
         watch(neuroOlData, () => {
             if (neuroOlData.value) {
-                userInputs.value = neuroOlData.value
-                paramsUpdate(neuroOlDataStore.getOlInfo)
+                console.log(neuroOlData.value)
+                paramsUpdateRequest(neuroOlData.value)
+                // paramsUpdate(neuroOlDataStore.getOlInfo)
             }
         })
 

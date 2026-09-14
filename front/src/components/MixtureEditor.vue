@@ -18,7 +18,8 @@
         <div v-if="editorVisible"
              class="fixed inset-0 z-50 flex items-center justify-center bg-[#00000040]"
              @click.self="closeEditor">
-            <div class="bg-white rounded-[12px] p-[20px] w-[min(90vw,620px)] max-h-[80vh] flex flex-col gap-[14px] shadow-xl">
+            <div
+                 class="bg-white rounded-[12px] p-[20px] w-[min(90vw,620px)] max-h-[80vh] flex flex-col gap-[14px] shadow-xl">
                 <div class="flex flex-row justify-between items-center">
                     <h2 class="text-[16px] font-[600] text-[#343B4C]">{{ param.name }}</h2>
                     <button type="button"
@@ -74,20 +75,38 @@
                     </div>
                     <div v-if="!isValid && rows.some(r => r.name)"
                          class="text-[12px] text-[#8E99A8]">
-                        {{ mustTwoMedia ? 'Добавьте ещё одну среду — смесь должна состоять минимум из двух сред.' : sum < 100 ? `Добавьте сред ещё на ${(100 - sum).toFixed(2)}%` : `Сумма превышает 100% на ${(sum - 100).toFixed(2)}%` }}
-                    </div>
-                    <div class="flex flex-row justify-end gap-[10px] mt-[4px]">
-                        <button type="button"
-                                class="px-[16px] py-[8px] rounded-[8px] bg-gray-200 hover:bg-gray-300 text-[#343B4C]"
-                                @click="closeEditor">Отмена</button>
-                        <button type="button"
-                                class="px-[16px] py-[8px] rounded-[8px] text-white bg-[#F36E3C] hover:bg-[#E05A2A] disabled:opacity-50 disabled:cursor-not-allowed"
-                                :disabled="!isValid || disabled"
-                                @click="applyComposition">Применить</button>
+                        {{ mustTwoMedia ? 'Добавьте ещё одну среду — смесь должна состоять минимум из двух сред.' : sum
+                            < 100
+                            ?
+                            `Добавьте
+                          сред
+                          ещё
+                          на
+                          ${(100
+                                -
+                                sum).toFixed(2)}%`
+                            :
+                            `Сумма
+                          превышает
+                          100%
+                          на
+                          ${(sum
+                                -
+                                100).toFixed(2)}%`
+                        }}
+                          </div>
+                            <div class="flex flex-row justify-end gap-[10px] mt-[4px]">
+                                <button type="button"
+                                        class="px-[16px] py-[8px] rounded-[8px] bg-gray-200 hover:bg-gray-300 text-[#343B4C]"
+                                        @click="closeEditor">Отмена</button>
+                                <button type="button"
+                                        class="px-[16px] py-[8px] rounded-[8px] text-white bg-[#F36E3C] hover:bg-[#E05A2A] disabled:opacity-50 disabled:cursor-not-allowed"
+                                        :disabled="!isValid || disabled"
+                                        @click="applyComposition">Применить</button>
+                            </div>
                     </div>
                 </div>
             </div>
-        </div>
     </teleport>
 </div>
 </template>
@@ -110,10 +129,6 @@ export default defineComponent({
         disabled: {
             type: Boolean,
             default: false,
-        },
-        mediaOptions: {
-            type: Array as PropType<string[]>,
-            default: () => [],
         },
         modelValue: {
             type: Array as PropType<Array<{ [key: string]: number }>>,
@@ -159,8 +174,7 @@ export default defineComponent({
         });
 
         const availableOptions = (row: IMixtureRow, index: number): string[] => {
-            const fromParam = Array.isArray(props.param?.all_values) ? props.param.all_values : [];
-            const all = fromParam.length ? fromParam : props.mediaOptions;
+            const all = props.param?.all_values || [];
             const taken = rows.value
                 .filter((r, i) => i !== index)
                 .map(r => r.name)
