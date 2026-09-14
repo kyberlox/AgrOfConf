@@ -193,14 +193,24 @@ export default defineComponent({
                 abortController.abort();
             }
             let newBody = clone(body);
-            // На поиск отправляем только явно выбранные пользователем параметры.
-            // Авто-подставленные значения сервер пересчитает сам, поэтому они
-            // «адаптируются» при изменении выбора и не залипают как старый выбор.
-            // if (newBody && Object.keys(newBody).length) {
-            //     (
-            //         Object.entries(newBody).filter(([key]) => manuallyChanged.value[key])
-            //     )
-            // }
+            // Параметры, которые сервер пометил нередактируемыми (editable: false),
+            // пересчитываются сервером самостоятельно (вязкость/плотность смеси,
+            // подбор таблицы давления/клапана и т.п.). Не отправляем их обратно как
+            // «выбор пользователя»: расчётное значение отсутствует в таблице, сервер
+            // помечает его ошибочным и сбрасывает, фронт повторно запрашивает подбор,
+            // сервер снова вписывает значение — запросы зацикливаются.
+            if (newBody && Object.keys(newBody).length && form.value.length) {
+                const nonEditable = new Set(
+                    form.value
+                        .filter(formEl => formEl.editable === false)
+                        .map(formEl => formEl.name)
+                );
+                if (nonEditable.size) {
+                    newBody = Object.fromEntries(
+                        Object.entries(newBody).filter(([key]) => !nonEditable.has(key))
+                    );
+                }
+            }
             if (freeConfigMode.value && Object.keys(newBody).length) {
                 return
             }

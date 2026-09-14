@@ -187,8 +187,10 @@ def _fill_pressure_entries(response_params: list[dict], sel: dict | None) -> Non
 
     `sel` — dict из select_pressure_table (material, t_max, pressure_max, pn,
     _table). Заполняет только параметры таблицы давления (по table_name),
-    помечает их нередактируемыми и скрывает. Значение формульного параметра
-    «Предварительное номинальное давление» синхронизируется с подобранным PN.
+    помечает их нередактируемыми. Видимость параметров при этом не меняется:
+    она задаётся свойством «Видим для пользователя» (админ-панель). Значение
+    формульного параметра «Предварительное номинальное давление» синхронизируется
+    с подобранным PN.
     """
     if not sel:
         return
@@ -207,7 +209,6 @@ def _fill_pressure_entries(response_params: list[dict], sel: dict | None) -> Non
         else:
             entry["response_value"] = sel.get(key, entry.get("response_value"))
         entry["editable"] = False
-        entry["visibility"] = False
 
     pn = sel.get("pn")
     if pn is None:
@@ -250,8 +251,9 @@ def _fill_valve_entries(response_params: list[dict], sel: dict | None) -> None:
 
     `sel` — dict из _select_valve (тип_пк, seat_diameter, pn_in, pn_out, dn_in,
     dn_out, range_pressure, spring_no, spring_material, _table). Заполняет только
-    параметры таблицы клапана (по table_name), помечает их нередактируемыми и
-    скрывает.
+    параметры таблицы клапана (по table_name), помечает их нередактируемыми.
+    Видимость параметров при этом не меняется: она задаётся свойством
+    «Видим для пользователя» (админ-панель).
     """
     if not sel:
         return
@@ -265,7 +267,6 @@ def _fill_valve_entries(response_params: list[dict], sel: dict | None) -> None:
             continue
         entry["response_value"] = sel.get(key, entry.get("response_value"))
         entry["editable"] = False
-        entry["visibility"] = False
 
 
 async def apply_mixture_overrides(
@@ -367,6 +368,19 @@ async def _apply_new_formulas(
     results, computed = await compute_formulas(
         db, new_specs, selected_values, product_id=product_id
     )
+
+    # Формула «По способу сброса рабочей среды» (discharge_type) при «Открытом
+    # типе» принудительно перебивает значение «Сильфонное уплотнение» на «Нет»
+    # поверх его собственной логики.
+    bellows_override = computed.get("_bellows_override")
+    if bellows_override:
+        for name in list(results):
+            low = str(name or "").lower().replace("ё", "е")
+            if "тип уплотнения" in low:
+                continue
+            if "сильфонное уплотнение" in low:
+                results[name]["response_value"] = bellows_override
+                break
 
     name_to_existing = {item["name"]: item for item in response_params}
 

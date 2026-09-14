@@ -147,6 +147,7 @@ async def _attempt(
     spec: dict,
     ctx: FormulaContext,
     formula_names: set[str],
+    settled_formula_names: set[str],
 ):
     """
     Пытается вычислить один формульный параметр.
@@ -156,6 +157,10 @@ async def _attempt(
       ("missing_input", param_name)     — не хватает входного/табличного параметра
       ("missing_formula", param_name)   — не хватает результата другой формулы
       ("error", None, message)          — неизвестная функция / исключение
+
+    settled_formula_names — формульные параметры, которые уже завершились
+    (начались в results): если формула ждёт такую, это уже не «ожидание
+    следующего прохода», а отсутствующее значение (missing_input).
     """
     config = spec.get("formula_config") or {}
     func_name = config.get("func")
@@ -174,7 +179,7 @@ async def _attempt(
         if inspect.isawaitable(value):
             value = await value
     except MissingParamError as exc:
-        if exc.param_name in formula_names:
+        if exc.param_name in formula_names and exc.param_name not in settled_formula_names:
             return ("missing_formula", exc.param_name)
         return ("missing_input", exc.param_name)
     except Exception as exc:  # noqa: BLE001 — любая ошибка внутри алгоритма
@@ -196,7 +201,7 @@ async def _attempt(
                     error = str(validate_error)
                     is_validation = True
             except MissingParamError as exc:
-                if exc.param_name in formula_names:
+                if exc.param_name in formula_names and exc.param_name not in settled_formula_names:
                     return ("missing_formula", exc.param_name)
                 return ("missing_input", exc.param_name)
             except Exception as exc:  # noqa: BLE001
@@ -246,7 +251,11 @@ async def compute_formulas(
     while pending and passes < max_passes:
         passes += 1
 
-        tasks = [_attempt(spec, ctx, formula_names) for spec in pending]
+        # Формулы, которые уже завершились (попали в results): их результата ждать
+        # не нужно, missing по ним трактуется как отсутствующий входной параметр.
+        settled = set(results.keys())
+
+        tasks = [_attempt(spec, ctx, formula_names, settled) for spec in pending]
         outcomes = await asyncio.gather(*tasks)
 
         next_pending: list[dict] = []
@@ -273,6 +282,9 @@ async def compute_formulas(
                 results[name] = {
                     "response_value": _message_for_missing(missing_name),
                 }
+                # Формула завершилась (пусть и со статусом «заполните параметр») —
+                # это прогресс: очередь уменьшилась.
+                progress = True
                 continue
 
             if status == "missing_formula":
@@ -282,6 +294,7 @@ async def compute_formulas(
 
             # status == "error"
             results[name] = {"error": outcome[2]}
+            progress = True
 
         if not next_pending:
             break

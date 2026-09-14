@@ -10,7 +10,14 @@ from app.TablePakage.model.database import get_db
 from app.TablePakage.model.product_files import ProductFiles
 from app.TableSearch.utils.dm_search import ensure_dm_exists, get_full_search_from_dm
 from ..utils.formula_search import search_formula
-from app.formulas.integration import apply_new_and_legacy_formulas
+from app.formulas.integration import (
+    apply_new_and_legacy_formulas,
+    _is_mixture_on,
+    _composition_param_names,
+    _MIXTURE_OVERRIDE_MATCHERS,
+    _match_pressure_entry,
+    _match_valve_entry,
+)
 
 router = APIRouter(prefix="/module_search", tags=["Module_search"])
 
@@ -39,16 +46,127 @@ def natural_sort_key(value):
     return (0, key)
 
 
+async def get_formula_driven_param_names(
+    db: AsyncSession,
+    product_id: int,
+) -> dict[tuple[str, str], str]:
+    """Параметры, значения которых устанавливает алгоритм.
+
+    Возвращает словарь (table_name|"", name) -> "pressure"|"valve". Это параметры
+    таблицы давления (материал, T макс, давление настройки max, PN) и таблицы
+    клапана (Тип ПК, диаметр седла и т.п.), а также формульный параметр
+    «Предварительное номинальное давление». Их заполняет алгоритм
+    (nominal_pressure / valve_selection), поэтому они исключаются из табличного
+    подбора и им не подставляются табличные значения — у расчётных значений
+    приоритет.
+
+    Видимость этих параметров НЕ принудительная: она управляется свойством
+    «Видим для пользователя» параметра (настраивается в админ-панели).
+
+    Ключ включает table_name, чтобы не задеть одноимённые параметры других
+    таблиц (например «Материал» из таблицы сред). Параметры исключаются из
+    подбора только если у продукта заведён соответствующий формульный драйвер
+    (иначе таблица остаётся обычным табличным подбором).
+    """
+    func_result = await db.execute(text(
+        """
+        SELECT formula_config ->> 'func' AS func
+        FROM parameter_schemas
+        WHERE product_id = :product_id AND type = 'Formula'
+        """
+    ), {"product_id": product_id})
+    funcs = {row["func"] for row in func_result.mappings().all() if row["func"]}
+    has_pressure_driver = "nominal_pressure" in funcs
+    has_valve_driver = "valve_selection" in funcs
+
+    if not has_pressure_driver and not has_valve_driver:
+        return {}
+
+    result = await db.execute(text(
+        """
+        SELECT name, table_name
+        FROM parameter_schemas
+        WHERE product_id = :product_id
+          AND type = 'Table'
+          AND table_name IS NOT NULL
+        """
+    ), {"product_id": product_id})
+
+    by_table: dict[str, list[dict]] = defaultdict(list)
+    for row in result.mappings().all():
+        name = (row["name"] or "").strip()
+        tbl = (row["table_name"] or "").strip()
+        if name and tbl:
+            by_table[tbl].append({"name": name})
+
+    driven: dict[tuple[str, str], str] = {}
+
+    for tbl, params in by_table.items():
+        low_names = {str(p["name"] or "").lower() for p in params}
+
+        # Таблица давления: материал + (T макс / давление max / PN).
+        has_material = any(
+            "материал" in n or n == "material" for n in low_names
+        )
+        has_pressure = any(
+            "t макс" in n or "максимальная температура" in n
+            or "давление настройки max" in n
+            or n.endswith("pn") or "pn (мпа)" in n
+            for n in low_names
+        )
+        if has_pressure_driver and has_material and has_pressure:
+            for p in params:
+                low = str(p["name"] or "").lower()
+                if _match_pressure_entry(low) is not None:
+                    driven[(tbl, p["name"])] = "pressure"
+            continue
+
+        # Таблица клапана: «Тип ПК» + (диаметр седла / PN входное).
+        has_type = any("тип пк" in n for n in low_names)
+        has_seat = any("диаметр седла" in n for n in low_names)
+        has_pn_in = any("pn входн" in n for n in low_names)
+        if has_valve_driver and has_type and (has_seat or has_pn_in):
+            for p in params:
+                low = str(p["name"] or "").lower()
+                if _match_valve_entry(low) is not None:
+                    driven[(tbl, p["name"])] = "valve"
+
+    # Формульный параметр «Предварительное номинальное давление» (функция
+    # nominal_pressure) — результат подбора таблицы давления; значения
+    # синхронизирует _fill_pressure_entries.
+    if has_pressure_driver:
+        formula_result = await db.execute(text(
+            """
+            SELECT name
+            FROM parameter_schemas
+            WHERE product_id = :product_id AND type = 'Formula'
+            """
+        ), {"product_id": product_id})
+        for row in formula_result.mappings().all():
+            name = (row["name"] or "").strip()
+            if not name:
+                continue
+            low = name.lower()
+            if "предварительное номинальное давление" in low or low == "pn":
+                driven[("", name)] = "pressure"
+
+    return driven
+
+
 async def get_table_params_from_sql(
         db: AsyncSession,
         table_name: str,
         table_params: list[dict],
         selected_params: dict[str, str | int | list],
+        formula_driven: dict[tuple[str, str], str] | None = None,
 ):
     """
     Делает подбор внутри одной конкретной таблицы Excel.
     table_params — параметры только этой таблицы.
     selected_params — выбранные пользователем параметры.
+    formula_driven — параметры, значения которых устанавливает алгоритм
+    (таблица давления/клапана): их нельзя использовать как критерии подбора,
+    у расчётных значений приоритет.
     """
 
     where_clauses = []
@@ -56,6 +174,10 @@ async def get_table_params_from_sql(
 
     for item in table_params:
         param_name = item["name"]
+
+        if formula_driven and (table_name, param_name) in formula_driven:
+            continue
+
         col = item["transliterated_name"]
 
         if param_name not in selected_params:
@@ -147,6 +269,7 @@ async def find_search_errors_multi_table(
         tables_map: dict[str, list[dict]],
         selected_params: dict[str, str | int | list],
         priority=None,
+        formula_driven: dict[tuple[str, str], str] | None = None,
 ):
     """
     Проверяет ошибки подбора отдельно по каждой таблице.
@@ -175,6 +298,7 @@ async def find_search_errors_multi_table(
             table_name=table_name,
             table_params=table_params,
             selected_params=selected_for_table,
+            formula_driven=formula_driven,
         )
 
         if not row_all or row_all["matched_rows"] == 0:
@@ -190,6 +314,9 @@ async def find_search_errors_multi_table(
                 param_name = param["name"]
 
                 if param_name not in selected_for_table:
+                    continue
+
+                if formula_driven and (table_name, param_name) in formula_driven:
                     continue
 
                 value = selected_for_table[param_name]
@@ -220,6 +347,7 @@ async def find_search_errors_multi_table(
                     table_name=table_name,
                     table_params=table_params,
                     selected_params=incremental_selected,
+                    formula_driven=formula_driven,
                 )
 
                 if not row or row["matched_rows"] == 0:
@@ -242,7 +370,8 @@ async def get_available_values_for_error_param(
         table_params: list[dict],
         error_param_name: str,
         selected_params: dict[str, str | int | list],
-        priority=None
+        priority=None,
+        formula_driven: dict[tuple[str, str], str] | None = None,
 ):
     """
     Возвращает допустимые значения для ошибочного параметра.
@@ -271,6 +400,9 @@ async def get_available_values_for_error_param(
         if param["name"] == error_param_name:
             break
 
+        if formula_driven and (table_name, param["name"]) in formula_driven:
+            continue
+
         params_before_error.append(param["name"])
 
     selected_before_error = {
@@ -284,6 +416,7 @@ async def get_available_values_for_error_param(
         table_name=table_name,
         table_params=table_params,
         selected_params=selected_before_error,
+        formula_driven=formula_driven,
     )
 
     if not row:
@@ -307,7 +440,8 @@ async def get_available_values_for_param(
         table_name,
         table_params,
         target_param_name,
-        selected_params
+        selected_params,
+        formula_driven: dict[tuple[str, str], str] | None = None,
 ):
     selected_without_current = {
         key: value
@@ -320,6 +454,7 @@ async def get_available_values_for_param(
         table_name=table_name,
         table_params=table_params,
         selected_params=selected_without_current,
+        formula_driven=formula_driven,
     )
 
     target_column = None
@@ -436,6 +571,12 @@ async def process_table_data(
     for item in full_info:
         tables_map[item["table_name"]].append(dict(item))
 
+    # Параметры, значения которых заполняет алгоритм (таблица давления и таблица
+    # клапана). Их не используем как критерий табличного подбора и подставляем
+    # им табличные значения, чтобы расчётные значения имели приоритет. Видимость
+    # при этом не трогаем — её задаёт свойство «Видим для пользователя».
+    formula_driven = await get_formula_driven_param_names(db, product_id)
+
     await ensure_dm_exists(db, product_id)
 
     full_value_parameters, full_matched_rows = await get_full_search_from_dm(
@@ -473,13 +614,15 @@ async def process_table_data(
             if isinstance(all_values, list) and len(all_values) == 1:
                 response_value = all_values[0]
 
+            driven_by_formula = (item["table_name"], name) in formula_driven
+
             response_params.append({
                 "id": item["id"],
                 "name": name,
                 "description": item["description"],
                 "table_name": item["table_name"],
                 "all_values": all_values,
-                "response_value": response_value,
+                "response_value": None if driven_by_formula else response_value,
                 "visibility": item["visibility"],
                 "editable": item["editable"],
                 "required_type": item["required_type"],
@@ -530,6 +673,37 @@ async def process_table_data(
     if priority is not None and priority not in allowed_params:
         priority = None
 
+    # Когда включена смесь и задан состав, характеристики среды (вязкость,
+    # плотность, теплоёмкости и т.п.) пересчитываются формулой и становятся
+    # нередактируемыми (apply_mixture_overrides). Их значений в таблице нет,
+    # поэтому использовать их как критерий табличного подбора и валидации
+    # нельзя: сервер помечал бы присланное фронтом расчётное значение
+    # ошибочным, сбрасывал его, фронт повторно запрашивал подбор — запросы
+    # зацикливались. Исключаем такие параметры из табличного поиска.
+    mixture_override_names = set()
+    if _is_mixture_on(selected_params):
+        comp_names = await _composition_param_names(db, product_id)
+        if comp_names and any(
+            name in selected_params
+            and selected_params[name] is not None
+            and str(selected_params[name]).strip()
+            for name in comp_names
+        ):
+            for item in full_info:
+                low_name = str(item["name"] or "").lower()
+                if any(
+                    kw in low_name
+                    for _key, keywords in _MIXTURE_OVERRIDE_MATCHERS
+                    for kw in keywords
+                ):
+                    mixture_override_names.add(item["name"])
+
+    table_selected_params = {
+        key: value
+        for key, value in selected_params.items()
+        if key not in mixture_override_names
+    }
+
     # unknown_params = [
     #     param_name
     #     for param_name in selected_params
@@ -549,7 +723,7 @@ async def process_table_data(
 
         selected_for_table = {
             key: value
-            for key, value in selected_params.items()
+            for key, value in table_selected_params.items()
             if key in table_param_names
         }
 
@@ -563,6 +737,7 @@ async def process_table_data(
             table_name=table_name,
             table_params=table_params,
             selected_params=selected_for_table,
+            formula_driven=formula_driven,
         )
 
         if not row:
@@ -574,8 +749,9 @@ async def process_table_data(
     errors = await find_search_errors_multi_table(
         db=db,
         tables_map=tables_map,
-        selected_params=selected_params,
+        selected_params=table_selected_params,
         priority=priority,
+        formula_driven=formula_driven,
     )
 
     error_by_key = {
@@ -630,8 +806,9 @@ async def process_table_data(
             table_name=table_name,
             table_params=table_params,
             error_param_name=param_name,
-            selected_params=selected_params,
+            selected_params=table_selected_params,
             priority=priority,
+            formula_driven=formula_driven,
         )
 
         if available_values is not None:
@@ -677,7 +854,8 @@ async def process_table_data(
             table_name=table_name,
             table_params=tables_map[table_name],
             target_param_name=name,
-            selected_params=selected_params,
+            selected_params=table_selected_params,
+            formula_driven=formula_driven,
         )
 
         # Если datamart не отдал значения (например, для «Тип среды») —
@@ -705,8 +883,16 @@ async def process_table_data(
 
         response_value = None
 
+        driven_by_formula = (table_name, name) in formula_driven
+
         # Если параметр ошибочный — именно его сбрасываем
         if error_item:
+            response_value = None
+
+        # Параметры, заполняемые алгоритмом (таблица давления/клапана), никогда
+        # не подставляем из таблицы и не приоритизируем запрос пользователя —
+        # у значений алгоритма приоритет.
+        elif driven_by_formula:
             response_value = None
 
         # Если параметр был выбран пользователем и не ошибочный —

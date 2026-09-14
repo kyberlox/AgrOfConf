@@ -135,8 +135,15 @@ export default defineComponent({
             return newGroup;
         }
 
+        // Параметр-состав смеси (FormulaMix) всегда показываем: редактор смеси сам
+        // берёт список сред из соседних параметров (mediaOptions), даже если сервер
+        // не прислал all_values. Для остальных select-input без all_values скрываем.
+        const isMixtureParam = (e: IFormattedData) =>
+            e.required_type == 'select-input'
+            && (e.type === 'FormulaMix' || e.name === 'Состав смеси');
+
         // Применяем фильтр видимости/доступности и режим отображения блока.
-        const paramsFilter = (e: IFormattedData) => e.visibility && !e.special && e.required_type !== 'raschet' && (e.required_type == 'select-input' ? e.all_values : true)
+        const paramsFilter = (e: IFormattedData) => e.visibility && !e.special && e.required_type !== 'raschet' && (isMixtureParam(e) ? true : (e.required_type == 'select-input' ? e.all_values : true))
 
         // Специальные параметры — выводятся отдельным блоком справа (вне групп).
         // Чертежи (required_type == 'drawing') сюда не попадают: они показываются
@@ -144,7 +151,7 @@ export default defineComponent({
         const specialParams = computed<IFormattedData[]>(() => {
             if (!props.form) return []
             return props.form
-                .filter((e: IFormattedData) => e.special && e.visibility && e.required_type !== 'raschet' && e.required_type !== 'drawing' && (e.required_type == 'select-input' ? e.all_values : true))
+                .filter((e: IFormattedData) => e.special && e.visibility && e.required_type !== 'raschet' && e.required_type !== 'drawing' && (isMixtureParam(e) ? true : (e.required_type == 'select-input' ? e.all_values : true)))
                 .sort((a, b) => (a.sort ?? a.id) - (b.sort ?? b.id))
         })
 

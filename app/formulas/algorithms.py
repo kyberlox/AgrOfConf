@@ -973,19 +973,242 @@ async def _valve_diameter_value(ctx: FormulaContext, config: dict | None = None)
     return None if sel is None else _to_float(sel.get("seat_diameter"))
 
 
+async def _optional_value_by_keyword(
+    ctx: FormulaContext,
+    keywords: tuple[str, ...],
+    exclude: tuple[str, ...] = (),
+):
+    """Как _required_value_by_keyword, но не требует обычного (не формульного) параметра.
+
+    Если значения нет и это НЕ формульный параметр — возвращает None (параметр
+    просто не заполнен, очереди ждать не нужно). Если параметр — формула, которая
+    ещё не вычислена, поднимается MissingParamError, чтобы движок отложил расчёт.
+    """
+    try:
+        return await _required_value_by_keyword(ctx, keywords, exclude)
+    except MissingParamError as exc:
+        if exc.param_name in (ctx.formula_names or ()):
+            raise  # ждём готовности формулы
+        return None  # обычный входной параметр просто не заполнен
+
+
+def _normalize_yes_no(value) -> str | None:
+    """Приводит значение к каноническому «Да»/«Нет» (или возвращает как есть)."""
+    if value is None:
+        return None
+    low = str(value).strip().lower()
+    if low == "да":
+        return "Да"
+    if low == "нет":
+        return "Нет"
+    text = str(value).strip()
+    return text or None
+
+
+async def _manual_bellows_choice(ctx: FormulaContext) -> str | None:
+    """Ручной выбор «Сильфонного уплотнения»: значение из выбранного пользователем."""
+    value = await _selected_value_by_keyword(
+        ctx, ("сильфонное уплотнение",), exclude=("тип уплотнения",)
+    )
+    return _normalize_yes_no(value)
+
+
+def _bellows_config(config: dict | None) -> dict:
+    """Нормализованные настройки логики сильфона/сброса из formula_config."""
+    config = config or {}
+    out = {
+        "pilot_type": str(config.get("pilot_type") or "Пилотный (П)").strip(),
+        "spring_type": str(config.get("spring_type") or "Пружинный (В)").strip(),
+        "temp_hfa51": 120.0,
+        "temp_hfa50": 250.0,
+    }
+    for key in ("temp_hfa51", "temp_hfa50"):
+        try:
+            out[key] = float(config.get(key, out[key]))
+        except (TypeError, ValueError):
+            pass
+    return out
+
+
+async def _spring_high_temp_condition(ctx: FormulaContext, config: dict | None = None) -> bool:
+    """«Пружинный высокотемпературный режим»: клапан пружинный и материал пружины с
+    температурой дают «горячий» вариант.
+
+      «Тип клапана» = «Пружинный (В)» и
+      («Материал пружины» = «51ХФА» при t > 120 или «Материал пружины» = «50ХФА» при t > 250).
+
+    Если нужные данные ещё не готовы (это формулы — ждём их на следующем проходе)
+    или просто не заполнены (обычные входные) — возвращает False.
+    """
+    s = _bellows_config(config)
+
+    vtype = await _optional_value_by_keyword(ctx, ("тип клапана",))
+    if vtype is None or str(vtype).strip() != s["spring_type"]:
+        return False
+
+    temperature = await _optional_value_by_keyword(
+        ctx,
+        ("температура рабочей среды", "температура рабочей", "температура"),
+        exclude=("максимальная", "макс"),
+    )
+    temp = _to_float(temperature, default=None)
+    if temp is None:
+        return False
+
+    try:
+        sel = await _valve_selected(ctx, config)
+    except MissingParamError as exc:
+        if exc.param_name in (ctx.formula_names or ()):
+            raise  # подбор клапана ждёт выпущений формул (PN и т.п.) — откладываем
+        return False
+    if sel is None:
+        return False
+
+    material = str(sel.get("spring_material") or "").strip()
+    return (material == "51ХФА" and temp > s["temp_hfa51"]) or (
+        material == "50ХФА" and temp > s["temp_hfa50"]
+    )
+
+
+async def bellows_seal(ctx: FormulaContext, config: dict | None = None) -> str | None:
+    """«Сильфонное уплотнение» — формульный select-параметр (Да/Нет).
+
+    Автоматика:
+      - «Тип клапана» = «Пилотный (П)»  =>  «Нет»;
+      - «Пружинный высокотемпературный режим» (см. _spring_high_temp_condition)
+        =>  «Да».
+
+    Во всех остальных случаях — ручной выбор пользователя (возвращается его
+    значение или None, если ещё не выбрано). Принудительное «перебивание»
+    значения на «Нет» возможен формулой «По способу сброса рабочей среды»
+    (ctx.computed["_bellows_override"]).
+
+    Настройки formula_config (опционально):
+      "pilot_type"   — значение «Типа клапана» для пилотного (default «Пилотный (П)»);
+      "spring_type"  — значение для пружинного (default «Пружинный (В)»);
+      "temp_hfa51"   — порог температуры для 51ХФА (default 120);
+      "temp_hfa50"   — порог температуры для 50ХФА (default 250).
+    """
+    s = _bellows_config(config)
+
+    vtype = await _optional_value_by_keyword(ctx, ("тип клапана",))
+    if vtype is not None and str(vtype).strip() == s["pilot_type"]:
+        return "Нет"
+
+    if await _spring_high_temp_condition(ctx, config):
+        return "Да"
+
+    return await _manual_bellows_choice(ctx)
+
+
+# Среда считается «неагрессивной» для сброса открытого типа, если её название
+# входит в этот список (без учёта регистра).
+AGGRESSIVE_MEDIA = {"вода", "водяной пар", "воздух", "азот"}
+
+
+async def _working_media_names(ctx: FormulaContext, config: dict | None = None) -> list[str] | None:
+    """Названия рабочих сред: из состава смеси или из единичного параметра среды.
+
+    Возвращает список названий или None, если среда ещё не выбрана.
+    """
+    mode = await _resolve_mixture_mode(ctx, config)
+    if mode is not None:
+        pairs = _gather_composition(ctx, config)
+        return [str(name).strip() for name, _share in pairs if name and str(name).strip()]
+
+    name = await _selected_text(
+        ctx,
+        ("рабочая среда", "рабочей среды"),
+        exclude=("температура", "давление", "тип смеси", "состав", "доля", "агрегатное"),
+    )
+    if not name:
+        return None
+    return [name]
+
+
+async def discharge_type(ctx: FormulaContext, config: dict | None = None) -> str:
+    """«По способу сброса рабочей среды» — нередактируемый select (Открытого/Закрытого типа).
+
+    Правило (=> «Открытого типа»):
+      рабочая среда (единичная) или ВСЕ среды смеси — только из «неагрессивных»:
+        «Вода», «Водяной пар», «Воздух», «Азот»
+      И выполняется «Пружинный высокотемпературный режим»
+        («Тип клапана» = «Пружинный (В)» и 51ХФА при t > 120 / 50ХФА при t > 250).
+
+    При этом значение параметра «Сильфонное уплотнение» принудительно
+    становится «Нет» (поверх его собственной логики): интеграция записывает
+    ctx.computed["_bellows_override"].
+
+    Во всех остальных случаях => «Закрытого типа».
+
+    Настройки formula_config (опционально):
+      "aggressive_media" — переопределяющий список «неагрессивных» сред;
+      "pilot_type"/"spring_type" — значения «Типа клапана» (как у bellows_seal);
+      "temp_hfa51"/"temp_hfa50" — пороги температур (как у bellows_seal).
+    """
+    config = config or {}
+    aggressive = {
+        _norm_lower(m)
+        for m in (["Вода", "Водяной пар", "Воздух", "Азот"] or AGGRESSIVE_MEDIA)
+        if m and str(m).strip()
+    }
+
+    media = await _working_media_names(ctx, config)
+    if media is None:
+        # Среда ещё не выбрана — по умолчанию закрытый тип.
+        return "Закрытого типа"
+    if any(_norm_lower(m) not in aggressive for m in media):
+        return "Закрытого типа"
+
+    if not await _spring_high_temp_condition(ctx, config):
+        return "Закрытого типа"
+
+    ctx.computed["_bellows_override"] = "Нет"
+    return "Открытого типа"
+
+
 async def _resolve_media_table(ctx: FormulaContext) -> str | None:
-    """Возвращает имя физической таблицы продукта (из Table-параметров) или None."""
+    """Возвращает имя физической таблицы сред продукта или None.
+
+    Таблица сред — та Table-таблица, у которой среди параметров есть
+    «Название рабочей среды»/«среда» и «Агрегатное состояние». Раньше бралась
+    первая попавшаяся таблица (LIMIT 1 без ORDER BY) — у продукта с несколькими
+    таблицами (давление, типоразмеры) могла вернуться не таблица сред, и состав
+    смеси оказывался пуст. Перебираем все таблицы продукта и ищем «средовую».
+    """
     from sqlalchemy import text
 
     result = await ctx.db.execute(text(
         """
-        SELECT table_name
+        SELECT DISTINCT table_name
         FROM parameter_schemas
         WHERE product_id = :product_id AND type = 'Table' AND table_name IS NOT NULL
-        LIMIT 1
         """
     ), {"product_id": ctx.product_id})
-    return result.scalar_one_or_none()
+    tables = [r[0] for r in result.all() if r and r[0]]
+
+    if not tables:
+        return None
+
+    async def _is_media_table(table_name: str) -> bool:
+        columns = await _resolve_media_columns(ctx, table_name)
+        has_name = any(
+            "рабочей среды" in n.lower()
+            or "рабочая среда" in n.lower()
+            or "среда" in n.lower()
+            for n in columns
+        )
+        has_state = any(
+            "агрегатное состояние" in n.lower() or "состояние" in n.lower()
+            for n in columns
+        )
+        return has_name and has_state
+
+    for table_name in tables:
+        if await _is_media_table(table_name):
+            return table_name
+
+    return tables[0]
 
 
 async def _filtered_media_names(ctx: FormulaContext, mode: str) -> list[str]:
