@@ -85,7 +85,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
         skip: int = 0,
-        limit: Optional[int] = 10,
+        limit: int = 10,
     ) -> list:
         filter_keys = []
         if user_id:
