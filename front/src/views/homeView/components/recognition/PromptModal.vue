@@ -4,7 +4,9 @@
     <div class="pb-[15px]">
         <div v-if="!imagesUrl?.length"
              class="prompt-area__actions  flex flex-col gap-[15px] w-[90vh] h-[80vh] justify-center px-[25px]">
-            <h3 class="text-left mt-[15px]">Дополните промпт или отправьте без изменений</h3>
+            <h3 class="text-left mt-[15px]">
+                Дополните промпт или отправьте без изменений
+            </h3>
             <span>Нередактируемый промпт</span>
             <pre class="bg-blue-50 border border-gray-400 rounded-[16px] p-[25px] max-h-full overflow-auto"
                  v-html="defaultPromptToOCR"></pre>
@@ -13,7 +15,7 @@
                           @valueChanged="(newVal: string) => promptVal = newVal" />
             <BaseButton :buttonSettings="{ class: 'button-primary', disabled: docIsLoading }"
                         @clicked="sendToServer">
-                <span v-if="!docIsLoading"> Отправить</span>
+                <span v-if="!docIsLoading">Отправить</span>
                 <Loader v-else />
             </BaseButton>
         </div>

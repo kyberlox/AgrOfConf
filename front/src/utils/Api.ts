@@ -15,7 +15,7 @@ const api = axios.create({
 // const id = computed(() => useUserData().getMyId);
 if (import.meta.env.DEV) {
     api.interceptors.request.use((config) => {
-        config.headers.session_id = 'ee32c386-a57a-4e2f-b2f2-d933d08fee07';
+        config.headers.session_id = '0ab5bdba-8e3c-4743-bc3e-9fb275fe8b8e';
         return config
     })
 }
@@ -64,7 +64,7 @@ export default class Api {
 
     static async delete(url: string, data?: IProduct) {
         try {
-           return await api.delete(url, { data })
+            return await api.delete(url, { data })
         }
         catch (error) {
             handleApiErrors(error as AxiosError)

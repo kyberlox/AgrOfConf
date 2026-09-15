@@ -59,6 +59,9 @@
                       :tableData="tableData || []"
                       :tableHead="Object.keys(headerComparsion)"
                       :isSearchResult="!!textToSearch"
+                      :rowsPerPage="rowsPerPage"
+                      :total="totalHistoryRows"
+                      @pageChanged="(page: number) => changePage(page)"
                       @create-ol="showEngineModal = true" />
 
         <!-- Модалка для выбора изделия -->
@@ -87,6 +90,7 @@ import { useUserStore } from '@/stores/user.ts';
 import { useHistoryStore } from '@/stores/historyTable.ts';
 import { headerComparsion, formatResultToHistory } from '@/utils/historyTable.ts';
 import { type IHistory } from '@/assets/interfaces/IHistory.ts';
+import { useRoute } from 'vue-router';
 
 export default defineComponent({
     components: {
@@ -111,12 +115,21 @@ export default defineComponent({
         const userId = computed(() => useUserStore().getId);
         const tableReady = ref(false);
         const textToSearch = ref('');
+        const totalHistoryRows = ref<number>(0);
+        const rowsPerPage = ref(10);
+        const currentPage = ref(Number(useRoute().query.page || 1));
 
         const getHistoryData = async () => {
+            const getSkip = () => {
+                return currentPage.value < 1 ? 0 : (currentPage.value - 1) * rowsPerPage.value
+            }
             try {
                 tableReady.value = false
-                const historyData: IHistory[] = await Api.get(`selection_statistic/selection?user_id=${userId.value}`)
-                useHistoryStore().setHistoryData(formatResultToHistory(historyData))
+                const historyData: IHistory[] =
+                    await Api.get(`selection_statistic/selection?user_id=${userId.value}&skip=${getSkip()}`)
+                useHistoryStore().setHistoryData(formatResultToHistory(historyData.data))
+                if ('total_count' in historyData)
+                    totalHistoryRows.value = Number(historyData.total_count)
             } catch (error) {
                 console.error('Error history:', error)
             } finally { tableReady.value = true }
@@ -133,7 +146,6 @@ export default defineComponent({
             }
         })
 
-
         watch(() => userId.value, async () => {
             if (!userId.value) return
             getHistoryData();
@@ -144,7 +156,7 @@ export default defineComponent({
         }
 
         let abortController: AbortController | null = null;
-        const search = async (newTextToSearch: string) => {
+        const search = async (newTextToSearch: string, page: number = 1) => {
             textToSearch.value = newTextToSearch;
             if (abortController) {
                 abortController.abort();
@@ -154,12 +166,18 @@ export default defineComponent({
                 if (!newTextToSearch) {
                     return getHistoryData()
                 }
-                const searchRes = await Api.get(`/selection_statistic/search_by_value?value=${textToSearch.value}&skip=0&limit=100`, abortController)
+                const searchRes = await Api.get(`/selection_statistic/search_by_value?value=${textToSearch.value}&skip= rowsPerPage.value}`, abortController)
+                if (!searchRes.result) return
                 useHistoryStore().setHistoryData(formatResultToHistory(searchRes))
             }
             catch (e) {
                 console.error(e);
             }
+        }
+
+        const changePage = (page: number) => {
+            currentPage.value = page;
+            getHistoryData();
         }
 
         return {
@@ -174,8 +192,11 @@ export default defineComponent({
             tableReady,
             textToSearch,
             userId,
+            totalHistoryRows,
+            rowsPerPage,
             handlePageTypeChange,
-            search
+            search,
+            changePage
         }
     }
 });
