@@ -123,10 +123,12 @@ class ElasticStatisticRepo(DatabaseStatistic):
             response = await asyncio.to_thread(
                 self.db.search, index=self.model, body=body
             )
-            if response["hits"]["total"]["value"] == 0:
-                return []
+            # if response["hits"]["total"]["value"] == 0:
+            #     return []
+            total_count = response["hits"]["total"]["value"]
             result = [convert_to_responce_format(hit) for hit in response["hits"]["hits"]]
-            return result
+            return {"data": result, "total_count": total_count}
+            # return result
         except Exception as e:
             return {"success": False, "error": str(e)}
 
