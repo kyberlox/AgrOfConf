@@ -115,10 +115,9 @@ class ElasticStatisticRepo(DatabaseStatistic):
                 "query": {"match_all": {}},
                 "sort": [{"date_search": {"order": "desc"}}]
             }
-        if limit is not None:
-            print(123)
-            body["from"] = skip
-            body["size"] = limit
+        
+        body["from"] = skip
+        body["size"] = limit
         
         try:
             response = await asyncio.to_thread(
