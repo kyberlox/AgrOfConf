@@ -63,7 +63,7 @@ class SelectionRouter:
         date_from: Optional[datetime] = None,
         date_to: Optional[datetime] = None,
         skip: int = 0,
-        limit: Optional[int] = None,
+        limit: int = 10,
     ) -> Dict[str, Any]:
         """Получить все записи подбора с пагинацией."""
         return await self.repo.get_all(
