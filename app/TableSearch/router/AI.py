@@ -137,8 +137,9 @@ async def upload_OL(
         # need = response.choices[0].message.content
         # total_coast = response.usage.total_cost
         need = res['choices'][0]['message']['content']
-        # parsed_need = _extract_json_from_response(need)
-        
+        parsed_need = _extract_json_from_response(need)
+        data = parsed_need.get("data", "")
+        positions = parsed_need.get("positions", [])
         # Сохраняем статистику
         # stat_info = await build_statistic_data(db, user_id, product_id)
         # stat_info['parameters'] = parsed_need
@@ -147,7 +148,8 @@ async def upload_OL(
         # is_dump = await statistic_router.save_recognition(stat_info)
         fin_all = time.time()
         print(f"Распознали ОЛ за {fin_all - start_all}, Цена: {total_coast}")
-        return {"markdown": need, "file": files}
+        # return {"markdown": need, "file": files}
+        return {"markdown": data, "positions": positions, "file": files}
     except HTTPException:
         raise
     except Exception as e:
