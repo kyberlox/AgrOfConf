@@ -3,7 +3,7 @@
     <RouterLink :to="{ name: 'homeview' }">
         <LogoIcon class="w-full cursor-pointer ml-[16px] hover:scale-105 duration-200 transition-all" />
     </RouterLink>
-    <div class="flex rounded-[16px]  flex-col gap-[8px] border border-[#EAECEF] bg-[#FDFDFD] w-full p-[16px] mt-[10px] min-h-[446px]"
+    <div class="flex rounded-[16px]  flex-col gap-[8px] border border-[#EAECEF] bg-[#FDFDFD] w-full p-[16px] mt-[10px]"
          :class="{ 'shadow-lg': !isSidebarRolled }">
         <div v-if="isLogin"
              class="rounded-[8px] w-full p-[12px] flex flex-row justify-between items-center border border-[#EAECEF] hover:border-orange-500 transition duration-300 cursor-pointer w-fit"

@@ -10,7 +10,9 @@
                                 class="w-[24px] h-[24px] rounded-[16px] bg-[#F6F7F9] cursor-pointer flex self-start mt-[7px]">
                         <ArrowLeft class="w-full m-auto max-h-[12px]" />
                     </RouterLink>
-                    <h1 class="inline-block w-fit max-w-[500px]">{{ productName }}</h1>
+                    <h1 class="inline-block w-fit max-w-[500px]">
+                        {{ productName }}
+                    </h1>
                 </div>
                 <div class="flex flex-col-reverse justify-center">
                     <div v-if="!Object.keys(neuroOlData).length"
@@ -32,6 +34,7 @@
                     </div>
                 </div>
                 <UploadDocButton class="grow"
+                                 :fileIsLoading="docIsLoading"
                                  @readyToUploadFile="(file, fileName) => handleFileUpload(file, fileName)" />
             </div>
             <EngineParams :form="form"
@@ -66,14 +69,15 @@
     <TkpVariants :tkpVariants="tkpVariants"
                  :tkpModalIsVisible="tkpModalIsVisible"
                  @closeModal="tkpModalIsVisible = false"
-                 @downloadTkp="(id: number) => handleDownloadTkp(id)" />
+                 @downloadTkp="(TkpId: number) => handleDownloadTkp(TkpId, userInputs, props.id)" />
 
-    <!-- Модалка для промпта для распознавания -->
-    <PromptModal :promptModalVisible="promptModalVisible"
-                 :formData="olFormData"
-                 :uploadedFileName="newFileName || ''"
-                 :key="promptModalKey"
-                 @closeModal="promptModalVisible = false" />
+    <!-- Модалка с распознанными данными -->
+    <RecognitionCompare :recognitionModalVisible="recognitionModalVisible"
+                        :imagesUrl="imagesUrl"
+                        :recognizedTable="recognizedTable"
+                        :convertAiIsLoading="convertAiIsLoading"
+                        @closeModal="recognitionModalVisible = false"
+                        @successRecognized="(newTable) => handleSuccessRecognized(newTable)" />
 </div>
 </template>
 
@@ -87,11 +91,10 @@ import Api from '@/utils/Api';
 import type { IFormattedData } from '@/assets/interfaces/IForm';
 import SlotModal from '@/components/layout/SlotModal.vue';
 import { useNeuroOlData } from '@/stores/neuroOl';
-import UploadDocButton from '@/views/homeView/components/recognition/UploadDocButton.vue';
+import UploadDocButton from '@/views/configurator/components/recognition/UploadDocButton.vue';
 import RightSidebar from '@/components/layout/RightSidebar.vue';
 import { useConfiguratorStore } from '@/stores/configurator.ts';
 import FavoriteIcon from '@/assets/icons/Favorite.svg?component';
-import PromptModal from '../homeView/components/recognition/PromptModal.vue';
 import TkpVariants from './components/TkpVariants.vue';
 import { type ITkpVariant } from '@/assets/interfaces/ITkpVariant.ts';
 import { downloadFile } from '@/utils/downloadFile.ts';
@@ -101,6 +104,9 @@ import { toast } from 'vue3-toastify';
 import { watchDebounced } from '@vueuse/core';
 import { replaceSpotOrComma } from '@/utils/replaceSpotOrComma.ts';
 import { clone } from 'chart.js/helpers';
+import RecognitionCompare from './components/recognition/RecognitionCompare.vue';
+import { Marked } from '@ts-stack/markdown';
+import { handleDownloadTkp } from '@/composables/UseTkp.ts';
 
 export default defineComponent({
     components: {
@@ -110,11 +116,11 @@ export default defineComponent({
         FavoriteIcon,
         TkpVariants,
         EngineParams,
-        PromptModal,
         SlotModal,
         UploadDocButton,
         RightSidebar,
-        Loader
+        Loader,
+        RecognitionCompare
     },
     props: {
         id: {
@@ -132,20 +138,24 @@ export default defineComponent({
         const productName = ref('');
         const tkpVariants = ref<ITkpVariant[]>([]);
         const tkpModalIsVisible = ref(false);
-        const promptModalVisible = ref(false);
         const olFormData = ref<FormData>(new FormData());
         const newFileName = ref<string>();
         const configuratorStore = useConfiguratorStore();
         const freeConfigMode = computed(() => configuratorStore.getFreeModeConfig);
         const paramsLoading = ref(false);
+        const docIsLoading = ref(false);
+        const recognizedTable = ref();
+        const imagesUrl = ref<string[]>();
         const paramsGroups = ref<Array<{ name: string; display: string; params: Array<string> }>>();
+        const convertAiIsLoading = ref<boolean>(false);
+        const recognitionModalVisible = ref<boolean>(false);
+
         // Параметры, которые пользователь выбрал явно (не авто-подставленные).
         const manuallyChanged = ref<Record<string, boolean>>({});
         let abortController: AbortController | null = null;
         // Защита от зацикливания повторного подбора после сброса ошибочных параметров.
         let rerunGuard = false;
         const priorityParam = ref<string>();
-        const promptModalKey = ref(1);
         // Имя параметра-состава смеси (type='FormulaMix'). Хранится отдельно,
         // т.к. при выключенном чекбоксе «Смесь» сервер его не возвращает в форме.
         const mixtureCompositionName = ref('');
@@ -298,10 +308,6 @@ export default defineComponent({
             paramsUpdateRequest();
         })
 
-        onUnmounted(() => {
-            configuratorStore.$reset();
-            useNeuroOlData().$reset();
-        })
 
         watch(neuroOlData, () => {
             if (neuroOlData.value) {
@@ -369,17 +375,53 @@ export default defineComponent({
             }
         }
 
+        const sendFileToRecognition = async (fileData: FormData, fileName: string) => {
+            docIsLoading.value = true;
+            try {
+                const data = await Api.post(`AI/upload_OL?product_id=${props.id}`, fileData)
+                if (!data) return
+                useNeuroOlData().setOlName(fileName || '');
+                recognizedTable.value = Marked.parse(data.markdown);
+                imagesUrl.value = data.file.map((e: { image_url: { url: string } }) => e.image_url.url);
+                recognitionModalVisible.value = true;
+            }
+            catch (e) {
+                console.error(e)
+            }
+            finally {
+                docIsLoading.value = false;
+            }
+        }
+
+        const handleSuccessRecognized = async (table: string) => {
+            try {
+                convertAiIsLoading.value = true;
+                const data = await Api.post(`AI/convert-ai-result?product_id=${props.id}`, table)
+                useNeuroOlData().setData(data);
+                // router.push({ name: 'configurator', params: { id: route.params.id } });
+            } catch (e) {
+                console.error(e)
+            } finally {
+                recognitionModalVisible.value = false;
+                convertAiIsLoading.value = false;
+            }
+        }
+
         const handleFileUpload = (file: FormData, fileName: string) => {
-            console.log(file.get('file'))
-            promptModalVisible.value = true;
             olFormData.value = file;
             newFileName.value = fileName;
-            promptModalKey.value++;
+            sendFileToRecognition(file, fileName);
         }
 
         const setFreeConfig = (mode: boolean) => {
             configuratorStore.setFreeModeConfig(mode)
         }
+
+        onUnmounted(() => {
+            configuratorStore.$reset();
+            useNeuroOlData().$reset();
+        })
+
 
         return {
             form,
@@ -389,14 +431,18 @@ export default defineComponent({
             productName,
             tkpModalIsVisible,
             tkpVariants,
-            promptModalVisible,
             olFormData,
             freeConfigMode,
             newFileName,
             paramsLoading,
             paramsGroups,
             userInputs,
-            promptModalKey,
+            imagesUrl,
+            recognizedTable,
+            recognitionModalVisible,
+            docIsLoading,
+            convertAiIsLoading,
+            handleSuccessRecognized,
             handleValueChanged,
             handleDownloadTkp,
             handleFileUpload,

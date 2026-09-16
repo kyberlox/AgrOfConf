@@ -1,8 +1,13 @@
 <template>
 <UploadFileArea :formats="formats"
                 :empty="empty"
+                :disabled="fileIsLoading"
                 @readyToUploadFile="(formData, fileName) => $emit('readyToUploadFile', formData, fileName)">
-    <div v-if="empty">
+    <div v-if="fileIsLoading"
+         class="upload-doc-button__loader">
+        <Loader />
+    </div>
+    <div v-else-if="empty">
         <span class="text-[16px] font-semibold text-(--color-information-orange-800)">
             Распознать ОЛ
         </span>
@@ -36,14 +41,19 @@
 import { defineComponent, ref, computed } from 'vue';
 import { useNeuroOlData } from '@/stores/neuroOl';
 import UploadFileArea from '@/components/layout/UploadFileArea.vue';
+import Loader from '@/components/layout/Loader.vue';
 
 export default defineComponent({
     name: 'UploadDocButton',
-    components: { UploadFileArea },
+    components: { UploadFileArea, Loader },
     emits: ['readyToUploadFile'],
     props: {
         formats: {
             type: String
+        },
+        fileIsLoading: {
+            type: Boolean,
+            default: false
         }
     },
     setup(_, { emit }) {

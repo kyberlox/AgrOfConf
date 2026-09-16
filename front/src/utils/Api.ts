@@ -15,7 +15,7 @@ const api = axios.create({
 // const id = computed(() => useUserData().getMyId);
 if (import.meta.env.DEV) {
     api.interceptors.request.use((config) => {
-        config.headers.session_id = '0ab5bdba-8e3c-4743-bc3e-9fb275fe8b8e';
+        config.headers.session_id = '33a225c3-bc7c-4bcc-a14a-83a38e0cb556';
         return config
     })
 }

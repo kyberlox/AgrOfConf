@@ -68,7 +68,6 @@
 import { defineComponent, computed, type PropType } from 'vue';
 import ParamsHeaderIcons from './ParamsHeaderIcons.vue';
 import type { IFormattedData } from '@/assets/interfaces/IForm';
-import { createLabelIconsComponent } from '@/composables/createComponent';
 import { useWindowSize } from '@vueuse/core'
 import RequiredIcon from '@/assets/icons/RequiredIcon.svg?component';
 import SelectInput from '@/components/SelectInput.vue';
@@ -176,7 +175,6 @@ export default defineComponent({
             backImage,
             getParamsGroup,
             getGroupedParams,
-            createLabelIconsComponent,
             paramsFilter,
             specialParams,
             nonSpecialParams

@@ -36,12 +36,10 @@
 <script lang='ts'>
 import { defineComponent, type PropType } from 'vue';
 import type { IProduct } from '@/assets/interfaces/IProduct';
-import UploadDocButton from '@/views/homeView/components/recognition/UploadDocButton.vue';
 import SlotModal from '@/components/layout/SlotModal.vue';
 
 export default defineComponent({
     components: {
-        UploadDocButton,
         SlotModal
     },
     props: {

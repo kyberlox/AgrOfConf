@@ -27,7 +27,7 @@ import { defineComponent, ref } from 'vue';
 import { toast } from 'vue3-toastify';
 
 export default defineComponent({
-    name: 'UploadDocButton',
+    name: 'UploadFileArea',
     emits: ['readyToUploadFile'],
     props: {
         empty: {
