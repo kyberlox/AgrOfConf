@@ -120,6 +120,76 @@ async def _finalize_mixture_visibility(
     return [p for p in response_params if p.get("name") not in hidden]
 
 
+# Параметр «Тип присоединения» и значение, при котором табличные параметры
+# фланцев скрываются.
+_CONNECTION_TYPE_KEYWORDS = (
+    "тип присоединения",
+)
+_CONNECTION_HIDE_VALUE = "под приварку"
+_CONNECTION_FLANGE_KEYWORDS = ("фланец",)
+
+
+def _connection_type_value(selected_values: dict[str, Any]) -> str | None:
+    """Фактическое значение «Типа присоединения» по ключевым словам в выбранных параметрах."""
+    for name, value in (selected_values or {}).items():
+        low = str(name).lower().replace("ё", "е")
+        if any(kw in low for kw in _CONNECTION_TYPE_KEYWORDS):
+            if value is None:
+                continue
+            return str(value).strip()
+    return None
+
+
+async def _flange_table_names(db: AsyncSession, product_id: int) -> set[str]:
+    """Имена физических таблиц фланцев (входной и выходной).
+
+    Таблица фланцев — Table-таблица, среди параметров которой есть «Фланец на
+    входе» или «Фланец на выходе».
+    """
+    result = await db.execute(text(
+        "SELECT DISTINCT table_name FROM parameter_schemas "
+        "WHERE product_id = :pid AND type = 'Table' AND table_name IS NOT NULL"
+    ), {"pid": product_id})
+    tables = {row[0] for row in result.all() if row and row[0]}
+
+    flange: set[str] = set()
+    for tbl in tables:
+        cols = await db.execute(text(
+            "SELECT name FROM parameter_schemas "
+            "WHERE product_id = :pid AND type = 'Table' AND table_name = :tbl"
+        ), {"pid": product_id, "tbl": tbl})
+        names = [str(row[0]).lower() for row in cols.all() if row and row[0]]
+        if any(any(kw in n for kw in _CONNECTION_FLANGE_KEYWORDS) for n in names):
+            flange.add(tbl)
+    return flange
+
+
+async def _finalize_connection_visibility(
+    db: AsyncSession,
+    response_params: list[dict],
+    selected_values: dict[str, Any],
+    product_id: int,
+) -> list[dict]:
+    """Скрывает табличные параметры фланцев при «Тип присоединения» = «Под приварку».
+
+    Если выбрано «Под приварку» — фланцы не нужны, и вся входная/выходная
+    таблица фланцев убирается из ответа. При «Фланцевое» (или пока тип не
+    выбран) таблицы фланцев остаются.
+    """
+    join_value = _connection_type_value(selected_values)
+    if join_value is None or _normalize_join_value(join_value) != _CONNECTION_HIDE_VALUE:
+        return response_params
+
+    flange_tables = await _flange_table_names(db, product_id)
+    if not flange_tables:
+        return response_params
+    return [p for p in response_params if p.get("table_name") not in flange_tables]
+
+
+def _normalize_join_value(value: str) -> str:
+    return str(value).strip().lower().replace("ё", "е")
+
+
 # Табличные характеристики, которые при собранной смеси пересчитываются
 # формулой: русское ключевое слово в названии параметра -> ключ результата
 # расчёта смеси (_mixture_properties). Такой параметр становится нередактируемым.
@@ -269,6 +339,59 @@ def _fill_valve_entries(response_params: list[dict], sel: dict | None) -> None:
         entry["editable"] = False
 
 
+def _match_flange_entry(lower_name: str) -> str | None:
+    """Определяет, к какой колонке таблицы фланцев относится параметр (или None)."""
+    groups = [
+        ("давление", ("давление",)),
+        ("стандарт", ("стандарт",)),
+        ("фланец", ("фланец на входе", "фланец на выходе", "фланец",)),
+    ]
+    for key, kws in groups:
+        if any(kw in lower_name for kw in kws):
+            return key
+    return None
+
+
+def _fill_flange_entries(
+    response_params: list[dict],
+    computed: dict,
+    selected_values: dict[str, Any] | None = None,
+) -> None:
+    """Записывает результат подбора таблиц фланцев в табличные параметры.
+
+    `computed["_flange_inlet"]` / `["_flange_outlet"]` — dict из _flange_select
+    (давление, стандарт, фланец, _table). «Давление» всегда синхронизируется с PN
+    (входное/выходное из строки клапана) и помечается нередактируемым.
+    «Стандарт исполнения» и «Фланец на входе/выходе» берутся из строки таблицы
+    фланцев, если строка найдена; они остаются РЕДАКТИРУЕМЫМИ (пользователь может
+    выбрать значение вручную), а значение алгоритма подставляется только если
+    пользователь не выбрал его явно в этом запросе (имени нет в selected_values).
+    Заполняет только параметры своей таблицы (по table_name). Видимость не меняется.
+    """
+    selected_values = selected_values or {}
+    for cache_key in ("_flange_inlet", "_flange_outlet"):
+        sel = computed.get(cache_key)
+        if not sel:
+            continue
+
+        table = sel.get("_table")
+        for entry in response_params:
+            if table and entry.get("table_name") != table:
+                continue
+            key = _match_flange_entry(str(entry.get("name") or "").lower())
+            if key is None or key not in sel:
+                continue
+            if key == "давление":
+                entry["response_value"] = sel.get(key, entry.get("response_value"))
+                entry["editable"] = False
+                continue
+            # «Стандарт исполнения» и «Фланец на ...» — редактируемые; если
+            # пользователь явно выбрал значение в этом запросе — не затираем.
+            if entry.get("name") in selected_values:
+                continue
+            entry["response_value"] = sel.get(key, entry.get("response_value"))
+
+
 async def apply_mixture_overrides(
     db: AsyncSession,
     response_params: list[dict],
@@ -357,6 +480,24 @@ def _is_new_formula(param: Any) -> bool:
     return isinstance(cfg, dict) and bool(cfg.get("func"))
 
 
+def _fill_pokraska_values(response_params: list[dict], computed: dict) -> None:
+    """Записывает список вариантов «Покраски» (из ctx.computed) в all_values.
+
+    Формула pokraska кладёт актуальный набор вариантов в
+    computed["_pokraska_values"] (зависит от «Материала») — перезаписывает
+    статический список formula_config["values"], чтобы dropdown показывал только
+    подходящие варианты.
+    """
+    values = computed.get("_pokraska_values")
+    if not isinstance(values, list) or not values:
+        return
+    for entry in response_params:
+        low = str(entry.get("name") or "").lower().replace("ё", "е")
+        if "покрас" in low or "покрыт" in low:
+            entry["all_values"] = list(values)
+            return
+
+
 async def _apply_new_formulas(
     db: AsyncSession,
     response_params: list[dict],
@@ -427,6 +568,16 @@ async def _apply_new_formulas(
     # таблицы клапана в ctx.computed["_valve_selection"] — записываем его в
     # табличные параметры клапана и скрываем их.
     _fill_valve_entries(response_params, computed.get("_valve_selection"))
+
+    # Формулы подбора фланцев (flange_standard_inlet/outlet) кладут подбор
+    # строк в ctx.computed["_flange_inlet"]/_flange_outlet — записываем их в
+    # табличные параметры обеих таблиц фланцев. «Давление» помечается
+    # нередактируемым, «Стандарт»/«Фланец» остаются редактируемыми.
+    _fill_flange_entries(response_params, computed, selected_values)
+
+    # «Покраска» (pokraska) кладёт актуальный набор вариантов в
+    # computed["_pokraska_values"] (по «Материалу») — записываем его в all_values.
+    _fill_pokraska_values(response_params, computed)
 
 
 async def _add_input_params(
@@ -623,6 +774,11 @@ async def apply_new_and_legacy_formulas(
 
     # Скрываем «Тип смеси»/параметр-состав, если чекбокс «Смесь» выключен.
     response_params = await _finalize_mixture_visibility(
+        db, response_params, selected_values, product_id
+    )
+
+    # Скрываем таблицы фланцев, если «Тип присоединения» = «Под приварку».
+    response_params = await _finalize_connection_visibility(
         db, response_params, selected_values, product_id
     )
 
