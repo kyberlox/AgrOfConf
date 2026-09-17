@@ -168,8 +168,8 @@ async def save_product_prompt(
     if body.validation_prompt:
         prompt = body.validation_prompt.strip()
         save_product_validation_prompt(product_id, prompt)
-    if body.rules:
-        save_product_rules(body.rules, product_id)
+    if body.rules_table:
+        save_product_rules(body.rules_table, product_id)
     return {
         "product_id": product_id,
         "validation_prompt": get_product_validation_prompt(product_id),
