@@ -94,7 +94,6 @@ async def upload_OL(
     from copy import deepcopy
     try:
         start_all = time.time()
-T
         
         content = await convert_file_to_jpeg_content(file)
         files = deepcopy(content)
