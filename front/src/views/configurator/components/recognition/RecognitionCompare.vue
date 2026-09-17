@@ -20,25 +20,35 @@
                 <span v-else>Создать ОЛ</span>
             </BaseButton>
         </div>
+        <div>
+            <BaseInput :input-settings="{ class: 'input-admin', placeholder: 'Корд', value: topMark }"
+                       @value-changed="(x) => topMark = x" />
+        </div>
         <div class="flex flex-row gap-[25px] items-start justify-center py-[15px]">
             <div class="flex flex-col gap-[5px] min-w-[40%] sticky top-0 z-10 ">
-                <div class="max-w-[650px] border border-gray-200 rounded-[16px] p-[15px] hover:bg-gray-50 hover:border-gray-500"
+                <div class=" max-w-[650px] border border-gray-200 rounded-[16px] p-[15px] hover:bg-gray-50 hover:border-gray-500"
                      v-for="(image, index) in imagesUrl"
                      :key="'zi' + index">
-                    <VueImageZoomer :regular="image"
-                                    hover-message="Наведите для приближения" />
+                    <div class="relative">
+                        <VueImageZoomer :regular="image"
+                                        :image-class="'z-10'"
+                                        hover-message="Наведите для приближения">
+                        </VueImageZoomer>
+                        <span class="absolute h-[3%] w-full bg-red-500 -my-[3px] z-50 left-0"
+                              :style="{ top: topMark + '%' }"></span>
+                    </div>
                 </div>
+                <div class="max-w-full sticky top-0 overflow-y-auto max-h-[85vh] p-[25px] recognition-table-wrapper border border-gray-200 focus:outline-0 focus:border-gray-500 rounded-[16px]"
+                     contenteditable="true"
+                     ref=mdTableNode
+                     v-html="recognizedTable"></div>
             </div>
-            <div class="max-w-full sticky top-0 overflow-y-auto max-h-[85vh] p-[25px] recognition-table-wrapper border border-gray-200 focus:outline-0 focus:border-gray-500 rounded-[16px]"
-                 contenteditable="true"
-                 ref=mdTableNode
-                 v-html="recognizedTable"></div>
         </div>
     </div>
 </SlotModal>
 </template>
 <script lang='ts'>
-import { BaseButton } from 'beans-ui-kit';
+import { BaseButton, BaseInput } from 'beans-ui-kit';
 import { defineComponent, ref, watch } from 'vue';
 import { VueImageZoomer } from 'vue-image-zoomer';
 import Loader from '@/components/layout/Loader.vue';
@@ -51,7 +61,8 @@ export default defineComponent({
         VueImageZoomer,
         BaseButton,
         Loader,
-        SlotModal
+        SlotModal,
+        BaseInput
     },
     props: {
         recognizedTable: {
@@ -72,6 +83,7 @@ export default defineComponent({
     setup() {
         const editedTable = ref<string>('');
         const mdTableNode = ref<HTMLElement>();
+        const topMark = ref();
 
         watch((mdTableNode), () => {
             editedTable.value = String(mdTableNode.value?.innerHTML)
@@ -79,7 +91,8 @@ export default defineComponent({
 
         return {
             editedTable,
-            mdTableNode
+            mdTableNode,
+            topMark
         }
     }
 });
