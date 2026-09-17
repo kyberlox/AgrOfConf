@@ -43,15 +43,15 @@ vseGPTurl = os.getenv("vseGPTurl")
 
 client = AsyncOpenAI(api_key = key_api, base_url=vseGPTurl) 
 
-router = APIRouter(prefix="/AI", tags=[""])
+router = APIRouter(prefix="/AI", tags=["RAG"])
 
 class Rule(BaseModel):
     name: str
     default: str
 
 class ProductPromptPayload(BaseModel):
-    payload: Optional[str] = None
-    rules: Optional[list[Rule]] = None
+    validation_prompt: Optional[str] = None
+    rules_table: Optional[list[Rule]] = None
 
 def _extract_json_from_response(text: str) -> dict:
     """Извлекает JSON из ответа нейросети.
@@ -165,11 +165,11 @@ async def save_product_prompt(
     - `validation_prompt` — свой промт продукта;
     - `rules_table` — массив дефолтных значений для параметров;
     """
-    if body.payload:
-        prompt = body.payload.strip()
+    if body.validation_prompt:
+        prompt = body.validation_prompt.strip()
         save_product_validation_prompt(product_id, prompt)
-    if body.rules:
-        save_product_rules(body.rules, product_id)
+    if body.rules_table:
+        save_product_rules(body.rules_table, product_id)
     return {
         "product_id": product_id,
         "validation_prompt": get_product_validation_prompt(product_id),
