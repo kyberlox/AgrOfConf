@@ -14,12 +14,14 @@ export interface IFormattedData {
     special?: boolean
     sort?: number
     is_validation?: boolean
-} 
+}
 
-export interface IForm{
+export interface IForm {
     matched_rows: number,
-    parameters: IFormattedData[] ,
-    product_id: number, 
+    parameters: IFormattedData[],
+    product_id: number,
     product_name: string,
     request_time: number
 }
+
+export type userParams = Record<string, string | boolean | Array<{ [key: string]: number }> | null>;

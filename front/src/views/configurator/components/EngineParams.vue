@@ -67,7 +67,7 @@
 <script lang='ts'>
 import { defineComponent, computed, type PropType } from 'vue';
 import ParamsHeaderIcons from './ParamsHeaderIcons.vue';
-import type { IFormattedData } from '@/assets/interfaces/IForm';
+import type { IFormattedData, userParams } from '@/assets/interfaces/IForm';
 import { useWindowSize } from '@vueuse/core'
 import RequiredIcon from '@/assets/icons/RequiredIcon.svg?component';
 import SelectInput from '@/components/SelectInput.vue';
@@ -113,7 +113,7 @@ export default defineComponent({
             default: () => []
         },
         userParams: {
-            type: Object as PropType<Record<string, string | boolean | Array<{ [key: string]: number }>>>
+            type: Object as PropType<userParams>
         }
     },
     emits: ['valueChanged'],

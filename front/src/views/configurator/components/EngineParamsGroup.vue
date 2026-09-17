@@ -44,15 +44,16 @@
              class="flex flex-col w-full gap-[6px] py-[6px]">
             <label class="text-[13px] text-[#343B4C] font-[600]">{{ param.name }}</label>
             <img v-if="(param as IFormattedData).response_value"
-                 :src="fileUrl((param as IFormattedData).response_value)"
+                 :src="fileUrl((param as IFormattedData).response_value as string)"
                  class="max-w-full max-h-[300px] rounded-lg border border-gray-200 object-contain"
                  alt="Чертеж" />
             <a v-if="(param as IFormattedData).response_value"
-               :href="fileUrl((param as IFormattedData).response_value)"
+               :href="fileUrl((param as IFormattedData).response_value as string)"
                target="_blank"
                rel="noreferrer"
                class="text-[12px] text-blue-600 underline">Открыть чертеж в новой вкладке</a>
-            <span v-else class="text-[12px] text-gray-400">Чертеж будет доступен после выбора параметров</span>
+            <span v-else
+                  class="text-[12px] text-gray-400">Чертеж будет доступен после выбора параметров</span>
         </div>
 
         <!-- выпадающий список -->
@@ -70,7 +71,7 @@
 </template>
 
 <script lang='ts'>
-import type { IFormattedData } from '@/assets/interfaces/IForm';
+import type { IFormattedData, userParams } from '@/assets/interfaces/IForm';
 import { defineComponent, type PropType, computed } from 'vue';
 import { BaseButton, BaseInput, BaseSelect } from 'beans-ui-kit';
 import SelectInput from '@/components/SelectInput.vue';
@@ -113,7 +114,7 @@ export default defineComponent({
             default: false
         },
         userParams: {
-            type: Object as PropType<Record<string, string | boolean | Array<{ [key: string]: number }>>>
+            type: Object as PropType<userParams>
         }
     },
     setup(props) {
