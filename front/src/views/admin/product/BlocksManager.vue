@@ -5,7 +5,9 @@
         <div class="flex flex-row gap-[8px] flex-wrap">
             <BaseButton :buttonSettings="{ class: 'button-secondary' }"
                         @clicked="createBlock">
-                Создать блок
+                <span class="block px-[40px] flex flex-row items-center gap-[4px]">
+                    Создать блок
+                </span>
             </BaseButton>
             <BaseButton :buttonSettings="{ class: 'button-primary' }"
                         @clicked="generateContacts">
@@ -20,14 +22,17 @@
         применяются ко всем его параметрам.
     </p>
 
-    <Loader v-if="loading" />
-
+    <div v-if="loading"
+         class="engine-params__loader">
+        <Loader />
+    </div>
     <div v-else-if="!blocks.length && !unassigned.length"
          class="border border-dashed border-gray-300 p-[16px] rounded-xl text-center text-gray-500 text-sm">
         Пока нет ни блоков, ни параметров. Создайте блок или сгенерируйте «Контактные данные».
     </div>
 
-    <div v-else class="flex flex-col gap-[12px]">
+    <div v-else
+         class="flex flex-col gap-[12px]">
         <!-- Пул нераспределённых параметров -->
         <div class="border border-dashed border-gray-300 rounded-xl p-[12px]"
              @dragover.prevent
@@ -45,7 +50,8 @@
                       @dragend="dragEnd">
                     {{ p.name }}
                 </span>
-                <span v-if="!unassigned.length" class="text-xs text-gray-400">Перетащите сюда параметры, чтобы убрать их из блоков</span>
+                <span v-if="!unassigned.length"
+                      class="text-xs text-gray-400">Перетащите сюда параметры, чтобы убрать их из блоков</span>
             </div>
         </div>
 
@@ -60,23 +66,28 @@
                     <span class="text-sm font-semibold text-gray-800 truncate">{{ block.name }}</span>
                     <span class="text-xs text-gray-400">({{ block.params.length }})</span>
                     <span v-if="block.properties?.editable === false"
-                          class="text-[11px] px-[6px] py-[1px] rounded-full bg-orange-100 text-orange-700">только просмотр</span>
+                          class="text-[11px] px-[6px] py-[1px] rounded-full bg-orange-100 text-orange-700">только
+                        просмотр</span>
                     <span v-if="block.properties?.visibility === false"
                           class="text-[11px] px-[6px] py-[1px] rounded-full bg-gray-200 text-gray-600">скрыт</span>
                 </div>
                 <div class="flex flex-row items-center gap-[6px] shrink-0">
-                    <button type="button" title="Вверх"
+                    <button type="button"
+                            title="Вверх"
                             class="w-[24px] h-[24px] rounded-md bg-white border border-gray-200 text-gray-600 hover:bg-gray-100"
                             :disabled="index === 0"
                             @click="moveBlock(block, -1)">↑</button>
-                    <button type="button" title="Вниз"
+                    <button type="button"
+                            title="Вниз"
                             class="w-[24px] h-[24px] rounded-md bg-white border border-gray-200 text-gray-600 hover:bg-gray-100"
                             :disabled="index === blocks.length - 1"
                             @click="moveBlock(block, 1)">↓</button>
-                    <button type="button" title="Изменить свойства блока"
+                    <button type="button"
+                            title="Изменить свойства блока"
                             class="w-[24px] h-[24px] rounded-md bg-white border border-gray-200 text-gray-600 hover:bg-gray-100"
                             @click="openEditBlock(block)">✎</button>
-                    <button type="button" title="Удалить блок"
+                    <button type="button"
+                            title="Удалить блок"
                             class="w-[24px] h-[24px] rounded-md bg-white border border-red-200 text-red-600 hover:bg-red-50"
                             @click="deleteBlock(block)">✕</button>
                 </div>
@@ -91,7 +102,8 @@
                       @dragend="dragEnd">
                     {{ p.name }}
                 </span>
-                <span v-if="!block.params.length" class="text-xs text-gray-400">Перетащите сюда параметры</span>
+                <span v-if="!block.params.length"
+                      class="text-xs text-gray-400">Перетащите сюда параметры</span>
             </div>
         </div>
     </div>
@@ -104,23 +116,28 @@
             <div class="flex flex-col gap-3">
                 <label class="flex flex-col gap-1 text-sm">
                     <span class="text-gray-700">Название</span>
-                    <input class="input-param w-full" v-model="editingBlock.name" />
+                    <input class="input-param w-full"
+                           v-model="editingBlock.name" />
                 </label>
                 <label class="flex flex-col gap-1 text-sm">
                     <span class="text-gray-700">Описание</span>
-                    <input class="input-param w-full" v-model="editingBlock.description" />
+                    <input class="input-param w-full"
+                           v-model="editingBlock.description" />
                 </label>
                 <label class="flex flex-row items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                    <input type="checkbox" v-model="editingBlock.editable" />
+                    <input type="checkbox"
+                           v-model="editingBlock.editable" />
                     Доступен для выбора значений
                 </label>
                 <label class="flex flex-row items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                    <input type="checkbox" v-model="editingBlock.visibility" />
+                    <input type="checkbox"
+                           v-model="editingBlock.visibility" />
                     Видим пользователю
                 </label>
                 <label class="flex flex-col gap-1 text-sm">
                     <span class="text-gray-700">Отображение параметров блока</span>
-                    <select class="input-param w-full" v-model="editingBlock.display">
+                    <select class="input-param w-full"
+                            v-model="editingBlock.display">
                         <option value="group">Все сразу</option>
                         <option value="sequential">Друг за другом</option>
                     </select>
@@ -369,6 +386,7 @@ export default defineComponent({
     cursor: grab;
     user-select: none;
 }
+
 .param-chip--in-block {
     background: #eff6ff;
     border-color: #bfdbfe;

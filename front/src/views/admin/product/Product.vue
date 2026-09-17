@@ -22,7 +22,8 @@
                 </div>
                 <BaseButton :buttonSettings="{ class: 'button-primary', disabled: excellDownloading }"
                             @click="downloadExcell">
-                    <Loader v-if=excellDownloading />
+                    <Loader v-if=excellDownloading
+                            class="button-primary__loader" />
                     <span v-else>Скачать</span>
                 </BaseButton>
 
@@ -33,11 +34,13 @@
             </div>
         </div>
         <div class="flex justify-start gap-2">
-            <div class="flex flex-row flex-wrap md:flex-nowrap gap-2 items-center border border-indigo-300 bg-indigo-100 rounded-md p-4">
+            <div
+                 class="flex flex-row flex-wrap md:flex-nowrap gap-2 items-center border border-indigo-300 bg-indigo-100 rounded-md p-4">
                 <div class="text-lg w-full">Перенос конфигурации</div>
                 <BaseButton :buttonSettings="{ class: 'button-primary', disabled: exporting }"
                             @clicked="exportProduct">
-                    <Loader v-if="exporting" />
+                    <Loader class="button-primary__loader"
+                            v-if="exporting" />
                     <span v-else>Экспорт</span>
                 </BaseButton>
                 <VInputFile :buttonClass="'button-primary'"
@@ -50,7 +53,8 @@
         <div class="w-fit m-auto">
             <Transition name="fade-btn">
                 <BaseButton v-if="sortChanged"
-                            :buttonSettings="{ class: 'button=primary' }"
+                            class="button-primary__loader"
+                            :buttonSettings="{ class: 'button-primary' }"
                             @clicked="sendNewSort">
                     Принять сортировку
                 </BaseButton>
@@ -95,7 +99,7 @@
     <!-- Блоки параметров -->
     <div class="mt-[20px]">
         <BlocksManager v-if="safeProductId"
-                       :productId="safeProductId"
+                       :productId="(safeProductId as number)"
                        @changed="getParams" />
     </div>
 
@@ -192,6 +196,9 @@
                           :tables="productTablesList"
                           @closeModal="createParamModalVisible = false"
                           @created="getParams" />
+
+    <PromptEditBlock :id="Number(id)"
+                     :params="productTableType" />
 </div>
 </template>
 <script lang='ts'>
@@ -220,6 +227,7 @@ import BlocksManager from './BlocksManager.vue';
 import CertificatesModal from './CertificatesModal.vue';
 import { getProductFiles } from '@/utils/getProductFiles.ts';
 import { type IProductFile } from '@/assets/interfaces/IProductFile.ts';
+import PromptEditBlock from './components/PromptEditBlock.vue';
 
 export default defineComponent({
     components: {
@@ -237,7 +245,8 @@ export default defineComponent({
         TablesManageModal,
         CreateParameterModal,
         BlocksManager,
-        CertificatesModal
+        CertificatesModal,
+        PromptEditBlock
     },
     props: {
         id: {
