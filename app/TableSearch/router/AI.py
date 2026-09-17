@@ -43,7 +43,7 @@ vseGPTurl = os.getenv("vseGPTurl")
 
 client = AsyncOpenAI(api_key = key_api, base_url=vseGPTurl) 
 
-router = APIRouter(prefix="/AI", tags=[""])
+router = APIRouter(prefix="/AI", tags=["RAG"])
 
 class Rule(BaseModel):
     name: str
