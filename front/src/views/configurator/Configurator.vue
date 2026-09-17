@@ -3,37 +3,12 @@
     <div class="flex flex-row gap-[24px] h-full flex-wrap md:flex-wrap lg:flex-nowrap"
          v-if="form.length">
         <div class="flex flex-col gap-[16px] w-full">
-            <div
-                 class="flex flex-row items-start justify-between gap-[20px] max-w-full content-stretch flex-wrap md:flex-wrap lg:flex-wrap xxl:flex-nowrap">
-                <div class="flex flex-row gap-[16px] items-center w-full max-w-fit">
-                    <RouterLink :to="{ name: 'homeview' }"
-                                class="w-[24px] h-[24px] rounded-[16px] bg-[#F6F7F9] cursor-pointer flex self-start mt-[7px]">
-                        <ArrowLeft class="w-full m-auto max-h-[12px]" />
-                    </RouterLink>
-                    <h1 class="inline-block w-fit max-w-[500px]">{{ productName }}</h1>
-                </div>
-                <div class="flex flex-col-reverse justify-center">
-                    <div v-if="!Object.keys(neuroOlData).length"
-                         class="flex flex-row gap-[11px] mt-[10px] items-center">
-                        <div class="font-normal w-fit">
-                            Свободный режим
-                        </div>
-                        <div class=" rounded-[49px] px-[4px] w-[48px] h-[24px] flex flex-start items-center cursor-pointer transition-all duration-300"
-                             :class="[freeConfigMode ? ' bg-[#F36E3C]' : ' bg-[#B4BCC8]']"
-                             @click="setFreeConfig(!freeConfigMode)">
-                            <div class="bg-white rounded-[100px] w-[18px] h-[18px] transition-all duration-300"
-                                 :class="[freeConfigMode ? 'translate-x-[22px]' : '']"></div>
-                        </div>
-                    </div>
-                    <div
-                         class="rounded-[16px]  self-start flex flex-row items-center gap-[4px] bg-[#FFF2E5] pl-[8px] py-[4px] min-w-[104px] font-medium text-[#752209]">
-                        <Ellipse />
-                        <span>Черновик</span>
-                    </div>
-                </div>
-                <UploadDocButton class="grow"
-                                 @readyToUploadFile="(file, fileName) => handleFileUpload(file, fileName)" />
-            </div>
+            <ConfiguratorHeader :productName="productName"
+                                :neuroOlData="neuroOlData"
+                                :docIsLoading="docIsLoading"
+                                :freeConfigMode="freeConfigMode"
+                                @uploadFile="handleFileUpload" />
+
             <EngineParams :form="form"
                           :paramsGroups="paramsGroups"
                           :paramsLoading="freeConfigMode ? false : paramsLoading"
@@ -41,6 +16,7 @@
                           :key="paramsRenderKey"
                           :userParams="userInputs"
                           @valueChanged="(value: string, key: string) => handleValueChanged(value, key)" />
+
             <div class="flex flex-row justify-end gap-[8px] flex-wrap mt-0">
                 <BaseButton :buttonSettings="{ class: 'button-secondary' }">
                     <span class="block px-[40px] flex flex-row items-center gap-[4px]">
@@ -65,56 +41,56 @@
     <!-- Модальное окно для TKP вариантов -->
     <TkpVariants :tkpVariants="tkpVariants"
                  :tkpModalIsVisible="tkpModalIsVisible"
+                 :tkpLoading="tkpLoading"
                  @closeModal="tkpModalIsVisible = false"
-                 @downloadTkp="(id: number) => handleDownloadTkp(id)" />
+                 @downloadTkp="(TkpId: number) => handleDownloadTkp(TkpId)" />
 
-    <!-- Модалка для промпта для распознавания -->
-    <PromptModal :promptModalVisible="promptModalVisible"
-                 :formData="olFormData"
-                 :uploadedFileName="newFileName || ''"
-                 :key="promptModalKey"
-                 @closeModal="promptModalVisible = false" />
+    <!-- Модалка с распознанными данными -->
+    <RecognitionCompare :recognitionModalVisible="recognitionModalVisible"
+                        :imagesUrl="imagesUrl"
+                        :recognizedTable="recognizedTable"
+                        :convertAiIsLoading="convertAiIsLoading"
+                        @closeModal="recognitionModalVisible = false"
+                        @successRecognized="(newTable) => handleSuccessRecognized(newTable)" />
 </div>
 </template>
 
 <script lang='ts'>
 import { defineComponent, onMounted, ref, computed, watch, onUnmounted } from 'vue';
 import { BaseButton } from 'beans-ui-kit';
-import Ellipse from '@/assets/icons/Ellipse.svg?component';
-import ArrowLeft from '@/assets/icons/ArrowLeft.svg?component';
+
 import EngineParams from './components/EngineParams.vue';
 import Api from '@/utils/Api';
-import type { IFormattedData } from '@/assets/interfaces/IForm';
+import type { IFormattedData, userParams } from '@/assets/interfaces/IForm';
 import SlotModal from '@/components/layout/SlotModal.vue';
 import { useNeuroOlData } from '@/stores/neuroOl';
-import UploadDocButton from '@/views/homeView/components/recognition/UploadDocButton.vue';
+import UploadDocButton from '@/views/configurator/components/recognition/UploadDocButton.vue';
 import RightSidebar from '@/components/layout/RightSidebar.vue';
 import { useConfiguratorStore } from '@/stores/configurator.ts';
 import FavoriteIcon from '@/assets/icons/Favorite.svg?component';
-import PromptModal from '../homeView/components/recognition/PromptModal.vue';
 import TkpVariants from './components/TkpVariants.vue';
 import { type ITkpVariant } from '@/assets/interfaces/ITkpVariant.ts';
-import { downloadFile } from '@/utils/downloadFile.ts';
 import Loader from '@/components/layout/Loader.vue';
 import { getTkpVariants } from '@/utils/getTkpVariants.ts';
-import { toast } from 'vue3-toastify';
 import { watchDebounced } from '@vueuse/core';
-import { replaceSpotOrComma } from '@/utils/replaceSpotOrComma.ts';
-import { clone } from 'chart.js/helpers';
+import RecognitionCompare from './components/recognition/RecognitionCompare.vue';
+import { Marked } from '@ts-stack/markdown';
+import ConfiguratorHeader from './components/ConfiguratorHeader.vue';
+import { useConfiguratorForm } from '@/composables/useConfiguratorForm';
+import { downloadFile } from '@/utils/downloadFile.ts';
 
 export default defineComponent({
     components: {
         BaseButton,
-        Ellipse,
-        ArrowLeft,
         FavoriteIcon,
         TkpVariants,
         EngineParams,
-        PromptModal,
         SlotModal,
         UploadDocButton,
         RightSidebar,
-        Loader
+        Loader,
+        RecognitionCompare,
+        ConfiguratorHeader
     },
     props: {
         id: {
@@ -123,179 +99,43 @@ export default defineComponent({
         }
     },
     setup(props, { emit }) {
+        const neuroOlDataStore = useNeuroOlData();
+        const configuratorStore = useConfiguratorStore();
         const form = ref<IFormattedData[]>([]);
-        const userInputs = ref<{ [key: string]: string | boolean | Array<{ [key: string]: number }> }>({});
+        const userInputs = ref<userParams>({});
         const modalVisible = ref(false);
         const paramsRenderKey = ref(0);
-        const neuroOlDataStore = useNeuroOlData();
         const neuroOlData = computed(() => neuroOlDataStore.getOlInfo);
         const productName = ref('');
         const tkpVariants = ref<ITkpVariant[]>([]);
         const tkpModalIsVisible = ref(false);
-        const promptModalVisible = ref(false);
         const olFormData = ref<FormData>(new FormData());
         const newFileName = ref<string>();
-        const configuratorStore = useConfiguratorStore();
         const freeConfigMode = computed(() => configuratorStore.getFreeModeConfig);
         const paramsLoading = ref(false);
+        const docIsLoading = ref(false);
+        const recognizedTable = ref();
+        const imagesUrl = ref<string[]>();
         const paramsGroups = ref<Array<{ name: string; display: string; params: Array<string> }>>();
+        const convertAiIsLoading = ref<boolean>(false);
+        const recognitionModalVisible = ref<boolean>(false);
+        const tkpLoading = ref(false);
         // Параметры, которые пользователь выбрал явно (не авто-подставленные).
         const manuallyChanged = ref<Record<string, boolean>>({});
-        let abortController: AbortController | null = null;
         // Защита от зацикливания повторного подбора после сброса ошибочных параметров.
-        let rerunGuard = false;
-        const priorityParam = ref<string>();
-        const promptModalKey = ref(1);
+        const rerunGuard = ref(false);
+        const priorityParam = ref<string>('');
         // Имя параметра-состава смеси (type='FormulaMix'). Хранится отдельно,
         // т.к. при выключенном чекбоксе «Смесь» сервер его не возвращает в форме.
         const mixtureCompositionName = ref('');
 
-        const paramsUpdate = (body: Record<string, string | boolean | Array<{ [key: string]: number }>> | null) => {
-            if (!body) {
-                paramsUpdateRequest()
-            } else {
-                userInputs.value = body;
-            }
-        }
-
-        const arraysEqual = (a: unknown, b: unknown): boolean => {
-            if (Array.isArray(a) && Array.isArray(b)) {
-                return JSON.stringify(a) === JSON.stringify(b);
-            }
-            return a === b;
-        }
+        const { paramsUpdateRequest, handleValueChanged, checkForNeedUpdate } = useConfiguratorForm({
+            userInputs, freeConfigMode, priorityParam, manuallyChanged, form, mixtureCompositionName, productName, rerunGuard, productId: props.id, configuratorStore, paramsLoading
+        })
 
         watchDebounced(() => userInputs.value, async () => {
-            if (Object.keys(userInputs.value).length) {
-                let shouldSend = false;
-                for (const [key, current] of Object.entries(userInputs.value)) {
-                    const formTarget = form.value.find(formEl => formEl.name == key)
-                    const serverValue = formTarget?.response_value
-                    // Параметр-состав смеси (select-input) — массив {среда: доля}: сравниваем
-                    // по содержимому, а не по ссылке — сервер каждый раз присваивает
-                    // новый объект. Если пользователь менял состав — отправляем.
-                    if (Array.isArray(current) || Array.isArray(serverValue)) {
-                        if (!arraysEqual(current, serverValue)) {
-                            shouldSend = true;
-                            break;
-                        }
-                    } else if (!serverValue || current !== serverValue) {
-                        shouldSend = true;
-                        break;
-                    }
-                }
-                if (shouldSend) return paramsUpdateRequest(userInputs.value)
-            } else paramsUpdateRequest({})
+            checkForNeedUpdate()
         }, { debounce: 500, maxWait: 5000, deep: true })
-
-        const paramsUpdateRequest = async (body: Record<string, string | boolean | Array<{ [key: string]: number }> | null> = {}) => {
-            if (abortController) {
-                abortController.abort();
-            }
-            let newBody = clone(body);
-            // Параметры, которые сервер пометил нередактируемыми (editable: false),
-            // пересчитываются сервером самостоятельно (вязкость/плотность смеси,
-            // подбор таблицы давления/клапана и т.п.). Не отправляем их обратно как
-            // «выбор пользователя»: расчётное значение отсутствует в таблице, сервер
-            // помечает его ошибочным и сбрасывает, фронт повторно запрашивает подбор,
-            // сервер снова вписывает значение — запросы зацикливаются.
-            if (newBody && Object.keys(newBody).length && form.value.length) {
-                const nonEditable = new Set(
-                    form.value
-                        .filter(formEl => formEl.editable === false)
-                        .map(formEl => formEl.name)
-                );
-                if (nonEditable.size) {
-                    newBody = Object.fromEntries(
-                        Object.entries(newBody).filter(([key]) => !nonEditable.has(key))
-                    );
-                }
-            }
-            if (freeConfigMode.value && Object.keys(newBody).length) {
-                return
-            }
-            abortController = new AbortController();
-            const signal = abortController.signal;
-            if (newBody && Object.keys(newBody).length) {
-                Object.keys(newBody)?.forEach((key, index) => {
-                    // Значение select-input (состав смеси) — массив {среда: доля}.
-                    // Точки/запятые ему не нужны, а конвертация строки сломает JSON.
-                    // Чекбокс (boolean) также не конвертируем.
-                    if (!Array.isArray(newBody[key]) && typeof newBody[key] !== 'boolean') {
-                        newBody[key] = replaceSpotOrComma(newBody[key]!, 'comma');
-                    }
-                    if (priorityParam.value)
-                        newBody.priority = priorityParam.value;
-                })
-            }
-            try {
-                paramsLoading.value = true;
-                const data = await Api.post(`/module_search/process_table_data?product_id=${props.id}`, newBody, {}, signal)
-                if (data?.files) {
-                    configuratorStore.setDocs(data.files)
-                }
-                const errors: string[] = [];
-                let answeredCounter = 0;
-                let questionCounter = 0;
-                if (!data || !('parameters' in data) || !data.parameters.length) return
-                data.parameters.forEach((e: IFormattedData) => {
-                    if (e.name == 'Маркировка' && e.response_value) {
-                        configuratorStore.setMark(e.response_value)
-                    }
-                    if ('error' in e && e.error) {
-                        errors.push(e.error)
-                    }
-                    if ('response_value' in e  && !(typeof e.response_value === 'object') && userInputs.value[e.name] !== e.response_value) {
-                        userInputs.value[e.name] = e.response_value
-                        answeredCounter++
-                    } else if('response_value' in e && e.response_value == null){
-                        delete userInputs.value[e.name]
-                    }
-                    questionCounter++
-                })
-                // Параметры, которые сервер пометил как ошибочные, стали несовместимыми
-                // с текущим выбором. Убираем их из списка явных выборов, чтобы их старое
-                // значение не продолжало отправляться и не блокировало подбор — тогда
-                // остальные параметры смогут автоматически «подстроиться» под новый выбор.
-                // Исключение — ошибки валидации (is_validation): это явный ввод пользователя
-                // (например, температура вне диапазона), такие параметры НЕ удаляем и ошибку
-                // показываем в блоке подсказки, чтобы пользователь мог её исправить.
-                let removedError = false;
-                data.parameters.forEach((e: IFormattedData) => {
-                    if ('error' in e && e.error && !e.is_validation) {
-                        if (e.name in userInputs.value) {
-                            delete userInputs.value[e.name]
-                            removedError = true
-                        }
-                        delete manuallyChanged.value[e.name]
-                    }
-                })
-                configuratorStore.setCalcParams(data.parameters.filter((e: IFormattedData) => (e.required_type == 'raschet' || e.required_type == 'drawing') && e.response_value));
-                configuratorStore.setCovered(Number(answeredCounter));
-                configuratorStore.setAllQuestions(Number(questionCounter));
-                if (errors.length) {
-                    configuratorStore.setError(errors)
-                }
-                else configuratorStore.setDefaultError()
-
-                if (!(data && 'parameters' in data)) return
-                form.value = data.parameters
-                const mixtureParam = data.parameters.find((e: IFormattedData) => e.type === 'FormulaMix' || e.name === 'Состав смеси')
-                if (mixtureParam) mixtureCompositionName.value = mixtureParam.name
-                productName.value = data.product_name
-
-                // Были удалены ошибочные (несовместимые) параметры — пересчитываем
-                // подбор без них, чтобы сервер автоматически подставил единственные
-                // доступные значения и зависимые параметры адаптировались.
-                if (removedError && !rerunGuard) {
-                    rerunGuard = true
-                    await paramsUpdateRequest(userInputs.value)
-                }
-            } finally {
-                rerunGuard = false
-                paramsLoading.value = false
-            }
-        }
 
         onMounted(async () => {
             tkpVariants.value = await getTkpVariants(props.id);
@@ -303,7 +143,61 @@ export default defineComponent({
             if (data) {
                 paramsGroups.value = data;
             }
-            paramsUpdateRequest();
+            paramsUpdateRequest({});
+        })
+
+        const sendFileToRecognition = async (fileData: FormData, fileName: string) => {
+            docIsLoading.value = true;
+            try {
+                const data = await Api.post(`AI/upload_OL?product_id=${props.id}`, fileData)
+                if (!data) return
+                useNeuroOlData().setOlName(fileName || '');
+                recognizedTable.value = Marked.parse(data.markdown);
+                imagesUrl.value = data.file.map((e: { image_url: { url: string } }) => e.image_url.url);
+                recognitionModalVisible.value = true;
+            }
+            finally {
+                docIsLoading.value = false;
+            }
+        }
+
+        const handleSuccessRecognized = async (table: string) => {
+            try {
+                convertAiIsLoading.value = true;
+                const data = await Api.post(`AI/convert-ai-result?product_id=${props.id}`, table)
+                useNeuroOlData().setData(data);
+            } finally {
+                recognitionModalVisible.value = false;
+                convertAiIsLoading.value = false;
+            }
+        }
+
+        const handleFileUpload = (file: FormData, fileName: string) => {
+            olFormData.value = file;
+            newFileName.value = fileName;
+            console.log(fileName)
+            sendFileToRecognition(file, fileName);
+        }
+
+        const handleDownloadTkp = async (tkpId: number) => {
+            tkpLoading.value = true;
+            try {
+                const response = await Api.post(`tkp_generation/create_tkp?file_id=${tkpId}&product_id=${props.id}&save_to_statistic=true`, userInputs.value, { responseType: 'blob' }, undefined, true);
+                if (response) {
+                    const contentDisposition = response.headers['content-disposition'];
+                    const filename = contentDisposition?.split('filename=')[1].replaceAll('"', '');
+                    await downloadFile(response.data, filename)
+                }
+            }
+            finally {
+                tkpLoading.value = false
+            }
+        }
+
+        watch(neuroOlData, () => {
+            if (neuroOlData.value) {
+                paramsUpdateRequest(neuroOlData.value)
+            }
         })
 
         onUnmounted(() => {
@@ -311,82 +205,6 @@ export default defineComponent({
             useNeuroOlData().$reset();
         })
 
-        watch(neuroOlData, () => {
-            if (neuroOlData.value) {
-                userInputs.value = neuroOlData.value
-                paramsUpdate(neuroOlDataStore.getOlInfo)
-            }
-        })
-
-        const handleValueChanged = (value: string | boolean | Array<{ [key: string]: number }> | null, key: keyof typeof userInputs.value) => {
-            // Сброс значения (resetValue): убираем параметр из явных выборов и
-            // перезапрашиваем подбор без него, чтобы зависимые параметры пересчитались.
-            if (value == null) {
-                delete userInputs.value[key];
-                delete manuallyChanged.value[key];
-                paramsUpdateRequest(userInputs.value);
-                return;
-            }
-            // Select-input (состав смеси) приходит массивом {среда: доля}.
-            // Конвертация в строку через replaceSpotOrComma сломает JSON — не трогаем.
-            // Чекбокс приходит boolean (True/False) — тоже не конвертируем.
-            const prepared = Array.isArray(value) || typeof value === 'boolean'
-                ? value
-                : replaceSpotOrComma(value, 'spot') || '';
-            const shouldProcess = Array.isArray(value) || typeof value === 'boolean'
-                ? userInputs.value[key] !== prepared
-                : value && userInputs.value[key] !== prepared;
-
-            if (shouldProcess) {
-                userInputs.value[key] = prepared;
-                // Помечаем как явный выбор пользователя — такой параметр не будет
-                // перезаписан авто-подстановкой и останется в приоритете.
-                manuallyChanged.value[String(key)] = true;
-                priorityParam.value = String(key);
-                // При выключении чекбокса «Смесь»: очищаем связанные параметры,
-                // чтобы они не оставались в выборе и не отправлялись на сервер.
-                if (key === 'Смесь' && prepared === false) {
-                    delete userInputs.value['Тип смеси'];
-                    delete manuallyChanged.value['Тип смеси'];
-                    if (mixtureCompositionName.value) {
-                        delete userInputs.value[mixtureCompositionName.value];
-                        delete manuallyChanged.value[mixtureCompositionName.value];
-                    }
-                }
-                // При смене типа смеси: очищаем состав, т.к. список сред мог измениться.
-                if (key === 'Тип смеси' && mixtureCompositionName.value && userInputs.value[mixtureCompositionName.value] !== undefined) {
-                    delete userInputs.value[mixtureCompositionName.value];
-                    delete manuallyChanged.value[mixtureCompositionName.value];
-                }
-                paramsUpdate(userInputs.value);
-            }
-        }
-
-        const handleDownloadTkp = async (variantId: number) => {
-            try {
-                const response = await Api.post(`tkp_generation/create_tkp?file_id=${variantId}&product_id=${props.id}&save_to_statistic=true`, userInputs.value, { responseType: 'blob' }, undefined, true);
-                if (response) {
-                    const contentDisposition = response.headers['content-disposition'];
-                    const filename = contentDisposition?.split('filename=')[1].replaceAll('"', '');
-                    await downloadFile(response.data, filename)
-                }
-            }
-            catch (error) {
-                toast.error(error)
-            }
-        }
-
-        const handleFileUpload = (file: FormData, fileName: string) => {
-            console.log(file.get('file'))
-            promptModalVisible.value = true;
-            olFormData.value = file;
-            newFileName.value = fileName;
-            promptModalKey.value++;
-        }
-
-        const setFreeConfig = (mode: boolean) => {
-            configuratorStore.setFreeModeConfig(mode)
-        }
 
         return {
             form,
@@ -396,18 +214,22 @@ export default defineComponent({
             productName,
             tkpModalIsVisible,
             tkpVariants,
-            promptModalVisible,
             olFormData,
             freeConfigMode,
             newFileName,
             paramsLoading,
             paramsGroups,
             userInputs,
-            promptModalKey,
-            handleValueChanged,
+            imagesUrl,
+            recognizedTable,
+            recognitionModalVisible,
+            docIsLoading,
+            tkpLoading,
+            convertAiIsLoading,
             handleDownloadTkp,
+            handleSuccessRecognized,
+            handleValueChanged,
             handleFileUpload,
-            setFreeConfig,
         }
     }
 });

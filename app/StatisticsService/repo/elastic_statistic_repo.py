@@ -85,7 +85,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
         skip: int = 0,
-        limit: Optional[int] = None,
+        limit: int = 10,
     ) -> list:
         filter_keys = []
         if user_id:
@@ -115,18 +115,20 @@ class ElasticStatisticRepo(DatabaseStatistic):
                 "query": {"match_all": {}},
                 "sort": [{"date_search": {"order": "desc"}}]
             }
-        if limit is not None:
-            body["from"] = skip
-            body["size"] = limit
+        
+        body["from"] = skip
+        body["size"] = limit
         
         try:
             response = await asyncio.to_thread(
                 self.db.search, index=self.model, body=body
             )
-            if response["hits"]["total"]["value"] == 0:
-                return []
+            # if response["hits"]["total"]["value"] == 0:
+            #     return []
+            total_count = response["hits"]["total"]["value"]
             result = [convert_to_responce_format(hit) for hit in response["hits"]["hits"]]
-            return result
+            return {"data": result, "total_count": total_count}
+            # return result
         except Exception as e:
             return {"success": False, "error": str(e)}
 

@@ -1,15 +1,17 @@
 <template>
 <div v-if="currentTableNav !== 'statistics'"
-     class="w-full">
+     class="w-full h-[700px]">
     <!-- Заглушка если нет истории -->
-    <div v-if="(!tableData?.length && tableReady)"
+    <div v-if="(!tableData.length && tableReady)"
          class="2xl:mt-[100px] xl:mt-[20px]">
         <EmptyHistoryPlug @createOl="$emit('createOl')"
-                          :isSearchResult="isSearchResult" />
+                          :isEmptyPage="Number(activePage) > total"
+                          :isSearchResult="isSearchResult"
+                          @navToFirstPage="navToPage(1)" />
     </div>
     <div v-else-if="tableData.length && tableReady"
-         class="w-full relative">
-        <AgGridVue class="w-full"
+         class="w-full relative h-full flex flex-col">
+        <AgGridVue class="w-full h-full grow"
                    :rowData="rowData"
                    :columnDefs="columnDefs"
                    :defaultColDef="defaultColDef"
@@ -23,7 +25,11 @@
                    :tooltipShowDelay="10"
                    @grid-ready="onGridReady"
                    @grid-size-changed="autoSize" />
-        <Pagination />
+        <Pagination v-if="total && rowsPerPage"
+                    :rowsPerPage="rowsPerPage"
+                    :total="totalPages"
+                    :activePage="String(activePage)"
+                    @toPage="(page: number) => navToPage(page)" />
     </div>
     <div v-else
          class="engine-params__loader">
@@ -32,7 +38,7 @@
 </div>
 </template>
 <script lang="ts">
-import { defineComponent, type PropType, computed, shallowRef } from 'vue';
+import { defineComponent, type PropType, computed, shallowRef, ref } from 'vue';
 import { AgGridVue } from 'ag-grid-vue3';
 import {
     ModuleRegistry,
@@ -54,6 +60,7 @@ import { historyTableTheme } from '@/assets/static/historyThemeAdGrid.ts';
 import Pagination from './TablePagination.vue';
 import Loader from '@/components/layout/Loader.vue';
 import TextTooltip from '@/components/layout/TextTooltip.vue';
+import { useRoute, useRouter } from 'vue-router';
 
 ModuleRegistry.registerModules([
     ClientSideRowModelModule,
@@ -68,7 +75,7 @@ const theme = themeAlpine
 export default defineComponent({
     name: 'HistoryTable',
     components: { AgGridVue, EmptyHistoryPlug, CellRenderer, Pagination, Loader, TextTooltip },
-    emits: ['createOl'],
+    emits: ['createOl', 'pageChanged'],
     props: {
         currentTableNav: {
             type: String as PropType<'requests' | 'statistics'>,
@@ -89,10 +96,22 @@ export default defineComponent({
         isSearchResult: {
             type: Boolean,
             default: false
+        },
+        total: {
+            type: Number,
+            required: true,
+        },
+        rowsPerPage: {
+            type: Number,
+            default: 10,
         }
     },
-    setup(props) {
+    setup(props, { emit }) {
         const gridApi = shallowRef<GridApi | null>(null);
+        const route = useRoute();
+        const router = useRouter();
+        const activePage = computed(() => route.query.page || 1);
+        const totalPages = computed(() => Math.round(props.total / props.rowsPerPage));
 
         const columnMinWidths: Record<string, number> = {
             'Наименование': 250,
@@ -160,6 +179,11 @@ export default defineComponent({
             autoSize()
         }
 
+        const navToPage = (page: number) => {
+            router.push({ query: { page: page < 1 ? 1 : page > totalPages.value ? totalPages.value : page } })
+            emit('pageChanged', page);
+        }
+
         return {
             rowData,
             columnDefs,
@@ -167,9 +191,12 @@ export default defineComponent({
             autoSizeStrategy,
             theme,
             gridApi,
+            totalPages,
             autoSize,
             onGridReady,
             onFirstDataRendered,
+            navToPage,
+            activePage,
             isLogin: computed(() => useUserStore().getIsLogin),
         }
     }

@@ -71,10 +71,10 @@ export const useConfiguratorStore = defineStore('configuratorStore', {
             const targetSketch = params.find(e => e.name == sketchKey);
 
             if (targetMark?.response_value) {
-                this.setMark(targetMark.response_value)
+                this.setMark(targetMark.response_value as string)
             }
             if (targetSketch?.response_value && String(targetSketch.response_value).startsWith('/api/files/')) {
-                this.setSketch({ title: sketchKey, img: targetSketch.response_value });
+                this.setSketch({ title: sketchKey, img: targetSketch.response_value as string });
             }
             this.calcParams = params.filter(e => e.name !== markKey && e.name !== sketchKey && e.required_type !== 'drawing');
         },
@@ -89,3 +89,5 @@ export const useConfiguratorStore = defineStore('configuratorStore', {
         getDocs: (state) => state.docs
     }
 })
+
+export type configuratorStoreType = ReturnType<typeof useConfiguratorStore>

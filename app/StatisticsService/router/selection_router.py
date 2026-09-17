@@ -63,8 +63,8 @@ class SelectionRouter:
         date_from: Optional[datetime] = None,
         date_to: Optional[datetime] = None,
         skip: int = 0,
-        limit: Optional[int] = None,
-    ) -> List[Any]:
+        limit: int = 10,
+    ) -> Dict[str, Any]:
         """Получить все записи подбора с пагинацией."""
         return await self.repo.get_all(
             user_id=user_id,
@@ -213,7 +213,7 @@ async def get_all_selection(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     skip: int = Query(0, ge=0, description="Сколько записей пропустить"),
-    limit: Optional[int] = Query(None, ge=1, description="Максимальное количество записей"),
+    limit: Optional[int] = Query(10, ge=1, description="Максимальное количество записей"),
     router_instance: SelectionRouter = Depends(get_selection_router),
 ):
     """Получить все записи подбора с пагинацией."""

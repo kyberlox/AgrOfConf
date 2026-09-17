@@ -1,12 +1,14 @@
 import type { AxiosError } from "axios"
 import { toast } from 'vue3-toastify';
+import router from '@/router';
 
 export const handleApiErrors = (e: AxiosError) => {
      switch (e.status) {
           case 400:
                return toast.error('Некорректные данные');
           case 401:
-               return toast.error('Сессия истекла. Необходимо войти в систему заново.');
+               toast.error('Сессия истекла. Необходимо войти в систему заново.')
+               return router.push({ name: 'login' })
           case 404:
                return toast.error('По запросу ничего не найдено');
           case 422:

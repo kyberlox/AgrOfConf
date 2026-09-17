@@ -74,7 +74,7 @@ open_links = ["/api/docs", "/api/openapi.json", '/api/auth/redirect']
 
 redis_storage = RedisStorage()
 
-
+import time
 
 @app.middleware("http")
 async def session_middleware(request: Request, call_next):
@@ -147,6 +147,7 @@ async def session_middleware(request: Request, call_next):
 
         # Обычный случай – вызываем следующий обработчик
         response = await call_next(request)
+        
         return response
     except HTTPException as e:
         return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
