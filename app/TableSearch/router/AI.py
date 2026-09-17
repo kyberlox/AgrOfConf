@@ -85,7 +85,7 @@ def _extract_json_from_response(text: str) -> dict:
 @router.post("/upload_OL")
 async def upload_OL(
     # product_id: int,
-    user_promt: Optional[str] = Body(None, embed=True),
+    # user_promt: Optional[str] = Body(None, embed=True),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     statistic_router = Depends(get_recognition_router),
@@ -94,36 +94,14 @@ async def upload_OL(
     from copy import deepcopy
     try:
         start_all = time.time()
-
-        PROMT = f"""
-        Из документа, который я прислал, извлеки все параметры и их значения.
-        Верни результат строго в формате Markdown-таблицы с двумя колонками.
-
-        ПРАВИЛА:
-
-        1. Таблица: | Параметр | Значение |
-        2. В значении сначала значение, потом единица измерения через запятую, если есть.
-        3. Если параметр имеет несколько числовых значений с уточнениями (например, давление рабочее, настройки, расчётное) — оформи их как вложенный список с дефисом:
-        | Давление (избыточное) | |
-        | - Рабочее | 1.6, МПа |
-        | - Настройка | 1.8, МПа |
-        4. Если в строке есть выбор из вариантов (например, «да/yes нет/no», «Колпак глухой / открытый», «с пружинной нагрузкой / с грузом») — выбери тот вариант, который явно отмечен (подчёркнут, жирный, обведён, отмечен галочкой). Если отметка не видна, но один вариант вписан от руки или повторяется в соседнем тексте — используй его. Если отмечено несколько — перечисли через запятую. Если ни один не отмечен — запиши все варианты через косую черту, как в документе.
-        5. Если значение не указано — пропускай строку или ставь прочерк «-».
-        6. Обязательно извлеки параметры из ВСЕХ разделов: Общие сведения, Рабочие условия, Расчётные условия, Требования к конструкции, Дополнительные требования и другие, если есть. Не пропускай ни один блок.
-        7. Текстовые перечисления (например, перечень документов) объединяй через запятую в одной строке.
-        8. Не добавляй пояснений, только таблица.
-        
-        9. {user_promt}
-        """
-        if not user_promt:
-            PROMT = UNIFIED_PROMPT
+T
         
         content = await convert_file_to_jpeg_content(file)
         files = deepcopy(content)
         if not content:
             return {"error": "Unsupported file format"}
 
-        content.append({"type": "text", "text": PROMT})
+        content.append({"type": "text", "text": UNIFIED_PROMPT})
 
         response = await client.chat.completions.create(
             # model=model_type,
@@ -137,9 +115,9 @@ async def upload_OL(
         # need = response.choices[0].message.content
         # total_coast = response.usage.total_cost
         need = res['choices'][0]['message']['content']
-        parsed_need = _extract_json_from_response(need)
-        data = parsed_need.get("data", "")
-        positions = parsed_need.get("positions", [])
+        # parsed_need = _extract_json_from_response(need)
+        # data = parsed_need.get("data", "")
+        # positions = parsed_need.get("positions", [])
         # Сохраняем статистику
         # stat_info = await build_statistic_data(db, user_id, product_id)
         # stat_info['parameters'] = parsed_need
@@ -148,8 +126,8 @@ async def upload_OL(
         # is_dump = await statistic_router.save_recognition(stat_info)
         fin_all = time.time()
         print(f"Распознали ОЛ за {fin_all - start_all}, Цена: {total_coast}")
-        # return {"markdown": need, "file": files}
-        return {"markdown": data, "positions": positions, "file": files}
+        return {"markdown": need, "file": files}
+        # return {"markdown": data, "positions": positions, "file": files}
     except HTTPException:
         raise
     except Exception as e:
