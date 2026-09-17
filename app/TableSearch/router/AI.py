@@ -50,8 +50,8 @@ class Rule(BaseModel):
     default: str
 
 class ProductPromptPayload(BaseModel):
-    payload: Optional[str] = None
-    rules: Optional[list[Rule]] = None
+    validation_prompt: Optional[str] = None
+    rules_table: Optional[list[Rule]] = None
 
 def _extract_json_from_response(text: str) -> dict:
     """Извлекает JSON из ответа нейросети.
