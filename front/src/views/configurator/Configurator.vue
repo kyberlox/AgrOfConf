@@ -41,8 +41,9 @@
     <!-- Модальное окно для TKP вариантов -->
     <TkpVariants :tkpVariants="tkpVariants"
                  :tkpModalIsVisible="tkpModalIsVisible"
+                 :tkpLoading="tkpLoading"
                  @closeModal="tkpModalIsVisible = false"
-                 @downloadTkp="(TkpId: number) => handleDownloadTkp(TkpId, Number(id), userInputs)" />
+                 @downloadTkp="(TkpId: number) => handleDownloadTkp(TkpId)" />
 
     <!-- Модалка с распознанными данными -->
     <RecognitionCompare :recognitionModalVisible="recognitionModalVisible"
@@ -74,9 +75,9 @@ import { getTkpVariants } from '@/utils/getTkpVariants.ts';
 import { watchDebounced } from '@vueuse/core';
 import RecognitionCompare from './components/recognition/RecognitionCompare.vue';
 import { Marked } from '@ts-stack/markdown';
-import { handleDownloadTkp } from '@/composables/useTkp.ts';
 import ConfiguratorHeader from './components/ConfiguratorHeader.vue';
 import { useConfiguratorForm } from '@/composables/useConfiguratorForm';
+import { downloadFile } from '@/utils/downloadFile.ts';
 
 export default defineComponent({
     components: {
@@ -118,7 +119,7 @@ export default defineComponent({
         const paramsGroups = ref<Array<{ name: string; display: string; params: Array<string> }>>();
         const convertAiIsLoading = ref<boolean>(false);
         const recognitionModalVisible = ref<boolean>(false);
-
+        const tkpLoading = ref(false);
         // Параметры, которые пользователь выбрал явно (не авто-подставленные).
         const manuallyChanged = ref<Record<string, boolean>>({});
         // Защита от зацикливания повторного подбора после сброса ошибочных параметров.
@@ -143,13 +144,6 @@ export default defineComponent({
                 paramsGroups.value = data;
             }
             paramsUpdateRequest({});
-        })
-
-
-        watch(neuroOlData, () => {
-            if (neuroOlData.value) {
-                paramsUpdateRequest(neuroOlData.value)
-            }
         })
 
         const sendFileToRecognition = async (fileData: FormData, fileName: string) => {
@@ -181,8 +175,30 @@ export default defineComponent({
         const handleFileUpload = (file: FormData, fileName: string) => {
             olFormData.value = file;
             newFileName.value = fileName;
+            console.log(fileName)
             sendFileToRecognition(file, fileName);
         }
+
+        const handleDownloadTkp = async (tkpId: number) => {
+            tkpLoading.value = true;
+            try {
+                const response = await Api.post(`tkp_generation/create_tkp?file_id=${tkpId}&product_id=${props.id}&save_to_statistic=true`, userInputs.value, { responseType: 'blob' }, undefined, true);
+                if (response) {
+                    const contentDisposition = response.headers['content-disposition'];
+                    const filename = contentDisposition?.split('filename=')[1].replaceAll('"', '');
+                    await downloadFile(response.data, filename)
+                }
+            }
+            finally {
+                tkpLoading.value = false
+            }
+        }
+
+        watch(neuroOlData, () => {
+            if (neuroOlData.value) {
+                paramsUpdateRequest(neuroOlData.value)
+            }
+        })
 
         onUnmounted(() => {
             configuratorStore.$reset();
@@ -208,10 +224,11 @@ export default defineComponent({
             recognizedTable,
             recognitionModalVisible,
             docIsLoading,
+            tkpLoading,
             convertAiIsLoading,
+            handleDownloadTkp,
             handleSuccessRecognized,
             handleValueChanged,
-            handleDownloadTkp,
             handleFileUpload,
         }
     }

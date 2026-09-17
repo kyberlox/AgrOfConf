@@ -1,4 +1,4 @@
-import { ref, computed, type Ref } from 'vue';
+import { type Ref } from 'vue';
 import { replaceSpotOrComma } from "@/utils/replaceSpotOrComma";
 import Api from '@/utils/Api';
 import type { IFormattedData, userParams } from '@/assets/interfaces/IForm';
@@ -36,32 +36,36 @@ export const useConfiguratorForm = (deps: IConfiguratorDeps) => {
         paramsLoading
     } = deps
 
-    const prepareBody = (body: userParams) => {
-        if (abortController) {
-            abortController.abort();
-        }
+    const prepareBody = (body: userParams): userParams | undefined => {
         let newBody: userParams = clone(body);
-        if (freeConfigMode && Object.keys(newBody).length) {
+        if (freeConfigMode.value && Object.keys(newBody).length)
             return
+
+        if (priorityParam.value) {
+            newBody.priority = priorityParam.value
         }
         if (newBody && Object.keys(newBody).length) {
             Object.keys(newBody)?.forEach((key, index) => {
                 if (!Array.isArray(newBody[key]) && typeof newBody[key] !== 'boolean') {
                     newBody[key] = replaceSpotOrComma(newBody[key]!, 'comma');
                 }
-                if (priorityParam.value && typeof priorityParam.value == 'string')
-                    newBody.priority = priorityParam.value;
             })
         }
+
+        return newBody
     }
 
     const paramsUpdateRequest = async (body: userParams) => {
-        prepareBody(body)
+        const newBody = prepareBody(body);
+        if (abortController) {
+            abortController.abort();
+        }
         abortController = new AbortController();
         const signal = abortController.signal;
         try {
             paramsLoading.value = true;
-            const data = await Api.post(`/module_search/process_table_data?product_id=${productId}`, body, {}, signal)
+            const data = await Api.post(`/module_search/process_table_data?product_id=${productId}`, newBody, {}, signal)
+            console.log(data)
             if (data?.files) {
                 configuratorStore.setDocs(data.files)
             }
@@ -128,6 +132,7 @@ export const useConfiguratorForm = (deps: IConfiguratorDeps) => {
         }
     }
     const handleValueChanged = (value: string, key: keyof typeof userInputs.value) => {
+        priorityParam.value = String(key);
         // Сброс значения (resetValue): убираем параметр из явных выборов и
         // перезапрашиваем подбор без него, чтобы зависимые параметры пересчитались.
         if (value == null) {
@@ -151,7 +156,6 @@ export const useConfiguratorForm = (deps: IConfiguratorDeps) => {
             // Помечаем как явный выбор пользователя — такой параметр не будет
             // перезаписан авто-подстановкой и останется в приоритете.
             manuallyChanged.value[String(key)] = true;
-            priorityParam.value = String(key);
             // При выключении чекбокса «Смесь»: очищаем связанные параметры,
             // чтобы они не оставались в выборе и не отправлялись на сервер.
             if (key === 'Смесь' && typeof prepared == 'boolean' && prepared === false) {
@@ -179,9 +183,6 @@ export const useConfiguratorForm = (deps: IConfiguratorDeps) => {
             for (const [key, current] of Object.entries(userInputs.value)) {
                 const formTarget = form.value.find(formEl => formEl.name == key)
                 const serverValue = formTarget?.response_value
-                // Параметр-состав смеси (select-input) — массив {среда: доля}: сравниваем
-                // по содержимому, а не по ссылке — сервер каждый раз присваивает
-                // новый объект. Если пользователь менял состав — отправляем.
                 if (Array.isArray(current) || Array.isArray(serverValue)) {
                     if (!arraysEqual(current, serverValue)) {
                         shouldSend = true;
@@ -192,7 +193,9 @@ export const useConfiguratorForm = (deps: IConfiguratorDeps) => {
                     break;
                 }
             }
-            if (shouldSend) return paramsUpdateRequest(userInputs.value)
+            if (shouldSend) {
+                return paramsUpdateRequest(userInputs.value)
+            }
         }
     }
     return {
