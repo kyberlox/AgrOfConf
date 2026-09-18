@@ -1,10 +1,15 @@
 import re
 
-from fastapi import APIRouter, Depends, Body, HTTPException
+from fastapi import APIRouter, Depends, Body, HTTPException, Query 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, select
 import time
 from collections import defaultdict
+
+from typing import tuple
+
+from app.UserService.utils.auth_utils import get_user_id_by_session_id
+from app.StatisticsService.utils.deps import build_statistic_data
 
 from app.TablePakage.model.database import get_db
 from app.TablePakage.model.product_files import ProductFiles
@@ -22,6 +27,18 @@ from app.formulas.integration import (
 
 router = APIRouter(prefix="/module_search", tags=["Module_search"])
 
+async def save_statistic(db, statistic_router, user_id, product_id, parameters) -> tuple[dict, object]:
+    stat_info = await build_statistic_data(db, user_id, product_id)
+    stat_info["parameters"] = parameters
+    stat_info["document_number"] = await statistic_router.get_number_document(user_id) + 1
+    is_dump = await statistic_router.save_selection(stat_info)
+    return stat_info, is_dump
+
+async def update_statistic(db, statistic_router, user_id, product_id, parameters, record_id) -> tuple[dict, object]:
+    stat_info = await build_statistic_data(db, user_id, product_id)
+    stat_info["parameters"] = parameters
+    is_dump = await statistic_router.update(record_id, stat_info)
+    return stat_info, is_dump
 
 def natural_sort_key(value):
     value = str(value).strip().lower()
@@ -619,11 +636,19 @@ def get_ordered_table_params(
     description="Модуль табличного подбора",
 )
 async def process_table_data(
-        product_id: int,
-        selected_params: dict[str, str | int | float | list] | None = Body(None),
-        db: AsyncSession = Depends(get_db),
-):
+    product_id: int,
+    recognition_id: str | int | None = Query(
+        default=None,
+        description="ID подбора",
+        examples=["123ljkaasd123", 12345],
+    ),
+    selected_params: dict[str, str | int | float | list] | None = Body(None),
+    db: AsyncSession = Depends(get_db),
+    user_id: Optional[int] = Depends(get_user_id_by_session_id),
+    statistic_router=Depends(get_selection_router)
+):  
     start_time = time.perf_counter()
+   
     selected_params = dict(selected_params or {})
 
     priority = selected_params.pop("priority", None)
@@ -761,10 +786,19 @@ async def process_table_data(
                 else param["id"]
             )
         )
+        if not recognition_id:
+            # если сохранения подбора еще не было
+            # сохраняем заглушку
+            stat_info, is_dump = await save_statistic(db, statistic_router, user_id, product_id, selected_params)
+            recognition_id = is_dump.data["elastic_response"].get("_id")
+        else:
+            # обноваляем подбор
+            stat_info, is_dump = await update_statistic(db, statistic_router, user_id, product_id, selected_params, recognition_id)
 
         return {
             "product_id": product_id,
             "product_name": product_name,
+            "recognition_id": recognition_id,
             "files": product_files,
             "parameters": response_params,
             "matched_rows": full_matched_rows,
@@ -1075,12 +1109,20 @@ async def process_table_data(
         )
     )
     time_after_formula = time.perf_counter() - time_before_fromula
-    print(
-        f'Время формульного подбора {time_after_formula}, Время табличного подбора: {time_before_fromula - start_time}')
+    print(f'Время формульного подбора {time_after_formula}, Время табличного подбора: {time_before_fromula - start_time}')
+    if not recognition_id:
+        # если сохранения подбора еще не было
+        # сохраняем заглушку
+        stat_info, is_dump = await save_statistic(db, statistic_router, user_id, product_id, selected_params)
+        recognition_id = is_dump.data["elastic_response"].get("_id")
+    else:
+        # обноваляем подбор
+        stat_info, is_dump = await update_statistic(db, statistic_router, user_id, product_id, selected_params, recognition_id)
     # total_res = [param for param in response_params if ]
     return {
         "product_id": product_id,
         "product_name": product_name,
+        "recognition_id": recognition_id,
         "files": product_files,
         "parameters": response_params,
         "matched_rows": total_matched_rows,
