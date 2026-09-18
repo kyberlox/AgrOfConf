@@ -4,10 +4,10 @@
     <h3 class="text-lg font-medium mb-2">Системный промпт</h3>
     <div v-for="item in ['validation_prompt', 'unified_prompt']"
          :key="item">
-        <span>{{ ruPromptNames[item] }}</span>
+        <span>{{ ruPromptNames[item as keyof typeof ruPromptNames] }}</span>
         <BaseTextarea class="mt-[10px]"
-                      :textarea-settings="initTextareaProps(item, systemPrompt[item] || '')"
-                      @value-changed="(val) => systemPrompt[item] = val" />
+                      :textarea-settings="initTextareaProps(item, String(systemPrompt[item as keyof typeof systemPrompt]) || '')"
+                      @value-changed="(val) => systemPrompt[item as keyof typeof systemPrompt] = val" />
     </div>
     <span>Значения по умолчанию</span>
     <div v-if="systemPrompt.rules_table?.length"

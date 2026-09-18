@@ -1,133 +1,185 @@
 <template>
-    <div class="min-h-[86vh] bg-white rounded-lg w-full p-[16px]">
-        <div class="flex flex-row justify-start gap-[25px] flex-wrap">
-            <div class="max-w-full lg:max-w-[40%] p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
-                <div class="text-lg text-blue-800 font-medium mb-2 grow">
-                    Информация о редактировании
-                </div>
-                <div class="text-md text-gray-700">
-                    Для изменения логики подбора по табличным параметрам необходимо отредактировать
-                    исходный excel файл, сперва скачав его, отредактировав и затем загрузив по
-                    кнопкам в блоке Excel, добавить или отредактировать формульные параметры можно
-                    по нажатию на блок или кнопку "+"
-                </div>
+<div class="min-h-[86vh] bg-white rounded-lg w-full p-[16px]">
+    <div class="flex flex-row justify-start gap-[25px] flex-wrap">
+        <div class="max-w-full lg:max-w-[40%] p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
+            <div class="text-lg text-blue-800 font-medium mb-2 grow">
+                Информация о редактировании
             </div>
-            <div class="flex justify-start gap-2">
-                <div
-                    class="flex flex-row flex-wrap md:flex-nowrap gap-2 items-center border border-green-300 bg-green-100 rounded-md p-4">
-                    <div class="text-lg w-full">Excel</div>
-                    <BaseButton :buttonSettings="{ class: 'button-primary', disabled: excellDownloading }"
-                        @click="downloadExcell">
-                        <Loader v-if="excellDownloading" />
-                        <span v-else>Скачать</span>
-                    </BaseButton>
-
-                    <VInputFile :buttonClass="'button-primary'" :needFileNameInTitle="false"
-                        :isLoading="excellUploading" @fileUpload="(file) => handleExcellUpload(file)" />
-                </div>
-            </div>
-            <div class="flex justify-start gap-2">
-                <div
-                    class="flex flex-row flex-wrap md:flex-nowrap gap-2 items-center border border-indigo-300 bg-indigo-100 rounded-md p-4">
-                    <div class="text-lg w-full">Перенос конфигурации</div>
-                    <BaseButton :buttonSettings="{ class: 'button-primary', disabled: exporting }"
-                        @clicked="exportProduct">
-                        <Loader v-if="exporting" />
-                        <span v-else>Экспорт</span>
-                    </BaseButton>
-                    <VInputFile :buttonClass="'button-primary'" :needFileNameInTitle="false" :fileName="'Импорт'"
-                        :isLoading="importing" @fileUpload="handleImportFile" />
-                </div>
-            </div>
-            <div class="w-fit m-auto">
-                <Transition name="fade-btn">
-                    <BaseButton v-if="sortChanged" :buttonSettings="{ class: 'button-primary' }" @clicked="sendNewSort">
-                        Принять сортировку
-                    </BaseButton>
-                </Transition>
+            <div class="text-md text-gray-700">
+                Для изменения логики подбора по табличным параметрам необходимо отредактировать
+                исходный excel файл, сперва скачав его, отредактировав и затем загрузив по
+                кнопкам в блоке Excel, добавить или отредактировать формульные параметры можно
+                по нажатию на блок или кнопку "+"
             </div>
         </div>
-        <div class="flex flex-row items-center justify-start gap-[15px]">
-            <div class="mt-[20px] max-w-[250px] w-[250px]" v-for="item in actionButtons" :key="item.name">
-                <BaseButton :buttonSettings="{ class: 'button-secondary' }" @clicked="handleActionButton(item.name)">
-                    {{ item.title }}
+        <div class="flex justify-start gap-2">
+            <div
+                 class="flex flex-row flex-wrap md:flex-nowrap gap-2 items-center border border-green-300 bg-green-100 rounded-md p-4">
+                <div class="text-lg w-full">Excel</div>
+                <BaseButton :buttonSettings="{ class: 'button-primary', disabled: excelDownloading }"
+                            @click="downloadExcel">
+                    <Loader v-if=excelDownloading
+                            class="button-primary__loader" />
+                    <span v-else>Скачать</span>
                 </BaseButton>
+
+                <VInputFile :buttonClass="'button-primary'"
+                            :needFileNameInTitle="false"
+                            :isLoading="excelUploading"
+                            @fileUpload="(file) => handleExcelUpload(file)" />
             </div>
-            <div class="mt-[20px] max-w-[250px] w-[250px]">
-                <BaseButton :buttonSettings="{ class: 'button-primary' }" @clicked="createParamModalVisible = true">
-                    Создать параметр
+        </div>
+        <div class="flex justify-start gap-2">
+            <div
+                 class="flex flex-row flex-wrap md:flex-nowrap gap-2 items-center border border-indigo-300 bg-indigo-100 rounded-md p-4">
+                <div class="text-lg w-full">Перенос конфигурации</div>
+                <BaseButton :buttonSettings="{ class: 'button-primary', disabled: exporting }"
+                            @clicked="exportProduct">
+                    <Loader class="button-primary__loader"
+                            v-if="exporting" />
+                    <span v-else>Экспорт</span>
                 </BaseButton>
+                <VInputFile :buttonClass="'button-primary'"
+                            :needFileNameInTitle="false"
+                            :fileName="'Импорт'"
+                            :isLoading="importing"
+                            @fileUpload="handleImportFile" />
             </div>
         </div>
-
-        <!-- Статистика подборов по продукту -->
-        <div class="mt-[20px] border border-gray-200 p-[20px] rounded-xl">
-            <h3 class="text-lg font-medium mb-2">Статистика подборов по продукту</h3>
-            <p v-if="!productStatistics.length" class="text-sm text-gray-500">
-                Пока нет данных о подборах.
-            </p>
-            <ul v-else class="flex flex-col gap-2 max-h-[220px] overflow-auto">
-                <li v-for="(s, i) in productStatistics" :key="i"
-                    class="text-sm flex flex-row justify-between gap-4 border-b border-gray-100 pb-1">
-                    <span>Документ №{{ s.document_number ?? "-" }}</span>
-                    <span>{{ s.date_search ?? "" }} — {{ s.status ?? "" }}</span>
-                </li>
-            </ul>
+        <div class="w-fit m-auto">
+            <Transition name="fade-btn">
+                <BaseButton v-if="sortChanged"
+                            class="button-primary__loader"
+                            :buttonSettings="{ class: 'button-primary' }"
+                            @clicked="sendNewSort">
+                    Принять сортировку
+                </BaseButton>
+            </Transition>
         </div>
-
-        <!-- Блоки параметров -->
-        <div class="mt-[20px]">
-            <BlocksManager v-if="safeProductId !== null" :productId="safeProductId" @changed="getParams" />
-        </div>
-
-        <div class="flex flex-col gap-[20px]">
-            <div v-if="!productTableType.length"
-                class="mt-4 border border-dashed border-gray-300 p-[24px] rounded-xl text-center text-gray-500">
-                <p class="text-[16px] font-medium mb-1">Параметры продукта ещё не заданы</p>
-                <p class="text-sm">
-                    Загрузите Excel‑таблицу в блоке «Excell» (кнопка загрузки) — будут созданы
-                    таблица и её параметры, либо создайте параметр вручную кнопкой «Создать
-                    параметр».
-                </p>
-            </div>
-            <div class="flex flex-col gap-2 mt-4 border border-gray-200 p-[20px] rounded-xl"
-                v-if="productTableType.length">
-                <div class="flex flex-row justify-start gap-[40px] flex-wrap">
-                    <div v-for="item in parameterLegend" :key="item.label" class="flex flex-row gap-[15px]">
-                        <h3 class="block">{{ item.label }}</h3>
-                        <div class="w-[20px] h-[20px] rounded-md" :class="item.color"></div>
-                    </div>
-                </div>
-                <div>
-                    <VueDraggable v-model="productTableType" :animation="150" target=".sort-target" @start="onStart"
-                        @end="onEnd">
-                        <TransitionGroup type="transition" tag="ul" :name="!drag ? 'fade' : undefined"
-                            class="sort-target grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-4 gap-4 max-w-full mt-4">
-                            <ProductParameterCard v-for="parameter in productTableType" :key="parameter.id"
-                                :parameter="parameter" @delete="deleteParam" @edit="changeSettings" />
-                        </TransitionGroup>
-                    </VueDraggable>
-                </div>
-            </div>
-        </div>
-        <ParameterSettings v-if="productSettingsVisible && selectedParameter" :parameter="selectedParameter"
-            :disabled="parameterUpdating" @updateParameter="(id, parameter) => updateParameter(id, parameter)"
-            @closeModal="closeParameterSettings" />
-
-        <UploadedOl v-if="id" :id="id" :isOpen="olListModalOpen" :olList="olList" :olIsLoading="olIsLoading"
-            @closeModal="olListModalOpen = false" @updateOlList="uploadOl" @removeOl="removeOl" />
-
-        <TablesManageModal v-if="tablesModalIsOpen" :tables="Array.from(productTablesList)"
-            @closeModal="tablesModalIsOpen = false" @deleteTable="deleteTableFromProduct" />
-
-        <CertificatesModal v-if="id" :id="id" :isOpen="filesModalIsOpen" :filesList="filesList"
-            :isLoading="filesIsLoading" @closeModal="filesModalIsOpen = false" @updateFilesList="uploadFile"
-            @removeFile="removeFile" />
-
-        <CreateParameterModal v-if="safeProductId !== null" :showModal="createParamModalVisible"
-            :productId="safeProductId" :tables="productTablesList" @closeModal="createParamModalVisible = false"
-            @created="getParams" />
     </div>
+    <div class="flex flex-row items-center justify-start gap-[15px]">
+        <div class="mt-[20px] max-w-[250px] w-[250px]"
+             v-for="item in actionButtons"
+             :key="item.name">
+            <BaseButton :buttonSettings="{ class: 'button-secondary' }"
+                        @clicked="handleActionButton(item.name)">
+                {{ item.title }}
+            </BaseButton>
+        </div>
+        <div class="mt-[20px] max-w-[250px] w-[250px]">
+            <BaseButton :buttonSettings="{ class: 'button-primary' }"
+                        @clicked="createParamModalVisible = true">
+                Создать параметр
+            </BaseButton>
+        </div>
+    </div>
+
+    <!-- Статистика подборов по продукту -->
+    <div class="mt-[20px] border border-gray-200 p-[20px] rounded-xl">
+        <h3 class="text-lg font-medium mb-2">Статистика подборов по продукту</h3>
+        <p v-if="!productStatistics.length"
+           class="text-sm text-gray-500">
+            Пока нет данных о подборах.
+        </p>
+        <ul v-else
+            class="flex flex-col gap-2 max-h-[220px] overflow-auto">
+            <li v-for="(s, i) in productStatistics"
+                :key="i"
+                class="text-sm flex flex-row justify-between gap-4 border-b border-gray-100 pb-1">
+                <span>Документ №{{ s.document_number ?? "-" }}</span>
+                <span>{{ s.date_search ?? "" }} — {{ s.status ?? "" }}</span>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Блоки параметров -->
+    <div class="mt-[20px]">
+        <BlocksManager v-if="safeProductId !== null"
+                       :productId="safeProductId"
+                       @changed="getParams" />
+    </div>
+
+    <div class="flex flex-col gap-[20px]">
+        <div v-if="!productTableType.length"
+             class="mt-4 border border-dashed border-gray-300 p-[24px] rounded-xl text-center text-gray-500">
+            <p class="text-[16px] font-medium mb-1">Параметры продукта ещё не заданы</p>
+            <p class="text-sm">
+                Загрузите Excel‑таблицу в блоке «excel» (кнопка загрузки) — будут созданы
+                таблица и её параметры, либо создайте параметр вручную кнопкой «Создать
+                параметр».
+            </p>
+        </div>
+        <div class="flex flex-col gap-2 mt-4 border border-gray-200 p-[20px] rounded-xl"
+             v-if="productTableType.length">
+            <div class="flex flex-row justify-start gap-[40px] flex-wrap">
+                <div v-for="item in parameterLegend"
+                     :key="item.label"
+                     class="flex flex-row gap-[15px]">
+                    <h3 class="block">{{ item.label }}</h3>
+                    <div class="w-[20px] h-[20px] rounded-md"
+                         :class="item.color"></div>
+                </div>
+            </div>
+            <div>
+                <VueDraggable v-model="productTableType"
+                              :animation="150"
+                              target=".sort-target"
+                              @start="onStart"
+                              @end="onEnd">
+                    <TransitionGroup type="transition"
+                                     tag="ul"
+                                     :name="!drag ? 'fade' : undefined"
+                                     class="sort-target grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-4 gap-4 max-w-full mt-4">
+                        <ProductParameterCard v-for="parameter in productTableType"
+                                              :key="parameter.id"
+                                              :parameter="parameter"
+                                              @delete="deleteParam"
+                                              @edit="changeSettings" />
+                    </TransitionGroup>
+                </VueDraggable>
+            </div>
+        </div>
+    </div>
+    <ParameterSettings v-if="productSettingsVisible && selectedParameter"
+                       :parameter="selectedParameter"
+                       :disabled="parameterUpdating"
+                       @updateParameter="(id, parameter) => updateParameter(id, parameter)"
+                       @closeModal="closeParameterSettings" />
+
+    <UploadedOl v-if="id"
+                :id="id"
+                :isOpen="olListModalOpen"
+                :olList="olList"
+                :olIsLoading="olIsLoading"
+                @closeModal="olListModalOpen = false"
+                @updateOlList="uploadOl"
+                @removeOl="removeOl" />
+
+    <TablesManageModal v-if="tablesModalIsOpen"
+                       :tables="Array.from(productTablesList)"
+                       @closeModal="tablesModalIsOpen = false"
+                       @deleteTable="deleteTableFromProduct" />
+
+    <CertificatesModal v-if="id"
+                       :id="id"
+                       :isOpen="filesModalIsOpen"
+                       :filesList="filesList"
+                       :isLoading="filesIsLoading"
+                       @closeModal="filesModalIsOpen = false"
+                       @updateFilesList="uploadFile"
+                       @removeFile="removeFile" />
+
+    <CreateParameterModal v-if="safeProductId !== null"
+                          :showModal="createParamModalVisible"
+                          :productId="safeProductId"
+                          :tables="productTablesList"
+                          @closeModal="createParamModalVisible = false"
+                          @created="getParams" />
+
+    <PromptEditBlock :id="Number(id)"
+                     :params="productTableType" />
+
+</div>
 </template>
 <script lang="ts">
 import Api from '@/utils/Api'
@@ -150,6 +202,7 @@ import CertificatesModal from './CertificatesModal.vue'
 import { getProductFiles } from '@/utils/getProductFiles.ts'
 import { type IProductFile } from '@/assets/interfaces/IProductFile.ts'
 import ProductParameterCard from './components/ProductParameterCard.vue'
+import PromptEditBlock from './components/PromptEditBlock.vue';
 
 interface ProductStatistic {
     document_number?: string | number
@@ -182,6 +235,7 @@ export default defineComponent({
         BlocksManager,
         CertificatesModal,
         ProductParameterCard,
+        PromptEditBlock,
     },
     props: {
         id: {
@@ -199,8 +253,8 @@ export default defineComponent({
         const olListModalOpen = ref(false)
         const olList = ref<ITkpVariant[]>([])
         const olIsLoading = ref(false)
-        const excellDownloading = ref(false)
-        const excellUploading = ref(false)
+        const excelDownloading = ref(false)
+        const excelUploading = ref(false)
         const exporting = ref(false)
         const importing = ref(false)
         const tablesModalIsOpen = ref(false)
@@ -216,7 +270,7 @@ export default defineComponent({
 
         const downloadExcel = async () => {
             try {
-                excellDownloading.value = true
+                excelDownloading.value = true
                 const response = await Api.post(
                     `tables/download_xlsx?product_id=${props.id}`,
                     undefined,
@@ -230,20 +284,20 @@ export default defineComponent({
             } catch (error) {
                 console.error(error)
             } finally {
-                excellDownloading.value = false
+                excelDownloading.value = false
             }
         }
 
-        const handleExcellUpload = async (file: File) => {
-            excellUploading.value = true
+        const handleExcelUpload = async (file: File) => {
+            excelUploading.value = true
             const body = new FormData()
             body.append('file', file)
             try {
                 await Api.post(`tables/upload_xlsx?product_id=${props.id}`, body)
             } catch (error) {
-                console.error('excellUpload', error)
+                console.error('excelUpload', error)
             } finally {
-                excellUploading.value = false
+                excelUploading.value = false
                 getParams()
             }
         }
