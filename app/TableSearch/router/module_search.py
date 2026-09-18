@@ -6,7 +6,7 @@ from sqlalchemy import text, select
 import time
 from collections import defaultdict
 
-
+from app.StatisticsService.router.selection_router import get_selection_router
 from app.UserService.utils.auth_utils import get_user_id_by_session_id
 from app.StatisticsService.utils.deps import build_statistic_data
 
