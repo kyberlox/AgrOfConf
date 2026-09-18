@@ -156,14 +156,13 @@ class ElasticStatisticRepo(DatabaseStatistic):
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    async def get_by_id(self, id: Union[str, int]):
+    async def get_by_id(self, id: Union[str, int]) -> Dict[str, Any]:
         try:
             response = await asyncio.to_thread(
                 self.db.get, index=self.model, id=str(id)
             )
             if response.get("found") is False:
-
-                return []
+                return {}
             return convert_to_responce_format(response)
         except NotFoundError as e:
             raise HTTPException(status_code=404, detail="Document not found")

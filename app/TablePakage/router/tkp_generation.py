@@ -48,16 +48,16 @@ def validate_file(file: UploadFile) -> None:
         raise HTTPException(status_code=400, detail="Invalid file extension. Allowed: .docx, .xlsx")
 
 
-async def convert_data(user_dict: dict, db_info: dict) -> dict:
-    date = datetime.strptime(db_info["date_search"], "%d.%m.%Y %H:%M:%S").strftime("%d.%m.%Y")
+async def convert_data(user_dict: dict) -> dict:
+    date = datetime.strptime(user_dict["date_search"], "%d.%m.%Y %H:%M:%S").strftime("%d.%m.%Y")
     user_dict.update({
         "дата": date,
         "ТКС": user_dict["id"],
-        "адрес_исполнителя": db_info["user_work_city"],
-        "телефон_исполнителя": db_info["user_work_phone"],
-        "email_исполнителя": db_info["user_email"],
-        "фио_исполнителя": db_info["user_fio"],
-        "должность_исполнителя": db_info["user_work_position"],
+        "адрес_исполнителя": user_dict["user_work_city"],
+        "телефон_исполнителя": user_dict["user_work_phone"],
+        "email_исполнителя": user_dict["user_email"],
+        "фио_исполнителя": user_dict["user_fio"],
+        "должность_исполнителя": user_dict["user_work_position"],
     })
     return user_dict
 
@@ -69,12 +69,12 @@ async def get_template(db: AsyncSession, file_id: int) -> TKP:
     return file_info
 
 
-async def save_statistic(db, statistic_router, user_id, product_id, parameters) -> tuple[dict, object]:
-    stat_info = await build_statistic_data(db, user_id, product_id)
-    stat_info["parameters"] = parameters
-    stat_info["document_number"] = await statistic_router.get_number_document(user_id) + 1
-    is_dump = await statistic_router.save_selection(stat_info)
-    return stat_info, is_dump
+# async def save_statistic(db, statistic_router, user_id, product_id, parameters) -> tuple[dict, object]:
+#     stat_info = await build_statistic_data(db, user_id, product_id)
+#     stat_info["parameters"] = parameters
+#     stat_info["document_number"] = await statistic_router.get_number_document(user_id) + 1
+#     is_dump = await statistic_router.save_selection(stat_info)
+#     return stat_info, is_dump
 
 
 async def find_drawing_path(db: AsyncSession, product_id: int, marking: Optional[str]) -> Optional[str]:
@@ -176,7 +176,7 @@ def file_response(stream: BytesIO, media_type: str, filename: str) -> StreamingR
 async def tkp_generation(
     file_id: int,
     product_id: int,
-    user_dict: dict,
+    recognition_id: str | int,
     db: AsyncSession = Depends(get_db),
     user_id: Optional[int] = Depends(get_user_id_by_session_id),
     statistic_router=Depends(get_selection_router),
@@ -186,11 +186,12 @@ async def tkp_generation(
         if "Маркировка" not in user_dict:
             raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
 
-        stat_info, is_dump = await save_statistic(db, statistic_router, user_id, product_id, user_dict)
+        recognition_data = await statistic_router.get_selection_by_id(recognition_id)
+        params = recognition_data.pop("parameters")
+        recognition_data.update(params)
 
-        user_dict["id"] = is_dump.data["elastic_response"].get("_id")
-        user_dict = await convert_data(user_dict, stat_info)
-        user_dict["document_number"] = is_dump.data["elastic_response"].get("document_number")
+        #Сериализуем данные
+        user_dict = await convert_data(recognition_data)
 
         drawing_path = await find_drawing_path(db, product_id, user_dict.get("Маркировка"))
         filename = (
