@@ -6,7 +6,6 @@ export const checkTimeLeft = (dateTo: string) => {
     if (timeLeft < 0) {
         return 'outdated';
     } else {
-        console.log(timeLeft / 60 / 60 / 60 / 24);
         return timeLeft / 60 / 60 / 60 / 24;
     }
 }

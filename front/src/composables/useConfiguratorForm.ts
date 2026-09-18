@@ -65,7 +65,6 @@ export const useConfiguratorForm = (deps: IConfiguratorDeps) => {
         try {
             paramsLoading.value = true;
             const data = await Api.post(`/module_search/process_table_data?product_id=${productId}`, newBody, {}, signal)
-            console.log(data)
             if (data?.files) {
                 configuratorStore.setDocs(data.files)
             }

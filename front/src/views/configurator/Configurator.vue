@@ -175,7 +175,6 @@ export default defineComponent({
         const handleFileUpload = (file: FormData, fileName: string) => {
             olFormData.value = file;
             newFileName.value = fileName;
-            console.log(fileName)
             sendFileToRecognition(file, fileName);
         }
 

@@ -159,7 +159,6 @@ export default defineComponent({
         }
 
         const handleFileUpload = (file: FormData, fileName: string) => {
-            console.log(file.get('file'))
             emit('readyToUploadFile', file, fileName);
         }
 

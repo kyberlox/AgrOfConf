@@ -15,12 +15,11 @@
         <div class="grid grid-cols-4 gap-[20px]  p-[15px]">
             <div v-for="(rule, index) in systemPrompt.rules_table"
                  :key="'rule' + index">
-                <div class="flex flex-row item-center justify-center content-center gap-[5px]"
-                     @click="console.log(rule.default)">
+                <div class="flex flex-row item-center justify-center content-center gap-[5px]">
                     <BaseInput :inputSettings="initInputSettings(rule, index)"
                                @valueChanged="(value: string) => handleValueChanged(rule.name, value)" />
                     <div class="text-sm mb-auto bg-red-500 rounded-md w-[25px] text-center  text-white hover:bg-red-600 cursor-pointer"
-                         @click="console.log(rule); deleteRule(rule.name)">
+                         @click="deleteRule(rule.name)">
                         X</div>
                 </div>
             </div>
@@ -92,7 +91,6 @@ export default defineComponent({
 
         onMounted(async () => {
             systemPrompt.value = await Api.get(`/AI/get_product_prompt/${props.id}`)
-            console.log(systemPrompt.value)
         })
 
         const initTextareaProps = (name: string, value: string) => {
@@ -106,7 +104,6 @@ export default defineComponent({
         }
 
         const initInputSettings = (param: { name: string, default: string }, index: number | string) => {
-            console.log(param)
             return {
                 class: 'input-param--no-group',
                 placeholder: 'Впишите значение',
@@ -121,7 +118,6 @@ export default defineComponent({
             try {
                 promptIsLoading.value = true;
                 const data = await Api.post(`/AI/save_product_prompt/${props.id}`, systemPrompt.value)
-                console.log(data)
             } finally {
                 promptIsLoading.value = false;
             }
