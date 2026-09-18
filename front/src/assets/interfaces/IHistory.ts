@@ -1,6 +1,11 @@
-type IHistoryParam = Record<string, string>;
+type IHistoryParam = Record<string, string>
 
 export interface IHistory {
-    [key: string]: string | number | IHistoryParam,
-    total_count: number
+  [key: string]: string | number | IHistoryParam
+  total_count: number
+}
+
+export interface IHistoryResponse {
+  data: IHistory[]
+  total_count: number
 }
