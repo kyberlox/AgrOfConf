@@ -175,8 +175,7 @@ async def tkp_generation(
 ):
     try:
         template = await get_template(db, file_id)
-        if "Маркировка" not in user_dict:
-            raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
+        
 
         recognition_data = await statistic_router.get_selection_by_id(recognition_id)
         params = recognition_data.pop("parameters")
@@ -184,6 +183,9 @@ async def tkp_generation(
 
         #Сериализуем данные
         user_dict = await convert_data(recognition_data)
+
+        if "Маркировка" not in user_dict:
+            raise HTTPException(status_code=400, detail="Не все обязательные поля заполнены")
 
         drawing_path = await find_drawing_path(db, product_id, user_dict.get("Маркировка"))
         filename = (
