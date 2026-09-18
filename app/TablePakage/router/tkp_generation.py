@@ -69,14 +69,6 @@ async def get_template(db: AsyncSession, file_id: int) -> TKP:
     return file_info
 
 
-# async def save_statistic(db, statistic_router, user_id, product_id, parameters) -> tuple[dict, object]:
-#     stat_info = await build_statistic_data(db, user_id, product_id)
-#     stat_info["parameters"] = parameters
-#     stat_info["document_number"] = await statistic_router.get_number_document(user_id) + 1
-#     is_dump = await statistic_router.save_selection(stat_info)
-#     return stat_info, is_dump
-
-
 async def find_drawing_path(db: AsyncSession, product_id: int, marking: Optional[str]) -> Optional[str]:
     if not marking:
         return None
@@ -210,44 +202,6 @@ async def tkp_generation(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка при генерации ТКП: {str(e)}")
-
-
-@router.post("/create_history_tkp", status_code=201, description="Создание ТКП из истории")
-async def create_tkp_from_history(
-    file_id: int,
-    node_id: Union[int, str],
-    db: AsyncSession = Depends(get_db),
-    statistic_router=Depends(get_selection_router),
-):
-    try:
-        user_history = await statistic_router.get_selection_by_id(node_id)
-        if not user_history:
-            raise HTTPException(status_code=404, detail="История не найдена")
-
-        template = await get_template(db, file_id)
-
-        recognition_data = await statistic_router.get_selection_by_id(recognition_id)
-        params = recognition_data.pop("parameters")
-        recognition_data.update(params)
-
-        #Сериализуем данные
-        user_dict = await convert_data(recognition_data)
-
-        # user_dict = deepcopy(user_history["parameters"])
-        # user_dict["id"] = node_id
-        # user_dict = await convert_data(user_dict, user_history)
-
-        filename = f"TKP_{to_sql_name_lat(user_dict['Имя агента'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
-
-        if template.file.endswith(".docx"):
-            return file_response(render_docx(template.file, user_dict), DOCX_MEDIA_TYPE, f"{filename}.docx")
-        if template.file.endswith(".xlsx"):
-            return file_response(render_xlsx(template.file, user_dict), XLSX_MEDIA_TYPE, f"{filename}.xlsx")
-        raise HTTPException(status_code=400, detail="Неподдерживаемый формат для файла")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка при получении истории: {str(e)}")
 
 
 @router.post("/add", response_model=TKPResponse, status_code=201, description="Добавление шаблона ТКП.")
