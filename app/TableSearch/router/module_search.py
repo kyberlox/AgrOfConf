@@ -786,14 +786,17 @@ async def process_table_data(
                 else param["id"]
             )
         )
+        # Для БД сохраняю тока пару ключ-значение
+        db_data = {param['name']: param['response_value'] for param in response_params if param.get('response_value')}
+
         if not recognition_id:
             # если сохранения подбора еще не было
             # сохраняем заглушку
-            stat_info, is_dump = await save_statistic(db, statistic_router, user_id, product_id, selected_params)
+            stat_info, is_dump = await save_statistic(db, statistic_router, user_id, product_id, db_data)
             recognition_id = is_dump.data["elastic_response"].get("_id")
         else:
             # обноваляем подбор
-            stat_info, is_dump = await update_statistic(db, statistic_router, user_id, product_id, selected_params, recognition_id)
+            stat_info, is_dump = await update_statistic(db, statistic_router, user_id, product_id, db_data, recognition_id)
 
         return {
             "product_id": product_id,
@@ -1108,16 +1111,19 @@ async def process_table_data(
             else param["id"]
         )
     )
+    # Для БД сохраняю тока пару ключ-значение
+    db_data = {param['name']: param['response_value'] for param in response_params if param.get('response_value')}
+
     time_after_formula = time.perf_counter() - time_before_fromula
     print(f'Время формульного подбора {time_after_formula}, Время табличного подбора: {time_before_fromula - start_time}')
     if not recognition_id:
         # если сохранения подбора еще не было
         # сохраняем заглушку
-        stat_info, is_dump = await save_statistic(db, statistic_router, user_id, product_id, selected_params)
+        stat_info, is_dump = await save_statistic(db, statistic_router, user_id, product_id, db_data)
         recognition_id = is_dump.data["elastic_response"].get("_id")
     else:
         # обноваляем подбор
-        stat_info, is_dump = await update_statistic(db, statistic_router, user_id, product_id, selected_params, recognition_id)
+        stat_info, is_dump = await update_statistic(db, statistic_router, user_id, product_id, db_data, recognition_id)
     # total_res = [param for param in response_params if ]
     return {
         "product_id": product_id,
