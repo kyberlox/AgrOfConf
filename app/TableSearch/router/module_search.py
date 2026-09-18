@@ -6,7 +6,6 @@ from sqlalchemy import text, select
 import time
 from collections import defaultdict
 
-from typing import tuple
 
 from app.UserService.utils.auth_utils import get_user_id_by_session_id
 from app.StatisticsService.utils.deps import build_statistic_data
