@@ -17,6 +17,7 @@ from app.formulas.integration import (
     _MIXTURE_OVERRIDE_MATCHERS,
     _match_pressure_entry,
     _match_valve_entry,
+    _match_flange_entry,
 )
 
 router = APIRouter(prefix="/module_search", tags=["Module_search"])
@@ -78,8 +79,11 @@ async def get_formula_driven_param_names(
     funcs = {row["func"] for row in func_result.mappings().all() if row["func"]}
     has_pressure_driver = "nominal_pressure" in funcs
     has_valve_driver = "valve_selection" in funcs
+    has_flange_driver = (
+        "flange_standard_inlet" in funcs or "flange_standard_outlet" in funcs
+    )
 
-    if not has_pressure_driver and not has_valve_driver:
+    if not has_pressure_driver and not has_valve_driver and not has_flange_driver:
         return {}
 
     result = await db.execute(text(
@@ -130,6 +134,26 @@ async def get_formula_driven_param_names(
                 low = str(p["name"] or "").lower()
                 if _match_valve_entry(low) is not None:
                     driven[(tbl, p["name"])] = "valve"
+            continue
+
+        # Таблица фланцев: «Фланец на входе/выходе» + «Давление» + «Стандарт
+        # исполнения». Только «Давление» помечается как driven (устанавливается
+        # алгоритмом = PN); «Стандарт» и «Фланец» остаются обычными
+        # редактируемыми параметрами — пользователь может выбрать значение,
+        # module_search корректно сохраняет выбор. Фильтрация
+        # dropdown-ов «Стандарт»/«Фланец» по давлению делается отдельно
+        # в _override_flange_filtered_values (после формул).
+        has_flange = any(
+            "фланец на входе" in n or "фланец на выходе" in n
+            for n in low_names
+        )
+        has_pressure_col = any("давление" in n for n in low_names)
+        has_std_col = any("стандарт" in n for n in low_names)
+        if has_flange_driver and has_flange and has_pressure_col and has_std_col:
+            for p in params:
+                low = str(p["name"] or "").lower()
+                if _match_flange_entry(low) == "давление":
+                    driven[(tbl, p["name"])] = "flange"
 
     # Формульный параметр «Предварительное номинальное давление» (функция
     # nominal_pressure) — результат подбора таблицы давления; значения
@@ -151,6 +175,89 @@ async def get_formula_driven_param_names(
                 driven[("", name)] = "pressure"
 
     return driven
+
+
+async def _override_flange_filtered_values(
+    db: AsyncSession,
+    response_params: list[dict],
+    full_info: list[dict],
+) -> None:
+    """Пересчитывает filtered_values для «Стандарт» и «Фланец» фланцевых таблиц.
+
+    «Давление» фланцевых таблиц устанавливает алгоритм (=PN) и помечается
+    formula_driven, поэтому модуль подбора НЕ использует давление в WHERE —
+    стандарт/фланец фильтруются только по остальным выбранным параметрам.
+    Здесь, после расчёта формул, делаем целевой запрос
+    WHERE davlenie = <Давление> и обновляем filtered_values/all_values
+    для «Стандарт» и «Фланец», чтобы дропдаун показывал только допустимые
+    значения для данного давления.
+    """
+    # Группируем параметры таблиц из full_info.
+    table_params: dict[str, list[dict]] = {}
+    for item in full_info:
+        tbl = (item.get("table_name") or "").strip()
+        if not tbl:
+            continue
+        table_params.setdefault(tbl, []).append(item)
+
+    for tbl, params_list in table_params.items():
+        dav_translit = None
+        dav_name = None
+        target_cols: list[tuple[str, str]] = []  # (translit, name)
+        has_dav = False
+        for item in params_list:
+            low = str(item.get("name") or "").lower()
+            if "давление" in low:
+                has_dav = True
+                dav_name = item.get("name")
+                dav_translit = item.get("transliterated_name", "")
+            elif "стандарт" in low:
+                target_cols.append((item.get("transliterated_name", ""), item.get("name")))
+            elif "фланец" in low:
+                target_cols.append((item.get("transliterated_name", ""), item.get("name")))
+
+        if not (has_dav and dav_name and dav_translit and target_cols):
+            continue
+
+        # Ищем response_value «Давления» в ответе (значение установлено формулой).
+        dav_value = None
+        for p in response_params:
+            if p["name"] == dav_name and p.get("table_name") == tbl:
+                dav_value = p.get("response_value")
+                break
+        if dav_value is None:
+            continue
+
+        dav_str = str(dav_value).strip()
+        if not dav_str:
+            continue
+
+        select_parts = [
+            f'array_agg(DISTINCT "{t}") FILTER (WHERE "{t}" IS NOT NULL) AS "{t}"'
+            for t, _ in target_cols
+        ]
+        sql = f"""
+            SELECT {', '.join(select_parts)}
+            FROM "{tbl}"
+            WHERE "{dav_translit}" = :dav
+        """
+        try:
+            row = (await db.execute(text(sql), {"dav": dav_str})).mappings().first()
+        except Exception:  # noqa: BLE001
+            continue
+        if not row:
+            continue
+
+        # Обновляем filtered_values и all_values для «Стандарт» и «Фланец».
+        for col_translit, target_name in target_cols:
+            vals = row.get(col_translit) or []
+            filtered = [v for v in vals if v is not None]
+            for p in response_params:
+                if p["name"] == target_name and p.get("table_name") == tbl:
+                    if filtered:
+                        p["filtered_values"] = filtered
+                        p["all_values"] = filtered
+                    break
 
 
 async def get_table_params_from_sql(
@@ -948,6 +1055,11 @@ async def process_table_data(
         list(tables_map.keys()),
         product_id,
     )
+
+    # После формул: давление известно (вычислено формулой фланца). Фильтруем
+    # dropdown «Стандарт» и «Фланец» по давлению — показываем только строки,
+    # где давление совпадает с текущим PN.
+    await _override_flange_filtered_values(db, response_params, full_info)
 
     # Получаем файлы продукта
     stmt_product_files = await db.execute(select(ProductFiles).where(ProductFiles.product_id == product_id))

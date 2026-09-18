@@ -29,14 +29,9 @@
                 <div class=" max-w-[650px] border border-gray-200 rounded-[16px] p-[15px] hover:bg-gray-50 hover:border-gray-500"
                      v-for="(image, index) in imagesUrl"
                      :key="'zi' + index">
-                    <div class="relative">
-                        <VueImageZoomer :regular="image"
-                                        :image-class="'z-10'"
-                                        hover-message="Наведите для приближения">
-                        </VueImageZoomer>
-                        <span class="absolute h-[3%] w-full bg-red-500 -my-[3px] z-50 left-0"
-                              :style="{ top: topMark + '%' }"></span>
-                    </div>
+                    <VueImageZoomer :regular="image"
+                                    hover-message="Наведите для приближения">
+                    </VueImageZoomer>
                 </div>
                 <div class="max-w-full sticky top-0 overflow-y-auto max-h-[85vh] p-[25px] recognition-table-wrapper border border-gray-200 focus:outline-0 focus:border-gray-500 rounded-[16px]"
                      contenteditable="true"
@@ -83,7 +78,6 @@ export default defineComponent({
     setup() {
         const editedTable = ref<string>('');
         const mdTableNode = ref<HTMLElement>();
-        const topMark = ref();
 
         watch((mdTableNode), () => {
             editedTable.value = String(mdTableNode.value?.innerHTML)
@@ -92,7 +86,6 @@ export default defineComponent({
         return {
             editedTable,
             mdTableNode,
-            topMark
         }
     }
 });

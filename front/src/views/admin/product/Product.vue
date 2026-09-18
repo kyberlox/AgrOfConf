@@ -214,7 +214,7 @@ export default defineComponent({
             productTableType.value.find((parameter) => parameter.id === idInSettings.value),
         )
 
-        const downloadExcell = async () => {
+        const downloadExcel = async () => {
             try {
                 excellDownloading.value = true
                 const response = await Api.post(
@@ -467,9 +467,9 @@ export default defineComponent({
             olList,
             olListModalOpen,
             olIsLoading,
-            excellUploading,
+            excelUploading,
             tablesModalIsOpen,
-            excellDownloading,
+            excelDownloading,
             exporting,
             importing,
             handleImportFile,
@@ -484,9 +484,9 @@ export default defineComponent({
             removeFile,
             uploadFile,
             handleActionButton,
-            downloadExcell,
+            downloadExcel,
             sendNewSort,
-            handleExcellUpload,
+            handleExcelUpload,
             exportProduct,
             deleteParam,
             onStart,

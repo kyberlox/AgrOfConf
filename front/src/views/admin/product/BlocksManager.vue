@@ -18,8 +18,10 @@
       его параметрам.
     </p>
 
-    <Loader v-if="loading" />
-
+    <div v-if="loading"
+         class="engine-params__loader">
+        <Loader />
+    </div>
     <div v-else-if="!blocks.length && !unassigned.length"
       class="border border-dashed border-gray-300 p-[16px] rounded-xl text-center text-gray-500 text-sm">
       Пока нет ни блоков, ни параметров. Создайте блок или сгенерируйте «Контактные

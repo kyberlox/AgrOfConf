@@ -84,7 +84,6 @@ export default defineComponent({
         }
 
         const navigateTo = (item: number | string) => {
-            console.log(item)
             if (item == '...') return
             const numItem = Number(item);
             const newPage = numItem > props.total ? props.total : numItem < 1 ? 1 : item
