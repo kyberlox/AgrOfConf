@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, select
 import time
 from collections import defaultdict
+from typing import Optional
 
 from app.StatisticsService.router.selection_router import get_selection_router
 from app.UserService.utils.auth_utils import get_user_id_by_session_id
