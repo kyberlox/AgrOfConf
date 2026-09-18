@@ -53,6 +53,18 @@ class SelectionRouter:
             return SelectionResponse(success=True, data=result)
         except Exception as e:
             return SelectionResponse(success=False, error=str(e))
+    
+    async def update_selection(
+        self, 
+        record_id: Union[str, int],
+        data: Dict[str, Any],
+    ) -> SelectionResponse:
+        """Обновить данные по подбору."""
+        try:
+            result = await self.repo.update(record_id, data)
+            return SelectionResponse(success=True, data=result)
+        except Exception as e:
+            return SelectionResponse(success=False, error=str(e))
 
     async def get_all_selection(
         self,
