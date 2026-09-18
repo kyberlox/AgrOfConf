@@ -5,47 +5,27 @@
       <div class="flex flex-col mt-[15px] gap-[15px] max-h-[700px] overflow-auto">
         <div
           class="border border-gray-200 px-[15px] py-[5px] h-[50px] rounded-[16px] bg-blue-50 flex flex-row justify-between items-center gap-[15px]"
-          v-for="file in filesList"
-          :key="file.id"
-        >
-          <a
-            :href="apiUrl + file.file_url.replace('/api', '')"
-            target="_blank"
-            class="font-semibold text-blue-700 hover:text-blue-500 truncate"
-          >
+          v-for="file in filesList" :key="file.id">
+          <a :href="apiUrl + file.file_url.replace('/api', '')" target="_blank"
+            class="font-semibold text-blue-700 hover:text-blue-500 truncate">
             {{ file.name }}
           </a>
           <div class="flex flex-row items-center gap-[12px] flex-nowrap shrink-0">
-            <span class="text-[12px] text-gray-500"
-              >Срок действия: {{ file.date_to }}</span
-            >
-            <div
-              class="text-[12px] underline text-red-600 cursor-pointer hover:text-red-400"
-              @click="$emit('removeFile', file.id)"
-            >
+            <span class="text-[12px] text-gray-500">Срок действия: {{ file.date_to }}</span>
+            <div class="text-[12px] underline text-red-600 cursor-pointer hover:text-red-400"
+              @click="$emit('removeFile', file.id)">
               Удалить
             </div>
           </div>
         </div>
       </div>
-      <div
-        class="mt-[15px] flex flex-col gap-[15px] border border-gray-200 rounded-[16px] p-[20px] max-w-[500px]"
-      >
-        <span
-          >Для добавления нового документа - заполните название, срок действия и выберите
-          файл</span
-        >
-        <BaseInput
-          v-for="field in certificateFields"
-          :key="field"
-          :inputSettings="initInputProps(field)"
-          @value-changed="(value) => updateField(field, value)"
-        />
-        <UploadFileArea
-          :disabled="!fileName || !fileDateTo"
-          :formats="'.pdf,.jpg,.jpeg,.png,.docx,.xlsx'"
-          @ready-to-upload-file="uploadCertToProduct"
-        >
+      <div class="mt-[15px] flex flex-col gap-[15px] border border-gray-200 rounded-[16px] p-[20px] max-w-[500px]">
+        <span>Для добавления нового документа - заполните название, срок действия и выберите
+          файл</span>
+        <BaseInput v-for="field in certificateFields" :key="field" :inputSettings="initInputProps(field)"
+          @value-changed="(value) => updateField(field, value)" />
+        <UploadFileArea :disabled="!fileName || !fileDateTo" :formats="'.pdf,.jpg,.jpeg,.png,.docx,.xlsx'"
+          @ready-to-upload-file="uploadCertToProduct">
           Добавить
         </UploadFileArea>
       </div>
