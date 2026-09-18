@@ -9,7 +9,7 @@
                 Для изменения логики подбора по табличным параметрам необходимо
                 отредактировать исходный
                 excel
-                файл, сперва скачав его, отредактировав и затем загрузив по кнопкам в блоке Excell, добавить или
+                файл, сперва скачав его, отредактировав и затем загрузив по кнопкам в блоке Excel, добавить или
                 отредактировать формульные параметры можно по нажатию на блок или кнопку "+"
             </div>
         </div>
@@ -18,19 +18,19 @@
                  class="flex flex-row flex-wrap md:flex-nowrap  gap-2 items-center border border-green-300 bg-green-100 rounded-md p-4">
 
                 <div class="text-lg w-full">
-                    Excell
+                    Excel
                 </div>
-                <BaseButton :buttonSettings="{ class: 'button-primary', disabled: excellDownloading }"
-                            @click="downloadExcell">
-                    <Loader v-if=excellDownloading
+                <BaseButton :buttonSettings="{ class: 'button-primary', disabled: excelDownloading }"
+                            @click="downloadExcel">
+                    <Loader v-if=excelDownloading
                             class="button-primary__loader" />
                     <span v-else>Скачать</span>
                 </BaseButton>
 
                 <VInputFile :buttonClass="'button-primary'"
                             :needFileNameInTitle="false"
-                            :isLoading="excellUploading"
-                            @fileUpload="(file) => handleExcellUpload(file)" />
+                            :isLoading="excelUploading"
+                            @fileUpload="(file) => handleExcelUpload(file)" />
             </div>
         </div>
         <div class="flex justify-start gap-2">
@@ -108,7 +108,7 @@
              class="mt-4 border border-dashed border-gray-300 p-[24px] rounded-xl text-center text-gray-500">
             <p class="text-[16px] font-medium mb-1">Параметры продукта ещё не заданы</p>
             <p class="text-sm">
-                Загрузите Excel‑таблицу в блоке «Excell» (кнопка загрузки) — будут созданы
+                Загрузите Excel‑таблицу в блоке «Excel» (кнопка загрузки) — будут созданы
                 таблица и её параметры, либо создайте параметр вручную кнопкой «Создать параметр».
             </p>
         </div>
@@ -258,7 +258,7 @@ export default defineComponent({
         const productTableType = ref<IParameter[]>([]);
         const product = computed(() => useProductsData().getProducts.find(e => e.id == Number(props.id)))
         const url = import.meta.env.VITE_API_URL;
-        const excellFileNode = ref();
+        const excelFileNode = ref();
         const drag = ref(false);
         const sortChanged = ref(false);
         const productSettingsVisible = ref(false);
@@ -267,8 +267,8 @@ export default defineComponent({
         const olListModalOpen = ref(false);
         const olList = ref<ITkpVariant[]>();
         const olIsLoading = ref(false);
-        const excellDownloading = ref(false);
-        const excellUploading = ref(false);
+        const excelDownloading = ref(false);
+        const excelUploading = ref(false);
         const exporting = ref(false);
         const importing = ref(false);
         const tablesModalIsOpen = ref(false);
@@ -279,30 +279,30 @@ export default defineComponent({
         const filesList = ref<IProductFile[]>();
         const filesIsLoading = ref(false);
 
-        const downloadExcell = async () => {
+        const downloadExcel = async () => {
             try {
-                excellDownloading.value = true;
+                excelDownloading.value = true;
                 const response = await Api.post(`tables/download_xlsx?product_id=${props.id}`, undefined, { responseType: 'blob' }, undefined, true);
                 const contentDisposition = response.headers['content-disposition'];
                 const filename = contentDisposition?.split('filename=')[1].replaceAll('"', '');
                 download(response.data, String(filename));
             }
             catch (error) { console.error(error) }
-            finally { excellDownloading.value = false }
+            finally { excelDownloading.value = false }
         }
 
-        const handleExcellUpload = async (file: File) => {
-            excellUploading.value = true;
+        const handleExcelUpload = async (file: File) => {
+            excelUploading.value = true;
             const body = new FormData();
             body.append('file', file);
             try {
                 await Api.post(`tables/upload_xlsx?product_id=${props.id}`, body)
             }
             catch (error) {
-                console.error('excellUpload', error)
+                console.error('excelUpload', error)
             }
             finally {
-                excellUploading.value = false;
+                excelUploading.value = false;
                 getParams();
             }
         }
@@ -507,7 +507,7 @@ export default defineComponent({
             productStatistics,
             loadProductStatistics,
             safeProductId,
-            excellFileNode,
+            excelFileNode,
             product,
             sortChanged,
             drag,
@@ -517,9 +517,9 @@ export default defineComponent({
             olList,
             olListModalOpen,
             olIsLoading,
-            excellUploading,
+            excelUploading,
             tablesModalIsOpen,
-            excellDownloading,
+            excelDownloading,
             exporting,
             importing,
             handleImportFile,
@@ -533,9 +533,9 @@ export default defineComponent({
             removeFile,
             uploadFile,
             handleActionButton,
-            downloadExcell,
+            downloadExcel,
             sendNewSort,
-            handleExcellUpload,
+            handleExcelUpload,
             exportProduct,
             deleteParam,
             startDrag,
