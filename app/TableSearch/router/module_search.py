@@ -37,7 +37,7 @@ async def save_statistic(db, statistic_router, user_id, product_id, parameters) 
 async def update_statistic(db, statistic_router, user_id, product_id, parameters, record_id) -> tuple[dict, object]:
     stat_info = await build_statistic_data(db, user_id, product_id)
     stat_info["parameters"] = parameters
-    is_dump = await statistic_router.update(record_id, stat_info)
+    is_dump = await statistic_router.update_selection(record_id, stat_info)
     return stat_info, is_dump
 
 def natural_sort_key(value):

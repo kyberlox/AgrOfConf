@@ -225,9 +225,17 @@ async def create_tkp_from_history(
             raise HTTPException(status_code=404, detail="История не найдена")
 
         template = await get_template(db, file_id)
-        user_dict = deepcopy(user_history["parameters"])
-        user_dict["id"] = node_id
-        user_dict = await convert_data(user_dict, user_history)
+
+        recognition_data = await statistic_router.get_selection_by_id(recognition_id)
+        params = recognition_data.pop("parameters")
+        recognition_data.update(params)
+
+        #Сериализуем данные
+        user_dict = await convert_data(recognition_data)
+
+        # user_dict = deepcopy(user_history["parameters"])
+        # user_dict["id"] = node_id
+        # user_dict = await convert_data(user_dict, user_history)
 
         filename = f"TKP_{to_sql_name_lat(user_dict['Имя агента'])}_{to_sql_name_lat(user_dict['Маркировка'])}"
 
