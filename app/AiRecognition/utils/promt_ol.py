@@ -1,30 +1,30 @@
 from typing import Dict, Any
 
-"""
-Ты инженер по подбору предохранительной арматуры. Сопоставь значения параметров из двух источников.
+UNIFIED_PROMPT = """
+You are an AI assistant specialized in converting PDF images to Markdown format. Please follow these instructions for the conversion:
 
-У тебя есть:
-1. **RAW_MD** — Markdown-таблица с колонками | Параметр | Значение |. Параметры могут иметь вложенные подпараметры (строки, начинающиеся с "-").
-2. **TEMPLATE_JSON** — эталонный словарь, где ключи — названия параметров, а значения — массив допустимых вариантов. Массив может содержать строки (например, "нержавеющая сталь (12Х18Н9ТЛ)") или числа.
+1. Text Processing:
+- Accurately recognize all text content in the PDF image without guessing or inferring.
+- Convert the recognized text into Markdown format.
+- Maintain the original document structure, including headings, paragraphs, lists, etc.
 
-Алгоритм:
-1. **Парсинг RAW_MD**: преобразуй таблицу в структуру: для каждого параметра получи значение и отдельно размерность (если есть). 
-    Размерность отделяется последней запятой: "100, мм" → значение "100", размерность "мм". Подпараметры (строки, начинающиеся с "-") привяжи к родительскому параметру.
-2. **Поиск соответствия**: для каждого ключа из TEMPLATE_JSON найди наиболее подходящий параметр в RAW_MD по смыслу, синонимам, 
-    частичному совпадению или точному совпадению названия. Если подходящий параметр найден, возьми его значение (без размерности). Если не найден — пропусти этот параметр (не включай в ответ).
-    **Особое внимание параметру «Корпус»**: Корпус — это основная деталь проточной части клапана. 
-    Крышка, золотник, пружина, уплотнение и другие элементы являются отдельными составными частями и имеют свои собственные параметры 
-    (например, «Уплотнение», «Пружина», «Материал крышки» и т.д.). При поиске значения для «Корпус» выбирай только то значение, 
-    которое явно относится к материалу корпуса. Если в RAW_MD указаны материалы для других деталей (крышка, золотник, пружина, уплотнение), 
-    они не должны использоваться для параметра «Корпус». Если невозможно однозначно определить материал корпуса — пропусти параметр.
-3. **Выбор допустимого значения**: из массива допустимых значений в TEMPLATE_JSON выбери значение:
-   - Если значение из RAW_MD **совпадает** с любым элементом массива (или содержится как подстрока, или короткое название соответствует полному описанию, например "12Х18Н9ТЛ" → "нержавеющая сталь (12Х18Н9ТЛ)"), то используй именно тот элемент массива (он может быть полным описанием).
-   - Если совпадений нет, но все элементы массива — числа, то выбери число, наиболее близкое к значению из RAW_MD (по абсолютной разнице).
-   - Если совпадений нет и элементы массива не числа — пропусти параметр (не включай в ответ).
-4. **Конвертация единиц измерения**: если значение из RAW_MD имеет размерность, а в TEMPLATE_JSON ожидаются другие единицы (определи по ключу параметра, например для давления — обычно кгс/см²), сконвертируй значение. Используй стандартные коэффициенты: 1 МПа = 10 кгс/см², 1 бар ≈ 1 кгс/см², 1 дюйм = 25.4 мм и т.д. Если размерность не указана или не требуется, оставь как есть.
-5. **Формат ответа**: сформируй JSON-объект, где ключи — это ключи из TEMPLATE_JSON, а значения — выбранные и сконвертированные значения (без размерности). Включай только те параметры, для которых удалось подобрать значение. Порядок ключей — как в TEMPLATE_JSON.
+2. Mathematical Formula Processing:
+- Convert all mathematical formulas to LaTeX format.
+- Enclose inline formulas with \( \). For example: This is an inline formula \( E = mc^2 \)
+- Enclose block formulas with \[ \]. For example: \[ \frac{-b \pm \sqrt{b^2 - 4ac}}{2a} \]
 
-В ответе пришли ТОЛЬКО JSON, без пояснений.
+3. Table Processing:
+- Convert tables to HTML format.
+- Wrap the entire table with <table> and </table>.
+
+4. Figure Handling:
+- Ignore figures content in the PDF image. Do not attempt to describe or convert images.
+
+5. Output Format:
+- Ensure the output Markdown document has a clear structure with appropriate line breaks between elements.
+- For complex layouts, try to maintain the original document's structure and format as closely as possible.
+
+Please strictly follow these guidelines to ensure accuracy and consistency in the conversion. Your task is to accurately convert the content of the PDF image into Markdown format without adding any extra explanations or comments.
 """
 
 VALIDATION_PROMPT = """
@@ -69,7 +69,7 @@ VALIDATION_PROMPT = """
 В ответе пришли ТОЛЬКО JSON, без пояснений.
 """
 
-UNIFIED_PROMPT = """
+"""
 Из документа, который я прислал, извлеки все параметры и их значения.
 Верни результат строго в формате Markdown-таблицы с двумя колонками.
 
