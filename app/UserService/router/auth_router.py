@@ -39,6 +39,7 @@ async def get_user(
     Если нет, создаем пользователя и возвращаем на главную.
     """
     try:
+        print(123)
         is_active = await user_info_by_session_id(session_id)
         print(123)
         if not is_active:
