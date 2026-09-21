@@ -38,7 +38,7 @@ services:
     container_name: redis
     ports:
       #- "6379:6379"
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:6666:6379"
     volumes:
       - ./redis_data:/data
       # - ./app_logs/redis:/var/log/redis  # Добавляем, если redis настроен писать логи в файл
