@@ -272,18 +272,27 @@ class _OcrEngine:
 
         Формат:
             === Страница N ===
-            строка1
-            строка2
+            [0] строка1
+            [1] строка2
             ...
+
+        Каждая строка пронумерована глобальным индексом ``[N]`` (сквозным по
+        всем непустым страницам). LLM может вернуть этот индекс в ответе, и
+        тогда ``coord_mapper`` получает координаты напрямую из геометрии строки,
+        без текстового сопоставления имени/значения (надёжнее при пересказе
+        названий параметров моделью).
         """
         parts: List[str] = []
+        line_no = 0
         for page_words in pages:
             if not page_words:
                 continue
             page_idx = page_words[0].page_index
             lines = self._cluster_into_lines(page_words, y_tolerance=y_tolerance)
             parts.append(f"=== Страница {page_idx} ===")
-            parts.extend(l.text for l in lines)
+            for l in lines:
+                parts.append(f"[{line_no}] {l.text}")
+                line_no += 1
         return "\n".join(parts)
 
 

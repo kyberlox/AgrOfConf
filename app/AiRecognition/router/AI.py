@@ -95,7 +95,7 @@ def _extract_json_from_response(text: str) -> dict:
 
 def _hybrid_mode_enabled() -> bool:
     """Флаг переключения между гибридом (OCR+LLM) и vision-фолбэком."""
-    return os.getenv("OCR_HYBRID", "1") not in {"0", "false", "False"}
+    return os.getenv("OCR_HYBRID", "0") not in {"0", "false", "False"}
 
 
 def _file_cache_key(file: UploadFile) -> str:
@@ -128,7 +128,8 @@ async def _run_llm_vision(content: list) -> dict:
     res = response.model_dump()
     need = res['choices'][0]['message']['content']
     total_coast = res['usage']['total_cost']
-    return {"parsed": _extract_json_from_response(need), "total_coast": total_coast}
+    # return {"parsed": _extract_json_from_response(need), "total_coast": total_coast}
+    return {"parsed": need, "total_coast": total_coast}
 
 
 # ---------------------------------------------------------------------------
@@ -139,7 +140,6 @@ async def _run_llm_vision(content: list) -> dict:
 async def upload_OL(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    statistic_router = Depends(get_recognition_router),
     user_id: Optional[int] = Depends(get_user_id_by_session_id),
 ):
     from copy import deepcopy
@@ -195,11 +195,12 @@ async def upload_OL(
             llm_result = await _run_llm_vision(content)
             parsed_need = llm_result["parsed"]
             total_coast = llm_result["total_coast"]
-            data = parsed_need.get("data", "")
-            positions = parsed_need.get("positions", [])
+            # УБРАЛИ КООРДИНАТЫ
+            # data = parsed_need.get("data", "")
+            # positions = parsed_need.get("positions", [])
             # Vision-модель тоже возвращает пиксели в своём масштабе →
             # переводим в проценты от размера страницы для фронтенда.
-            positions = normalize_positions_percent(positions, page_sizes)
+            # positions = normalize_positions_percent(positions, page_sizes)
         else:
             # ---- ПРОДОЛЖЕНИЕ ГИБРИДА --------------------------------------
             llm_start = time.time()
@@ -220,7 +221,12 @@ async def upload_OL(
                         engine.cluster_into_lines(page_words)
                     )
             positions = positions_to_dict(
-                build_positions(data, words_by_page, lines_by_page)
+                build_positions(
+                    data,
+                    words_by_page,
+                    lines_by_page,
+                    log_reasons=True,
+                )
             )
             # Пиксели OCR (300 DPI) → проценты от размера страницы:
             # масштабируются на любой CSS-размер картинки.
@@ -230,12 +236,9 @@ async def upload_OL(
 
         fin_all = time.time()
         print(f"Распознали ОЛ за {fin_all - start_all:.2f}s, Цена: {total_coast}")
-        # Сохраняем статистику
-        # stat_info = await build_statistic_data(db, user_id, product_id)
-        # stat_info['parameters'] = parsed_need
-        # stat_info['total_coast'] = total_coast
-        # is_dump = await statistic_router.save_recognition(stat_info)
-        return {"markdown": data, "positions": positions, "file": files}
+
+        # return {"markdown": data, "positions": positions, "file": files}
+        return {"markdown": parsed_need, "file": files}
     except HTTPException:
         raise
     except Exception as e:

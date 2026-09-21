@@ -13,11 +13,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # LibreOffice для конвертации DOCX → PDF
     libreoffice-core \
     libreoffice-writer \
-    # Для RapidOCR (ONNX Runtime): OpenGL, GLib и графические библиотеки
-    libgl1 \
-    libglib2.0-0 \
-    libgomp1 \
-    && rm -rf /var/lib/apt/lists/*
+    # Для RapidOCR (ONNX Runtime): OpenGL, GLib и графические библиотеки УБРАЛИ ПОКА ЧТО
+    # libgl1 \
+    # libglib2.0-0 \
+    # libgomp1 \
+    # && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /data/app
 COPY ./requirements.txt /data/app/requirements.txt
@@ -27,11 +27,11 @@ RUN pip install --upgrade pip
 ENV PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
 
 # Ограничение потоков BLAS/OpenMP — стабилизирует ONNX Runtime в контейнере:
-# без этого OMP_* поднимает по потоку на ядро → segfault/деградация под нагрузкой.
-ENV OMP_NUM_THREADS=2 \
-    OPENBLAS_NUM_THREADS=2 \
-    MKL_NUM_THREADS=2 \
-    NUMEXPR_NUM_THREADS=2
+# без этого OMP_* поднимает по потоку на ядро → segfault/деградация под нагрузкой. УБРАЛИ ПОКА ЧТО
+# ENV OMP_NUM_THREADS=2 \
+#     OPENBLAS_NUM_THREADS=2 \
+#     MKL_NUM_THREADS=2 \
+#     NUMEXPR_NUM_THREADS=2
 
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
