@@ -53,7 +53,7 @@ export const useConfiguratorForm = (deps: IConfiguratorDeps) => {
             });
         }
 
-        return Object.keys(newBody).length ? newBody : undefined;
+        return newBody && Object.keys(newBody).length ? newBody : undefined;
     };
 
     const paramsUpdateRequest = async (body: userParams) => {
