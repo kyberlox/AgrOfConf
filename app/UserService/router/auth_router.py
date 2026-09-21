@@ -40,6 +40,7 @@ async def get_user(
     """
     try:
         is_active = await user_info_by_session_id(session_id)
+        print(123)
         if not is_active:
             raise HTTPException(status_code=401, detail="Неверный токен")
         
