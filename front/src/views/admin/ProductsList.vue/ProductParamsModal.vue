@@ -40,14 +40,6 @@ import { type IProduct } from "@/assets/interfaces/IProduct";
 import SlotModal from "@/components/layout/SlotModal.vue";
 import type { ProductForm } from "@/assets/interfaces/IProductForm.ts";
 
-const emptyForm = (): ProductForm => ({ name: "", manufacturer: "", description: "" });
-
-const productFormFields = [
-    { name: "name", label: "Название" },
-    { name: "manufacturer", label: "Производитель" },
-    { name: "description", label: "Описание" },
-] as const;
-
 export default defineComponent({
     components: { SlotModal },
     props: {
@@ -68,6 +60,14 @@ export default defineComponent({
     },
     emits: ["closeModal", "changeProduct"],
     setup(props) {
+        const emptyForm = (): ProductForm => ({ name: "", manufacturer: "", description: "" });
+
+        const productFormFields = [
+            { name: "name", label: "Название" },
+            { name: "manufacturer", label: "Производитель" },
+            { name: "description", label: "Описание" },
+        ] as const;
+
         const userInputs = reactive<ProductForm>(emptyForm());
 
         watch(
