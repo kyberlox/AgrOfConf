@@ -1,0 +1,543 @@
+# AiRecognition — гибридная архитектура распознавания ОЛ (OCR + LLM)
+
+Документ описывает все изменения, выполненные при переносе функционала распознавания опросных листов из `app/TableSearch/` в новый пакет `app/AiRecognition/`, а также внедрение гибридной архитектуры **локальный OCR + текст-only LLM** вместо прежнего vision-подхода.
+
+---
+
+## 1. Зачем это сделано
+
+### Проблема старой архитектуры
+
+Раньше распознавание ОЛ выполняла **vision-модель** (`deepseek/deepseek-v4-flash-vision-exp`), которая получала на вход JPEG-изображения страниц и возвращала JSON с таблицей параметров **и пиксельными координатами** (`positions`). Практика показала систематические ошибки координат:
+
+1. **Смешанная система координат в промте**: `top`/`bottom` отсчитывались от верха, а `right` — от правого края. Модель мыслит прямоугольниками от одной точки отсчёта, такая спецификация провоцирует путаницу.
+2. **Провайдер ресайзит изображения**: страницы рендерились в 300 DPI (~2480×3508 px), но перед инференсом провайдер уменьшает картинку до лимита токенов (обычно 1024 px). Модель оценивает координаты в **своём** уменьшенном пространстве, а сервер ожидает их в оригинальном → систематический «съезд».
+3. **Flash-модель слаба в spatial grounding** — оценка пиксельных координат не является её сильной стороной.
+4. **Frontend вообще не использовал `positions`** — координаты были мёртвой нагрузкой.
+
+### Решение: гибрид OCR + LLM
+
+| Что делает | Кто отвечает |
+|---|---|
+| Геометрия (боксы слов, координаты) | **Локальный OCR** (RapidOCR) — точность в единицы пикселей, всегда соответствует документу |
+| Семантика (структура таблицы, сопоставление значений) | **LLM текст-only** (`deepseek-v4-pro`) — то, что модель делает хорошо и дёшево |
+| Сопоставление строк таблицы ↔ боксов | **coord_mapper** — детерминированный алгоритм |
+
+Ключевой принцип: **LLM больше не выдаёт координаты вообще**. Координаты берутся из того же документа, что и значения (из OCR-боксов), поэтому «несогласованности» между промтом и OCR быть не может — это одна система.
+
+---
+
+## 2. Структура пакета
+
+```
+app/AiRecognition/
+├── __init__.py                     # docstring пакета
+├── router/
+│   ├── __init__.py                 # экспорт router из AI.py
+│   └── AI.py                       # FastAPI-роутер (/api/AI/*)
+└── utils/
+    ├── __init__.py                 # реэкспорт utils-модулей
+    ├── promt_ol.py                 # промты распознавания/валидации
+    ├── convert_ol_file.py          # конвертация UploadFile → JPEG-страницы
+    ├── ocr_engine.py               # RapidOCR: боксы слов, транскрипт
+    ├── coord_mapper.py             # строки таблицы ↔ боксы OCR
+    ├── prompt_storage.py           # хранение промтов продуктов и правил дефолтов
+    └── rules_table.json            # правила дефолтных значений по product_id
+```
+
+---
+
+## 3. Перенос из TableSearch
+
+### Что перенесено
+
+| Файл в TableSearch (удалён) | Файл в AiRecognition (создан) |
+|---|---|
+| `router/AI.py` | `router/AI.py` (переписан под гибрид) |
+| `utils/convert_ol_file.py` | `utils/convert_ol_file.py` (расширен: возврат размеров страниц) |
+| `utils/promt_ol.py` | `utils/promt_ol.py` (+ новый `OCR_PARSING_PROMPT`) |
+| `utils/prompt_storage.py` | `utils/prompt_storage.py` (импорт из нового промт-модуля) |
+| `utils/rules_table.json` | `utils/rules_table.json` (без изменений) |
+
+### Что осталось в TableSearch
+
+Модули, не относящиеся к распознаванию ОЛ, остались на месте:
+- `router/module_search.py`, `router/module_search_pandas.py`, `router/blocks.py` — поиск и блоки параметров;
+- `utils/dm_search.py` — витрины данных (**используется новым `convert_ol_file.py` через абсолютный импорт**);
+- `utils/formula_search.py`, `utils/code_mode.py` — формулы и code-режим.
+
+### Обновлённые файлы
+
+| Файл | Изменение |
+|---|---|
+| `app/main.py` | Импорт `AI_router` теперь из `.AiRecognition.router.AI`; добавлен прогрев OCR в `startup_event` |
+| `app/TableSearch/utils/__init__.py` | Убраны импорты перенесённых модулей; остались только `code_mode`, `dm_search`, `formula_search` |
+| `app/requirements.txt` | Добавлен `rapidocr-onnxruntime>=1.2.3,<1.3` (максимум на зеркале `mirrors.aliyun.com`) |
+| `app/Dockerfile` | Добавлены системные пакеты `libgl1`, `libglib2.0-0`, `libgomp1` для ONNX Runtime + ENV-ограничения потоков BLAS/OpenMP |
+
+---
+
+## 4. Детальное описание модулей и функций
+
+---
+
+### 4.1 `app/AiRecognition/utils/convert_ol_file.py`
+
+Отвечает за превращение загруженного файла (PDF / DOCX / изображение и т.д.) в набор JPEG-страниц с известными размерами — единый источник картинок для OCR, vision-фолбэка и будущего оверлея на фронте.
+
+#### `@dataclass Page`
+
+Одна страница документа, подготовленная для распознавания.
+
+| Поле | Тип | Описание |
+|---|---|---|
+| `jpeg_bytes` | `bytes` | JPEG-кодек страницы — подаётся на вход локальному OCR |
+| `base64_url` | `str` | data-URL (`data:image/jpeg;base64,...`) — для vision-моделей и фронта |
+| `width`, `height` | `int` | Фактические размеры JPEG в пикселях (нужны для пересчёта координат и оверлеев) |
+| `index` | `int` | Порядковый номер страницы (0, 1, 2…) |
+
+**Свойство `item`** — возвращает готовый блок content для OpenAI: `{"type": "image_url", "image_url": {"url": base64_url}}`.
+
+#### `async def get_params_and_values_of_product(db, product_id)`
+
+Перенесена без изменений. Получает из БД:
+1. Название продукта (для 404-ошибки);
+2. Список параметров типа `'Table'` из `parameter_schemas`;
+3. Значения параметров из витрины данных (`ensure_dm_exists` + `get_full_search_from_dm`);
+4. Возвращает словарь `{name: value}` в порядке `sort`.
+
+Используется эндпоинтом `convert-ai-result` для построения `TEMPLATE_JSON`.
+
+#### `async def convert_file_to_pages(file, dpi=300) -> List[Page]`
+
+**Основная функция конвейера** (заменяет старую `convert_file_to_jpeg_content`):
+
+1. Читает байты файла и определяет расширение;
+2. **Одиночное изображение** (`.jpg/.png/.gif/.webp/.bmp/.tiff`): открывает через PIL, конвертирует в RGB (RGBA/P/LA/CMYK), сохраняет в JPEG quality=85, оборачивает в одну `Page` (index=0);
+3. **PDF**: байты берутся напрямую;
+4. **`.md`/`.html`**: конвертация в PDF через pandoc (`_convert_to_pdf_with_tempfile`);
+5. **`.docx`/`.odt`/`.rtf`**: конвертация в PDF через LibreOffice (`convert_docx_to_pdf_libreoffice`);
+6. Рендерит каждую страницу PDF в pixmap с `dpi` (по умолчанию 300), берёт JPEG-байты и размеры `pix.width × pix.height`, собирает `List[Page]`.
+
+**Зачем размеры страниц**: без них невозможно пересчитать координаты OCR в координаты исходного изображения и строить оверлеи на фронте. В старой версии возвращался только OpenAI-контент.
+
+#### `def _make_page(jpeg_bytes, width, height, index) -> Page`
+
+Фабрика: кодирует JPEG в base64 и создаёт экземпляр `Page`.
+
+#### `async def convert_file_to_jpeg_content(file) -> List[Dict]`
+
+**Совместимая обёртка** для vision-фолбэка: вызывает `convert_file_to_pages` и возвращает только список `Page.item` (OpenAI-контент). Используется в `AI.py`, когда гибрид недоступен.
+
+#### `async def _convert_to_pdf_with_tempfile(file_bytes, ext) -> bytes`
+
+Конвертация md/html → PDF через pypandoc во временный файл. Использует `--pdf-engine=weasyprint`, читает результат и удаляет временный файл.
+
+#### `async def convert_docx_to_pdf_libreoffice(file_bytes, extension) -> bytes`
+
+Конвертация docx/odt/rtf → PDF через headless LibreOffice (`soffice --headless --norestore --convert-to pdf`). Читает полученный `input.pdf` из временной директории.
+
+---
+
+### 4.2 `app/AiRecognition/utils/ocr_engine.py`
+
+**Локальный OCR-движок на базе RapidOCR** (PP-OCR модели через ONNX Runtime). Сердце гибридной архитектуры: именно здесь рождаются координаты.
+
+#### Импорт RapidOCR (опциональный)
+
+```python
+try:
+    from rapidocr_onnxruntime import RapidOCR as _RapidOCR
+    RAPID_OCR_AVAILABLE = True
+except ImportError:
+    _RapidOCR = None
+    RAPID_OCR_AVAILABLE = False
+```
+
+Если пакет не установлен — приложение **не падает**, а деградирует на vision-фолбэк.
+
+#### `@dataclass WordBox`
+
+Одно распознанное слово с боксом.
+
+| Поле | Описание |
+|---|---|
+| `text` | Распознанный текст |
+| `box` | 4 точки `[x, y]` полигона (формат RapidOCR) |
+| `score` | Уверенность распознавания |
+| `page_index` | Номер страницы |
+
+**Свойства `x1, y1, x2, y2`** — границы охватывающего прямоугольника (min/max по X/Y).
+
+#### `@dataclass TextLine`
+
+Строка текста, собранная из слов с близким `y`. Содержит текст, границы `x1/y1/x2/y2`, `page_index` и список `words`.
+
+#### `class _OcrEngine` (Singleton)
+
+- **`__new__`** — гарантирует единственный экземпляр (thread-safe через `threading.Lock`);
+- **`_init_inner`** — инициализация: пустой кэш, лимит страниц `MAX_OCR_PAGES` (10), размер кэша `OCR_CACHE_SIZE` (64), **`_infer_lock`** (мьютекс инференса) и флаг **`_ocr_broken`**;
+- **`available`** — `RAPID_OCR_AVAILABLE and not self._ocr_broken` (если инференс падал — движок считается недоступным);
+- **`mark_broken()`** — помечает движок неработоспособным (после сбоя инференса), чтобы роутер ушёл в vision-фолбэк;
+- **`warm_up()`** — загружает модель при старте приложения (прогрев, чтобы первый запрос не был медленным);
+- **`_get_engine()`** — ленивая инициализация `_RapidOCR()` (первый вызов грузит ONNX-модели);
+- **`_cache_get(key)` / `_cache_set(key, value)`** — in-memory LRU-кэш по SHA-256 JPEG-страницы. Не зависит от Redis: если Redis недоступен, OCR всё равно работает (в отличие от `RedisStorage`, который кидает исключение при недоступности);
+- **`_jpeg_to_ndarray(jpeg_bytes)`** (статический) — декодирует JPEG через PIL в RGB `np.ndarray`. RapidOCR 1.2.x принимает ndarray (а не сырые `bytes`);
+- **`_run_ocr_sync(jpeg_bytes, page_index)`** — синхронный OCR одной страницы (вызывается из thread pool):
+  1. Считает SHA-256 → проверяет кэш;
+  2. Декодирует JPEG в ndarray (`_jpeg_to_ndarray`);
+  3. **Весь инференс под `_infer_lock`** — ONNX Runtime не thread-safe, конкурентные вызовы одной сессии дают segfault;
+  4. try/except вокруг `engine(arr)` → `result, elapse`: при ошибке `mark_broken()` и пустой результат (процесс НЕ падает);
+  5. Фильтрует пустые слова, строит `WordBox`-ы;
+  6. Кэширует сериализуемое представление;
+- **`async ocr_page(jpeg_bytes, page_index)`** — асинхронная обёртка через `asyncio.to_thread` (не блокирует event loop FastAPI);
+- **`async ocr_pages(pages_jpeg)`** — OCR нескольких страниц **ПОСЛЕДОВАТЕЛЬНО** (цикл, а не `asyncio.gather`): параллельный инференс на одной ONNX-сессии вызывал segfault/OOM и падение всего контейнера. При поломке движка оставшиеся страницы отдаются пустыми;
+- **`cluster_into_lines(words, y_tolerance)`** — публичная обёртка кластеризации;
+- **`_cluster_into_lines(words, y_tolerance=12.0)`** — группирует слова страницы в строки:
+  - сортирует слова по `(y1, x1)`;
+  - соседние слова попадают в одну строку, если вертикальные центры ближе `y_tolerance` px;
+  - внутри строки слова сортируются слева направо по `x1`;
+  - возвращает `TextLine`-ы с объединённым текстом и общим боксом;
+- **`async build_transcript(pages, y_tolerance)`** — собирает текстовый транскрипт документа для текст-only LLM:
+  ```
+  === Страница 0 ===
+  строка1
+  строка2
+  === Страница 1 ===
+  ...
+  ```
+
+#### Модульные функции
+
+- **`get_ocr_engine() -> _OcrEngine`** — возвращает singleton (глобальная переменная `_engine_instance`);
+- **`is_ocr_available() -> bool`** — доступен ли локальный OCR (пакет установлен);
+- **`warm_up_ocr()`** — безопасный прогрев при старте приложения (try/except, логирует предупреждение);
+- **`async ocr_pages_to_wordboxes(pages_jpeg)`** — удобная обёртка OCR списка страниц с учётом `max_pages`;
+- **`async build_transcript(pages_jpeg)`** — «всё в одном»: OCR всех страниц + сборка транскрипта;
+- **`_word_to_dict(w)`** — сериализация `WordBox` для кэша.
+
+---
+
+### 4.3 `app/AiRecognition/utils/coord_mapper.py`
+
+**Сопоставление строк Markdown-таблицы (ответ LLM) с боксами OCR-слов.** Превращает «семантическую» таблицу в «геометрические» coordinates для фронтенда.
+
+#### `@dataclass TableRow`
+
+Строка таблицы: `id` (int), `parameter` (str), `value` (str).
+
+#### `@dataclass Coord`
+
+Прямоугольник в пикселях: `top`, `left`, `bottom`, `right` (совместимо со старым API).
+
+#### `@dataclass Position`
+
+Запись для `positions`: `id`, `coord: Coord`, `file_index`.
+
+#### `_ROW_RE` и `parse_markdown_table(md) -> List[TableRow]`
+
+Регэксп `^\s*\|\s*(\d+)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|?\s*$` извлекает строки формата `| ID | Параметр | Значение |`. Строка-разделитель `|---|---|---|` не попадает (в первой колонке нет числа).
+
+#### `_TRANSLIT` и `_normalize(text) -> str`
+
+Нормализация для сравнения:
+- нижний регистр;
+- **кириллические омонимы латиницы → латиница** (А→a, В→b, Е→e, К→k, М→m, Н→h, О→o, Р→p, С→c, Т→t, У→y, Х→x) — частые ошибки OCR;
+- запятая → точка;
+- удаление пробелов/неразрывных пробелов/точек/дефисов (для числовых сравнений).
+
+#### `_extract_number(text) -> Optional[float]`
+
+Первое число из строки (для числовой эквивалентности).
+
+#### `_word_matches(word_text, value_text) -> bool`
+
+Проверяет соответствие слова OCR значению таблицы:
+1. Равенство нормализованных строк;
+2. Подстрока в обе стороны (длина > 1 символа);
+3. Числовая эквивалентность (`1.6` == `1,6`).
+
+#### `_line_matches(line, value_text) -> bool`
+
+Аналог для строки транскрипта (используется в фолбэке).
+
+#### `find_words_for_value(words, value_text) -> List[WordBox]`
+
+Возвращает слова OCR, соответствующие значению. Пропускает пустые значения и прочерки (`-`, `—`).
+
+#### `_merge_boxes(words) -> Optional[Coord]`
+
+Объединяет боксы найденных слов в один охватывающий прямоугольник (min по top/left, max по bottom/right, целые пиксели).
+
+#### `build_positions(md_table, pages_words, lines_by_page=None) -> List[Position]`
+
+**Основная функция выравнивания:**
+
+1. Парсит markdown-таблицу;
+2. Группирует слова по `page_index`;
+3. Для каждой строки таблицы:
+   - **Основной путь**: ищет слова OCR, соответствующие значению (`find_words_for_value`), объединяет боксы (`_merge_boxes`);
+   - **Фолбэк**: если точное совпадение не найдено — ищет строку транскрипта, содержащую значение (`_line_matches`), и берёт её бокс (первую сверху по `y1`);
+   - Если ничего не найдено — позиция пропускается, **но строка таблицы остаётся** (координаты не критичны для создания ОЛ);
+4. Возвращает список `Position`.
+
+#### `positions_to_dict(positions) -> List[dict]`
+
+Сериализует в формат ответа API:
+```json
+{"id": 1, "coord": {"top": .., "left": .., "bottom": .., "right": ..}, "file_index": 0}
+```
+
+---
+
+### 4.4 `app/AiRecognition/utils/promt_ol.py`
+
+Содержит промты (перенесены без изменений) + новый промт для гибридной архитектуры.
+
+| Константа | Назначение |
+|---|---|
+| `VALIDATION_PROMPT` | Сопоставление RAW_MD с TEMPLATE_JSON + RULES_TABLE (используется в `convert-ai-result`) |
+| `UNIFIED_PROMPT` | Старый vision-промт с `positions` — используется **только в vision-фолбэке** |
+| `OCR_PARSING_PROMPT` | **НОВЫЙ**: текст-only промт для гибрида — **без секции positions и координат** |
+| `RULES_TABLE` | Дефолтные правила по умолчанию (product_id → список `{name, default}`) |
+
+#### `OCR_PARSING_PROMPT` — ключевые правила
+
+1. Таблица строго `| ID | Параметр | Значение |`;
+2. Значение + размерность через запятую (`"1.6, МПа"`);
+3. Вложенные подпараметры с дефисом;
+4. Выбор отмеченного варианта из списка;
+5. Пропуск пустых значений;
+6. Извлечение из ВСЕХ разделов;
+7. Объединение текстовых перечислений через запятую;
+8. Учёт повторов параметра на разных страницах;
+9. **Исправление очевидных опечаток OCR** (I/l/1, O/0) — важное отличие от vision-промта: теперь модель читает текст, а не картинку, поэтому ей явно разрешено исправлять символьные ошибки.
+
+---
+
+### 4.5 `app/AiRecognition/utils/prompt_storage.py`
+
+Перенесён с минимальными правками (импорт `RULES_TABLE` теперь из `.promt_ol` нового пакета; путь к `rules_table.json` — `app/AiRecognition/utils/rules_table.json`).
+
+| Функция | Назначение |
+|---|---|
+| `_prompt_path(product_id)` | Путь к файлу промта `./static/product_prompts/{product_id}.md` |
+| `has_product_validation_prompt(product_id)` | Есть ли свой VALIDATION-промт у продукта |
+| `get_product_validation_prompt(product_id)` | Возвращает промт продукта (или пустую строку, если своего нет) |
+| `save_product_validation_prompt(product_id, prompt)` | Сохраняет промт на диск |
+| `delete_product_validation_prompt(product_id)` | Удаляет промт |
+| `_load_rules()` | Загружает `rules_table.json`; при отсутствии/битости инициализирует дефолтами из `RULES_TABLE` |
+| `_save_rules(data)` | Записывает правила в JSON |
+| `save_product_rules(rules, product_id)` | Сохраняет правила дефолтов продукта (нормализует Pydantic-модели через `model_dump`) |
+| `get_product_rules(product_id)` | Возвращает правила продукта (ключ ищется и как int, и как str) |
+
+---
+
+### 4.6 `app/AiRecognition/router/AI.py`
+
+FastAPI-роутер с префиксом `/AI` (регистрируется в `main.py` с `prefix="/api"` → фактические пути `/api/AI/*`).
+
+#### Вспомогательные функции
+
+| Функция | Назначение |
+|---|---|
+| `_extract_json_from_response(text)` | Извлекает JSON из ответа модели: сначала markdown-блок ` ```json ... ``` `, затем крайние фигурные скобки. Устойчив к «мусору» вокруг JSON |
+| `_hybrid_mode_enabled()` | Флаг `OCR_HYBRID` из `.env` (`0`/`false` → выключить гибрид) |
+| `_file_cache_key(file)` | Заглушка под будущий кэш по хешу файла (пока не используется) |
+| `_run_llm_text_only(prompt_text)` | Текст-only вызов `deepseek/deepseek-v4-pro` с `response_format=json_object`, возвращает `{parsed, total_coast}` |
+| `_run_llm_vision(content)` | Vision-вызов `deepseek/deepseek-v4-flash-vision-exp` (фолбэк), возвращает `{parsed, total_coast}` |
+
+#### `async def upload_OL(user_promt, file, db, statistic_router, user_id)`
+
+**Основной эндпоинт распознавания.** Логика:
+
+```
+1. Определяем режим: hybrid = OCR_HYBRID включён И OCR доступен
+2. Конвертируем файл → List[Page] (convert_file_to_pages)
+3. Если hybrid — весь блок OCR обёрнут в try/except:
+   a. OCR всех страниц (engine.ocr_pages) → слова с боксами
+   b. Транскрипт (engine.build_transcript)
+   c. Если транскрипт пуст ИЛИ OCR бросил исключение → `engine.mark_broken()`,
+      `hybrid = False` → автоматический vision-фолбэк (контейнер НЕ падает)
+4. Если не hybrid (vision-фолбэк):
+   a. Собираем OpenAI-контент (Page.item)
+   b. Формируем промт: UNIFIED_PROMPT или кастомный с user_promt
+   c. _run_llm_vision → data + positions (координаты от модели, как раньше)
+5. Если hybrid:
+   a. Формируем prompt_text = OCR_PARSING_PROMPT + транскрипт
+   b. _run_llm_text_only → data (БЕЗ positions)
+   c. lines_by_page = кластеризация слов в строки (cluster_into_lines)
+   d. build_positions(data, words_by_page, lines_by_page) → координаты из OCR
+6. Возвращаем {"markdown": data, "positions": positions, "file": files}
+```
+
+**Важно**: формат ответа не изменился → фронтенд ([`PromptModal.vue`](front/src/views/homeView/components/recognition/PromptModal.vue:85)) продолжает работать без правок. Замеры времени каждого этапа выводятся в лог.
+
+#### `async def get_product_prompt(product_id, db)`
+
+Возвращает `validation_prompt`, `unified_prompt`, `rules_table` для продукта (админка).
+
+#### `async def save_product_prompt(product_id, body, db)`
+
+Сохраняет VALIDATION-промт и/или RULES_TABLE продукта. `body.payload` → `save_product_validation_prompt`, `body.rules` → `save_product_rules`.
+
+#### `async def delete_product_prompt(product_id, db)`
+
+Удаляет сохранённый промт продукта.
+
+#### `async def convert_ai_result(product_id, raw_md, db, user_id)`
+
+**Валидация под шаблон продукта** (не изменена по сути):
+1. Получает параметры продукта (`get_params_and_values_of_product`), исключает ценовые ключи;
+2. Добавляет поля агента (`ФИО Заказчика`, `Примечание` и т.д.);
+3. Формирует сообщение: `product_prompt` + `RAW_MD` + `TEMPLATE_JSON` + `RULES_TABLE`;
+4. Вызывает `deepseek/deepseek-v4-pro` с `response_format=json_object`;
+5. Возвращает итоговый JSON значений параметров.
+
+---
+
+### 4.7 `app/main.py` — изменения
+
+1. **Импорт роутера** (строка 17):
+   ```python
+   from .AiRecognition.router.AI import router as AI_router
+   ```
+   (было: `from .TableSearch.router.AI import router as AI_router`)
+
+2. **Прогрев OCR** в `startup_event` (после `create_tables()`):
+   ```python
+   try:
+       from .AiRecognition.utils.ocr_engine import warm_up_ocr
+       warm_up_ocr()
+   except Exception as e:
+       print(f"⚠️ Не удалось прогреть OCR: {e}")
+   ```
+   Прогрев безопасен: если `rapidocr` не установлен, `warm_up_ocr` просто ничего не делает (лог-предупреждение).
+
+3. **Регистрация роутера** осталась на месте: `app.include_router(AI_router, prefix="/api")` — пути `/api/AI/*` не изменились.
+
+---
+
+### 4.8 `app/requirements.txt` и `app/Dockerfile`
+
+**requirements.txt** — добавлено (с учётом ограничений зеркала `mirrors.aliyun.com`, где доступен максимум `1.2.3`):
+```
+rapidocr-onnxruntime>=1.2.3,<1.3
+```
+> Версия ограничена 1.2.x: на зеркале нет 1.4.0. Для наших целей это даже лучше — в 1.2.x ONNX-модели **вшиты в wheel-пакет** (не качаются при первом запуске, что важно для офлайн-сборки Docker), а API полностью совместим: тот же импорт `from rapidocr_onnxruntime import RapidOCR`, тот же вызов `engine(img) -> (result, elapse)`.
+
+**Dockerfile** — добавлены системные пакеты, необходимые ONNX Runtime / OpenCV (тянет RapidOCR):
+```dockerfile
+libgl1 \
+libglib2.0-0 \
+libgomp1 \
+```
+
+---
+
+### 4.9 Координаты в процентах (масштабирование)
+
+**Проблема**: OCR возвращает пиксели при 300 DPI (страница ~2481×3508 px), а браузер рендерит изображение в произвольном CSS-масштабе (например, 1000 px шириной). Если подставлять пиксельные координаты как есть — прямоугольник «расползается» и смещается относительно реального бокса.
+
+**Решение**: координаты переводятся в **проценты от размера страницы**:
+
+```
+top    (%) = top_px    / height_px * 100
+left   (%) = left_px   / width_px  * 100
+bottom (%) = bottom_px / height_px * 100
+right  (%) = right_px  / width_px  * 100
+```
+
+Пример: `top = 2002` при `height = 3508` → `top ≈ 57%`. Такие координаты масштабируются на любой размер элемента (фронт подставляет их в `top/left/height/width` в `%`).
+
+**Реализация**:
+- [`normalize_positions_percent(positions, page_sizes)`](app/AiRecognition/utils/coord_mapper.py) — конвертирует список позиций, где `page_sizes = {index: (width, height)}` берётся из `Page.width/height` ([`convert_ol_file.py`](app/AiRecognition/utils/convert_ol_file.py));
+- Применяется в [`upload_OL`](app/AiRecognition/router/AI.py) для **обоих** путей — гибрид (пиксели OCR) и vision-фолбэк (пиксели модели), поэтому ответ всегда в процентах.
+
+**Точность сопоставления** (`coord_mapper.build_positions` переписан):
+1. **Якорь по параметру**: сначала ищется строка транскрипта с НАЗВАНИЕМ параметра (`_param_matches`), затем значение ищется рядом с ней;
+2. **Строгое числовое сравнение** (`_num_key`): `"1,6" == "1.6"`, но `"16" != "1.6"` (раньше нормализация съедала точку и дробное число матчилось с любым числом страницы);
+3. **`_tight_merge`**: бокс строится только из ГОРИЗОНТАЛЬНО СМЕЖНЫХ слов значения (не из всей строки транскрипта) — исключает «длинные» прямоугольники;
+4. **Фолбэк**: если параметр не найден, бокс всё равно ограничивается словами значения, а не всей строкой.
+
+---
+
+### 4.10 Диагностика и исправление падения контейнера при `upload_OL`
+
+**Симптом**: после вызова `/api/AI/upload_OL` контейнер `fastapi` падает **целиком** (не 500-ошибка, процесс завершается аварийно — segfault или OOM-kill).
+
+**Причины и исправления** (все применены):
+
+| # | Причина | Исправление | Где |
+|---|---|---|---|
+| 1 | **Параллельный инференс ONNX** — `ocr_pages` через `asyncio.gather` запускал N потоков, одновременно дёргавших одну ONNX-сессию RapidOCR. ONNX Runtime **не thread-safe**: конкурентные вызовы одной сессии → segfault без Python-traceback (процесс падает мгновенно) | Переписан на **последовательный** цикл; весь инференс под `threading.Lock` (`_infer_lock`) | [`ocr_engine.py`](app/AiRecognition/utils/ocr_engine.py) |
+| 2 | **OOM** — 10 страниц × 300 DPI (~2480×3508 px) в параллели легко превышают лимит памяти контейнера → OOM-kill | Последовательная обработка + ограничение потоков BLAS/OpenMP через ENV | [`Dockerfile`](app/Dockerfile) |
+| 3 | **Неверный тип входных данных** — RapidOCR 1.2.x ожидает `np.ndarray` (или путь), а не сырые `bytes` | Статический метод `_jpeg_to_ndarray()` (PIL → RGB → `np.asarray`) | [`ocr_engine.py`](app/AiRecognition/utils/ocr_engine.py) |
+| 4 | **Любая ошибка OCR роняла запрос** | Гибрид-ветка обёрнута в try/except: при сбое → `engine.mark_broken()` + `hybrid = False` → **автоматический vision-фолбэк** (старый путь), контейнер не падает | [`AI.py`](app/AiRecognition/router/AI.py) |
+
+**ENV-ограничения потоков в `Dockerfile`** (заданы до `pip install`):
+```dockerfile
+ENV OMP_NUM_THREADS=2 \
+    OPENBLAS_NUM_THREADS=2 \
+    MKL_NUM_THREADS=2 \
+    NUMEXPR_NUM_THREADS=2
+```
+Без этого OpenMP/BLAS поднимают по потоку на ядро хоста — типичный источник segfault/деградации ONNX Runtime в контейнерах.
+
+**Проверка совместимости с Python 3.13** (базовый образ `python:3.13`):
+- `onnxruntime` 1.30.0 — есть wheel для py3.13 (`requires_python >=3.11`);
+- `pyclipper` 1.4.0, `Shapely` 2.1.2, `opencv-python` 5.x — все имеют cp313-wheel на PyPI.
+
+Образ собирается успешно (единственная проблема была версия `>=1.4.0` на зеркале, исправлена на `>=1.2.3,<1.3`), значит падение происходило **в рантайме** — что согласуется с причиной №1 (параллельный инференс), уже устранённой.
+
+**Как подтвердить причину, если падение повторится**:
+```bash
+# Статус контейнера — OOMKilled?
+docker inspect --format='{{.State.OOMKilled}}' <container>
+# Логи — сигнал SIGSEGV (segfault)?
+docker logs <container> 2>&1 | grep -iE 'signal|segv|killed|oom'
+# Хватает ли shared memory (ONNX/OpenCV используют /dev/shm)?
+docker inspect --format='{{.HostConfig.ShmSize}}' <container>
+```
+
+---
+
+## 5. Конвейер гибридной архитектуры (схема)
+
+```mermaid
+flowchart TD
+    A[PDF / DOCX / Изображение] --> B[convert_file_to_pages<br/>JPEG-страницы + размеры]
+    B --> C[ocr_engine.ocr_pages<br/>словоуровневые боксы в px]
+    B --> D[vision-фолбэк<br/>если OCR недоступен]
+    C --> E[ocr_engine.build_transcript<br/>текстовый транскрипт]
+    E --> F[LLM текст-only deepseek-v4-pro<br/>OCR_PARSING_PROMPT]
+    F --> G[Markdown-таблица | ID | Параметр | Значение |]
+    G --> H[coord_mapper.build_positions<br/>строки ↔ боксы OCR]
+    C --> H
+    H --> I[{data, positions, file}]
+    D --> I
+```
+
+---
+
+## 6. Что важно знать
+
+1. **Формат ответа API не изменился**: `{markdown, positions, file}`. Фронтенд работает без изменений.
+2. **Гибрид включается автоматически**, если `OCR_HYBRID=1` (по умолчанию) и установлен `rapidocr-onnxruntime`. Управление: env `OCR_HYBRID=0` → vision-фолбэк.
+3. **Настройки**: `MAX_OCR_PAGES=10` (лимит страниц на OCR), `OCR_CACHE_SIZE=64` (LRU-кэш страниц).
+4. **Координаты теперь точные**: берутся из боксов OCR (погрешность единицы пикселей) и всегда соответствуют `file` (картинкам), которые отдаются фронту.
+5. **Ограничение**: рукописные поля OCR не читает — для таких документов нужен vision-фолбэк (он сохранён и включается автоматически при пустом транскрипте).
+6. **Кэш** пока in-memory (не зависит от Redis); при желании можно перевести на Redis по хешу файла.
+7. **Отказоустойчивость**: любая ошибка OCR (включая падение инференса) больше **не роняет контейнер** — движок помечается `broken`, запрос автоматически обрабатывается vision-моделью. Восстановление — перезапуск приложения (модель грузится заново).
+8. **Устойчивость к нагрузке**: OCR страниц обрабатываются последовательно под мьютексом, потоки BLAS/OpenMP ограничены (`OMP_NUM_THREADS=2` и др.) — исключён segfault из-за конкурентного доступа к ONNX-сессии и OOM-kill на многостраничных документах.
+
+---
+
+## 7. Следующие шаги
+
+- [x] Пересобрать Docker-образ (установка `rapidocr-onnxruntime>=1.2.3,<1.3` + системные пакеты);
+- [x] Исправить падение контейнера при `upload_OL` (последовательный OCR, lock, ndarray, ENV-потоки, vision-фолбэк);
+- [ ] Пересобрать образ после фиксов (`docker compose build`) и повторить вызов `/api/AI/upload_OL` на реальном ОЛ;
+- [ ] Проверить качество координат (IoU с реальной областью значения);
+- [ ] (Опционально) Перевести кэш OCR на Redis;
+- [ ] (Опционально) Подсветка значений по `positions` в `RecognitionCompare.vue`.

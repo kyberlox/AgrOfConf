@@ -5,7 +5,7 @@
   по одному файлу на продукт. Файлы на диске выбраны вместо TEXT-колонки в PSQL,
   чтобы промт мог быть сколь угодно большим и не гонять лишние данные через ORM.
 - RULES_TABLE (правила дефолтных значений) хранятся в JSON-файле `rules_table.json`,
-  лежащем в той же директории, что и этот модуль (app/TableSearch/utils/).
+  лежащем в той же директории, что и этот модуль (app/AiRecognition/utils/).
   Структура файла: `{product_id: [{name, default}, ...]}`.
 
 Если файла промта для продукта нет — используется общий VALIDATION_PROMPT из promt_ol.py.
@@ -21,7 +21,7 @@ from .promt_ol import RULES_TABLE as DEFAULT_RULES_TABLE
 PROMPT_DIR = "./static/product_prompts"
 os.makedirs(PROMPT_DIR, exist_ok=True)
 
-# rules_table.json лежит рядом с этим модулем: app/TableSearch/utils/rules_table.json
+# rules_table.json лежит рядом с этим модулем: app/AiRecognition/utils/rules_table.json
 RULES_FILE = Path(__file__).resolve().parent / "rules_table.json"
 
 

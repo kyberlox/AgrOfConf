@@ -14,7 +14,7 @@ from .TablePakage.router.tables import router as tables_router
 from .TablePakage.router.parameter_values import router as parameter_values_router
 from .TableSearch.router.module_search import router as module_search_router
 from .TableSearch.router.module_search_pandas import router as module_search_router_pandas
-from .TableSearch.router.AI import router as AI_router
+from .AiRecognition.router.AI import router as AI_router
 from .TableSearch.router.blocks import router as blocks_router
 from .TablePakage.router.tkp_generation import router as tkp_generation
 from .TablePakage.router.product_porting import router as product_porting_router
@@ -158,6 +158,12 @@ async def session_middleware(request: Request, call_next):
 @app.on_event("startup")
 async def startup_event():
     await create_tables()
+    # Прогрев локального OCR (RapidOCR) — безопасен, если пакет не установлен
+    try:
+        from .AiRecognition.utils.ocr_engine import warm_up_ocr
+        warm_up_ocr()
+    except Exception as e:
+        print(f"⚠️ Не удалось прогреть OCR: {e}")
     # Лёгкая миграция: добавляем колонку formula_config (новая система формул)
     try:
         async with AsyncSessionLocal() as session:

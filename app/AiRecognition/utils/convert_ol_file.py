@@ -1,19 +1,43 @@
 import asyncio
 import base64
-from collections import defaultdict
-import io
+from dataclasses import dataclass, field
+from io import BytesIO
 import os
 import tempfile
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict, List, Optional
 
-from app.TableSearch.utils.dm_search import ensure_dm_exists, get_full_search_from_dm
 import fitz  # PyMuPDF
 import pypandoc
 from PIL import Image
-from fastapi import UploadFile
-from fastapi import HTTPException
+from fastapi import UploadFile, HTTPException
 from sqlalchemy import text
+
+from app.TableSearch.utils.dm_search import ensure_dm_exists, get_full_search_from_dm
+
+
+@dataclass
+class Page:
+    """Одна страница документа, подготовленная для распознавания.
+
+    - ``jpeg_bytes`` — JPEG-кодек страницы (для локального OCR);
+    - ``base64_url`` — data-URL для vision-моделей;
+    - ``width``/``height`` — фактические размеры JPEG-изображения в пикселях
+      (нужны для пересчёта координат OCR и оверлеев на фронте);
+    - ``item`` — готовый блок content для OpenAI (image_url).
+    """
+    jpeg_bytes: bytes
+    base64_url: str
+    width: int
+    height: int
+    index: int = 0
+
+    @property
+    def item(self) -> Dict:
+        return {
+            "type": "image_url",
+            "image_url": {"url": self.base64_url}
+        }
 
 
 async def get_params_and_values_of_product(db, product_id):
@@ -76,65 +100,82 @@ async def get_params_and_values_of_product(db, product_id):
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка при получении параметров и их значений: {e}")
-    
 
-async def convert_file_to_jpeg_content(file: UploadFile) -> List[Dict]:
-    """Конвертирует UploadFile → JPEG-изображения (base64) для OpenAI."""
+
+async def convert_file_to_pages(file: UploadFile, dpi: int = 300) -> List[Page]:
+    """Конвертирует UploadFile → список ``Page`` (JPEG-страницы + размеры).
+
+    Основная функция конвейера: результат используется и локальным OCR,
+    и (в фолбэке) vision-моделью, поэтому координаты и картинки всегда
+    соответствуют друг другу.
+    """
     file_bytes = await file.read()
     await file.seek(0)
     ext = Path(file.filename or "").suffix.lower()
-    content = []
 
-    # 1. Изображения → JPEG
+    # 1. Одиночное изображение → одна "страница"
     if ext in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif"}:
-        img = Image.open(io.BytesIO(file_bytes))
-        if img.mode in ("RGBA", "P", "LA"):
+        img = Image.open(BytesIO(file_bytes))
+        if img.mode in ("RGBA", "P", "LA", "CMYK"):
             img = img.convert("RGB")
-        buf = io.BytesIO()
+        buf = BytesIO()
         img.save(buf, format="JPEG", quality=85)
-        content.append(_make_jpeg_item(buf.getvalue()))
-        return content
+        jpeg = buf.getvalue()
+        w, h = img.size
+        return [_make_page(jpeg, w, h, index=0)]
 
     # 2. PDF → сразу берём байты
     if ext == ".pdf":
         pdf_bytes = file_bytes
-    # 3. Документы (docx, odt, rtf, md, html) → PDF через pandoc + временный файл
+    # 3. Документы (md, html) → PDF через pandoc
     elif ext in {".md", ".html"}:
         pdf_bytes = await _convert_to_pdf_with_tempfile(file_bytes, ext)
-    elif ext in {".docx", ".odt", ".rtf"}: 
+    # 4. Документы (docx, odt, rtf) → PDF через LibreOffice
+    elif ext in {".docx", ".odt", ".rtf"}:
         pdf_bytes = await convert_docx_to_pdf_libreoffice(file_bytes, ext)
     else:
         raise ValueError(f"Неподдерживаемый формат: {ext}")
 
-    # Рендерим страницы PDF в JPEG
+    # Рендерим страницы PDF в JPEG (300 DPI по умолчанию)
     try:
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     except Exception as e:
         raise ValueError(f"Ошибка открытия PDF: {e}")
 
-    for page in doc:
-        pix = page.get_pixmap(dpi=300)
-        content.append(_make_jpeg_item(pix.tobytes("jpeg")))
-    doc.close()
-    return content
+    pages: List[Page] = []
+    try:
+        for i, page in enumerate(doc):
+            pix = page.get_pixmap(dpi=dpi)
+            jpeg = pix.tobytes("jpeg")
+            pages.append(_make_page(jpeg, pix.width, pix.height, index=i))
+    finally:
+        doc.close()
+    return pages
 
 
-def _make_jpeg_item(jpeg_bytes: bytes) -> Dict:
+def _make_page(jpeg_bytes: bytes, width: int, height: int, index: int) -> Page:
     b64 = base64.b64encode(jpeg_bytes).decode("utf-8")
-    return {
-        "type": "image_url",
-        "image_url": {"url": f"data:image/jpeg;base64,{b64}"}
-    }
+    return Page(
+        jpeg_bytes=jpeg_bytes,
+        base64_url=f"data:image/jpeg;base64,{b64}",
+        width=width,
+        height=height,
+        index=index,
+    )
+
+
+async def convert_file_to_jpeg_content(file: UploadFile) -> List[Dict]:
+    """Совместимая обёртка: только OpenAI-контент (для vision-фолбэка)."""
+    pages = await convert_file_to_pages(file)
+    return [p.item for p in pages]
 
 
 async def _convert_to_pdf_with_tempfile(file_bytes: bytes, ext: str) -> bytes:
-    """Конвертация docx/odt/... → PDF через pypandoc во временный файл."""
-    # Создаём временный файл для результата
+    """Конвертация md/html → PDF через pypandoc во временный файл."""
     fd, tmp_path = tempfile.mkstemp(suffix=".pdf")
-    os.close(fd)  # Закрываем дескриптор, файл пока остаётся
-    
+    os.close(fd)
+
     try:
-        # pypandoc 1.17 сохраняет PDF в файл, указанный в outputfile
         pypandoc.convert_text(
             source=file_bytes,
             to="pdf",
@@ -145,26 +186,22 @@ async def _convert_to_pdf_with_tempfile(file_bytes: bytes, ext: str) -> bytes:
                 '-V', 'geometry:margin=1in'
             ]
         )
-        # Читаем полученный PDF
         with open(tmp_path, "rb") as f:
             pdf_bytes = f.read()
     finally:
-        # Удаляем временный файл
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
 
     return pdf_bytes
 
+
 async def convert_docx_to_pdf_libreoffice(file_bytes: bytes, extension: str) -> bytes:
     """Конвертирует документ (docx, odt, rtf) в PDF с помощью LibreOffice."""
-    # Создаём временный каталог (чтобы избежать конфликтов имён)
-    
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
-        input_file = tmpdir / f"input{extension}"    # сохраняем исходный файл
+        input_file = tmpdir / f"input{extension}"
         input_file.write_bytes(file_bytes)
 
-        # Запускаем LibreOffice в headless-режиме
         cmd = [
             "soffice",
             "--headless",
@@ -182,7 +219,7 @@ async def convert_docx_to_pdf_libreoffice(file_bytes: bytes, extension: str) -> 
         if proc.returncode != 0:
             raise RuntimeError(f"LibreOffice ошибка: {stderr.decode()}")
 
-        output_pdf = tmpdir / f"input.pdf"
+        output_pdf = tmpdir / "input.pdf"
         if not output_pdf.exists():
             raise FileNotFoundError("PDF не был создан")
 
