@@ -31,17 +31,23 @@
     </li>
 </template>
 
-<script setup lang="ts">
+<script lang="ts">
+import { defineComponent, type PropType } from "vue";
 import type { IParameter } from "@/assets/interfaces/IParameter";
 import CloseIcon from "@/assets/icons/Cross.svg?component";
 import SettingsIcon from "@/assets/icons/Settings.svg?component";
 
-defineProps<{
-    parameter: IParameter;
-}>();
-
-defineEmits<{
-    delete: [id: number];
-    edit: [id: number];
-}>();
+export default defineComponent({
+    components: {
+        CloseIcon,
+        SettingsIcon,
+    },
+    props: {
+        parameter: {
+            type: Object as PropType<IParameter>,
+            required: true,
+        },
+    },
+    emits: ["delete", "edit"],
+});
 </script>
