@@ -19,7 +19,7 @@ redis_storage = RedisStorage()
 async def user_info_by_session_id(token: str):
     url = "https://intranet.emk.ru/api/auth_router/check"
     # url = "http://intranet.emk.org.ru/api/auth_router/check"
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=30.0, verify=False) as client:
         res = await client.get(url, cookies={'session_id': token})
         if res.status_code == 200:
             return json.loads(res.text)
