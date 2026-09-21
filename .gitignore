@@ -11,6 +11,7 @@
 /uploads
 /redis_data
 /elasticsearch
+/app/TableSearch/utils/rules_tables.json
 /app/TableSearch/utils/rules_table.json
 #для dev-авторизации
 docker-compose.yaml

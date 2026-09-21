@@ -22,7 +22,7 @@ PROMPT_DIR = "./static/product_prompts"
 os.makedirs(PROMPT_DIR, exist_ok=True)
 
 # rules_table.json лежит рядом с этим модулем: app/AiRecognition/utils/rules_table.json
-RULES_FILE = Path(__file__).resolve().parent / "rules_table.json"
+RULES_FILE = Path(__file__).resolve().parent / "rules_tables.json"
 
 
 def _prompt_path(product_id: int) -> Path:
