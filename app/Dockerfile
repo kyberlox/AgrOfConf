@@ -13,11 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # LibreOffice для конвертации DOCX → PDF
     libreoffice-core \
     libreoffice-writer \
-    # Для RapidOCR (ONNX Runtime): OpenGL, GLib и графические библиотеки УБРАЛИ ПОКА ЧТО
-    # libgl1 \
-    # libglib2.0-0 \
-    # libgomp1 \
-    # && rm -rf /var/lib/apt/lists/*
+    
 
 WORKDIR /data/app
 COPY ./requirements.txt /data/app/requirements.txt
