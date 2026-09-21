@@ -134,7 +134,7 @@ import type { IParameter } from "@/assets/interfaces/IParameter";
 import { BaseButton, BaseInput } from "beans-ui-kit";
 import Api from "@/utils/Api";
 import { fileUrl } from "@/utils/fileUrl";
-import ValuesListEditor from "./components/ValuesListEditor.vue";
+import ValuesListEditor from "./ValuesListEditor.vue";
 import { useFormulaFunctions } from "@/composables/useFormulaFunctions";
 
 export default defineComponent({

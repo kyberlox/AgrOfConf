@@ -75,23 +75,23 @@
 import Api from "@/utils/Api";
 import { computed, defineComponent, onMounted, ref } from "vue";
 import download from "downloadjs";
-import ParameterSettings from "./ParameterSettingsModal.vue";
+import ParameterSettings from "./components/ParameterSettingsModal.vue";
 import type { IParameter } from "@/assets/interfaces/IParameter";
-import UploadedOl from "./UploadedOlModal.vue";
+import UploadedOl from "./components/UploadedOlModal.vue";
 import { getTkpVariants } from "@/utils/getTkpVariants.ts";
 import { type ITkpVariant } from "@/assets/interfaces/ITkpVariant.ts";
 import { toast } from "vue3-toastify";
-import TablesManageModal from "./TablesManageModal.vue";
-import CreateParameterModal from "./CreateParameterModal.vue";
-import BlocksManager from "./BlocksManager.vue";
-import CertificatesModal from "./CertificatesModal.vue";
+import TablesManageModal from "./components/TablesManageModal.vue";
+import CreateParameterModal from "./components/CreateParameterModal.vue";
+import BlocksManager from "./components/BlocksManager.vue";
+import CertificatesModal from "./components/CertificatesModal.vue";
 import { getProductFiles } from "@/utils/getProductFiles.ts";
 import { type IProductFile } from "@/assets/interfaces/IProductFile.ts";
 import PromptEditBlock from "./components/PromptEditBlock.vue";
 import ProductAdminHeader from "./components/ProductAdminHeader.vue";
 import ProductParametersPanel from "./components/ProductParametersPanel.vue";
 import ProductStatisticsPanel from "./components/ProductStatisticsPanel.vue";
-import type { ProductStatistic } from "./types";
+import type { ProductStatistic } from "@/assets/interfaces/IProductStatistic.ts";
 
 export default defineComponent({
     components: {

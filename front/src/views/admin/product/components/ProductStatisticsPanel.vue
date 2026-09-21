@@ -16,7 +16,7 @@
 
 <script lang="ts">
 import { defineComponent, type PropType } from "vue";
-import type { ProductStatistic } from "../types";
+import type { ProductStatistic } from "@/assets/interfaces/IProductStatistic.ts";
 
 export default defineComponent({
     props: {
