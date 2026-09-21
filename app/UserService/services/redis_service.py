@@ -13,7 +13,7 @@ class RedisStorage:
         self.session_ttl = session_ttl  # время жизни сессии
         try:
             redis_host = "redis"
-            redis_port = 6666
+            redis_port = 6379
             redis_db = 0
             redis_password = os.getenv("pswd")
             self.redis_client = redis.StrictRedis(
