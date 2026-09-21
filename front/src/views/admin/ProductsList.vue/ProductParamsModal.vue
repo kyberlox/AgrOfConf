@@ -39,6 +39,8 @@ import { defineComponent, reactive, watch, type PropType } from "vue";
 import { type IProduct } from "@/assets/interfaces/IProduct";
 import SlotModal from "@/components/layout/SlotModal.vue";
 import type { ProductForm } from "@/assets/interfaces/IProductForm.ts";
+import { ref } from "vue";
+import { productFormFields } from "@/assets/static/productFormFields.ts";
 
 export default defineComponent({
     components: { SlotModal },
@@ -62,23 +64,17 @@ export default defineComponent({
     setup(props) {
         const emptyForm = (): ProductForm => ({ name: "", manufacturer: "", description: "" });
 
-        const productFormFields = [
-            { name: "name", label: "Название" },
-            { name: "manufacturer", label: "Производитель" },
-            { name: "description", label: "Описание" },
-        ] as const;
-
-        const userInputs = reactive<ProductForm>(emptyForm());
+        const userInputs = ref<ProductForm>(emptyForm());
 
         watch(
             () => props.showModal,
             () => {
                 if (!props.showModal) return;
                 if (props.type == "edit" && props.product) {
-                    userInputs.name = props.product.name ?? "";
-                    userInputs.manufacturer = props.product.manufacturer ?? "";
-                    userInputs.description = props.product.description ?? "";
-                    userInputs.image = undefined;
+                    userInputs.value.name = props.product.name ?? "";
+                    userInputs.value.manufacturer = props.product.manufacturer ?? "";
+                    userInputs.value.description = props.product.description ?? "";
+                    userInputs.value.image = undefined;
                 } else {
                     Object.assign(userInputs, emptyForm());
                 }
@@ -92,7 +88,7 @@ export default defineComponent({
             if (!file) return;
             const reader = new FileReader();
             reader.onload = () => {
-                userInputs.image = String(reader.result ?? "");
+                userInputs.value.image = String(reader.result ?? "");
             };
             reader.readAsDataURL(file);
         };

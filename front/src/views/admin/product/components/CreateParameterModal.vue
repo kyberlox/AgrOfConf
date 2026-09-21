@@ -103,7 +103,7 @@
     </SlotModal>
 </template>
 <script lang="ts">
-import { computed, defineComponent, reactive, watch } from "vue";
+import { computed, defineComponent, watch, ref } from "vue";
 import Api from "@/utils/Api";
 import ValuesListEditor from "./ValuesListEditor.vue";
 import SlotModal from "@/components/layout/SlotModal.vue";
@@ -148,7 +148,7 @@ export default defineComponent({
     },
     emits: ["closeModal", "created"],
     setup(props, { emit }) {
-        const form = reactive<IParamForm>(emptyForm());
+        const form = ref<IParamForm>(emptyForm());
         const { algorithms, validators } = useFormulaFunctions();
         const formulaFields = computed(() => [
             {
@@ -176,36 +176,38 @@ export default defineComponent({
 
         const submit = async () => {
             const body: Record<string, unknown> = {
-                name: form.name,
-                type: form.type,
+                name: form.value.name,
+                type: form.value.type,
                 description: "",
                 measuring_unit: null,
                 visibility: true,
                 required_type:
-                    form.type == "Drawing"
+                    form.value.type == "Drawing"
                         ? "drawing"
-                        : form.type == "FormulaMix"
+                        : form.value.type == "FormulaMix"
                           ? "select-input"
-                          : form.required_type,
-                table_name: form.type == "Table" ? form.table_name : null,
+                          : form.value.required_type,
+                table_name: form.value.type == "Table" ? form.value.table_name : null,
                 field_of_view: null,
                 product_id: Number(props.productId),
                 sort: 0,
-                special: form.special,
+                special: form.value.special,
             };
-            if (form.type == "Formula") {
+            if (form.value.type == "Formula") {
                 body.formula_config = {
-                    func: form.func,
-                    validate: form.validate || undefined,
-                    ...(form.values.length ? { values: form.values.map((v) => v.trim()).filter(Boolean) } : {}),
+                    func: form.value.func,
+                    validate: form.value.validate || undefined,
+                    ...(form.value.values.length
+                        ? { values: form.value.values.map((v) => v.trim()).filter(Boolean) }
+                        : {}),
                     type: "formula",
                 };
             }
-            if (form.type == "Drawing") {
+            if (form.value.type == "Drawing") {
                 body.formula_config = {
                     type: "drawing",
                     // Функция, возвращающая URL файла по значению зависимого параметра.
-                    func: form.func || undefined,
+                    func: form.value.func || undefined,
                 };
             }
             try {
