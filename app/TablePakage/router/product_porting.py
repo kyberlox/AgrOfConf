@@ -2,13 +2,17 @@
 Экспорт/импорт полной конфигурации продукта для переноса между серверами.
 
 Формат — ZIP-архив:
-  config.json              — вся конфигурация (продукт, блоки, параметры, свойства, порядок, таблицы, файлы)
+  config.json              — вся конфигурация (продукт, блоки, параметры, свойства, порядок,
+                             таблицы, файлы, ТКП-шаблоны, сертификаты, промпты ИИ и правила)
   tables/<name>.xlsx       — исходные Excel-файлы таблиц продукта
   files/...                — файлы параметров типа «Файл» (картинки и т.п.)
+  tkp/...                  — шаблоны ТКП продукта
+  product_files/...        — сертификаты/файлы продукта
 
 Импорт переиспользует штатный механизм загрузки таблиц (/upload_xlsx), поэтому
 таблицы и их табличные параметры воссоздаются тем же способом, что и при ручном
-создании в интерфейсе.
+создании в интерфейсе. Промпты/правила ИИ сохраняются через prompt_storage
+(файлы на диске привязаны к новому product_id).
 """
 
 from __future__ import annotations
@@ -21,6 +25,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 from urllib.parse import quote
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
@@ -35,14 +40,30 @@ from ..model.parameter_block import ParameterBlock
 from ..model.product_table import ProductTable
 from ..model.product_table_ver import ProductTableVersion
 from ..model.parameter_file import ParameterFile
+from ..model.product_files import ProductFiles
+from ..model.tkp import TKP
 from ..utils.router_utils import to_sql_name_lat
 
 from .tables import upload_xlsx
+
+from app.AiRecognition.utils.prompt_storage import (
+    get_product_rules,
+    get_product_validation_prompt,
+    has_product_validation_prompt,
+    save_product_rules,
+    save_product_validation_prompt,
+)
 
 router = APIRouter(prefix="/products", tags=["Product porting"])
 
 PARAM_FILES_DIR = "./static/parameter_files"
 os.makedirs(PARAM_FILES_DIR, exist_ok=True)
+
+TKP_DIR = "./static/tkp_files"
+os.makedirs(TKP_DIR, exist_ok=True)
+
+PRODUCT_FILES_DIR = "./static/product_files"
+os.makedirs(PRODUCT_FILES_DIR, exist_ok=True)
 
 
 # ---------------------------------------------------------------------------
@@ -94,6 +115,18 @@ async def _build_config(db: AsyncSession, product_id: int) -> dict:
         )
     ).scalars().all()
 
+    tkp_templates = (
+        await db.execute(
+            select(TKP).where(TKP.product_id == product_id)
+        )
+    ).scalars().all()
+
+    cert_files = (
+        await db.execute(
+            select(ProductFiles).where(ProductFiles.product_id == product_id)
+        )
+    ).scalars().all()
+
     block_id_to_name = {b.id: b.name for b in blocks}
     table_id_to_name = {t.id: t.name for t in tables}
     file_id_to_param = {p.id: p.name for p in params}
@@ -142,7 +175,23 @@ async def _build_config(db: AsyncSession, product_id: int) -> dict:
             for t in tables
         ],
         "parameter_files": [],
+        "tkp_templates": [
+            {"name": t.name, "file": f"tkp/{t.name}.docx"}
+            for t in tkp_templates
+        ],
+        "product_files": [
+            {"name": f.name, "date_to": f.date_to, "file": f"product_files/{f.name}"}
+            for f in cert_files
+        ],
     }
+
+    # Промпты/правила ИИ продукта (валидационный промт + дефолтные значения).
+    rules = get_product_rules(product_id)
+    if has_product_validation_prompt(product_id) or rules:
+        config["product_prompt"] = {
+            "validation_prompt": get_product_validation_prompt(product_id),
+            "rules_table": rules,
+        }
 
     # Файлы параметров (картинки/документы).
     by_param: dict[int, list] = {}
@@ -160,11 +209,11 @@ async def _build_config(db: AsyncSession, product_id: int) -> dict:
     return config
 
 
-def _zip_bytes(config: dict, tables_files: list[tuple], param_files: list[tuple]) -> bytes:
+def _zip_bytes(config: dict, files: list[tuple]) -> bytes:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("config.json", json.dumps(config, ensure_ascii=False, indent=2))
-        for zip_name, data in tables_files + param_files:
+        for zip_name, data in files:
             zf.writestr(zip_name, data)
     return buffer.getvalue()
 
@@ -209,7 +258,46 @@ async def export_product(product_id: int, db: AsyncSession = Depends(get_db)):
                 with open(pf.file_path, "rb") as f:
                     param_files.append((fobj["file"], f.read()))
 
-    data = _zip_bytes(config, tables_files, param_files)
+    # Шаблоны ТКП продукта.
+    tkp_files: list[tuple] = []
+    for tconf in config["tkp_templates"]:
+        tkp = (
+            await db.execute(
+                select(TKP).where(
+                    TKP.product_id == product_id,
+                    TKP.name == tconf["name"],
+                )
+            )
+        ).scalars().first()
+        if not tkp or not tkp.file or not os.path.exists(tkp.file):
+            continue
+        ext = Path(tkp.file).suffix.lower() or ".docx"
+        zip_name = f"tkp/{tconf['name']}{ext}"
+        tconf["file"] = zip_name
+        with open(tkp.file, "rb") as f:
+            tkp_files.append((zip_name, f.read()))
+
+    # Сертификаты/файлы продукта.
+    cert_files_bin: list[tuple] = []
+    for fconf in config["product_files"]:
+        pf = (
+            await db.execute(
+                select(ProductFiles).where(
+                    ProductFiles.product_id == product_id,
+                    ProductFiles.name == fconf["name"],
+                )
+            )
+        ).scalars().first()
+        if not pf or not pf.file or not os.path.exists(pf.file):
+            continue
+        ext = Path(pf.file).suffix.lower() or ""
+        zip_name = f"product_files/{fconf['name']}{ext}"
+        fconf["file"] = zip_name
+        with open(pf.file, "rb") as f:
+            cert_files_bin.append((zip_name, f.read()))
+
+    all_files = tables_files + param_files + tkp_files + cert_files_bin
+    data = _zip_bytes(config, all_files)
     product = await db.get(Product, product_id)
     safe_name = quote((product.name or "product").replace("/", "_")) + ".zip"
     return StreamingResponse(
@@ -400,6 +488,62 @@ async def import_product(
                     file_path=dest,
                     file_url=f"/api/files/parameter_files/{disk_name}",
                 ))
+
+        # 5. Сертификаты/файлы продукта.
+        for fconf in config.get("product_files", []):
+            rel = fconf.get("file")
+            if not rel:
+                continue
+            file_path = os.path.join(tmp_dir, *rel.split("/"))
+            if not os.path.exists(file_path):
+                continue
+            with open(file_path, "rb") as f:
+                data = f.read()
+            orig_name = fconf.get("name") or os.path.basename(rel)
+            suffix = Path(orig_name).suffix.lower() or os.path.splitext(rel)[1].lower()
+            disk_name = f"{uuid4().hex}{suffix}"
+            dest = os.path.join(PRODUCT_FILES_DIR, disk_name)
+            with open(dest, "wb") as f:
+                f.write(data)
+            db.add(ProductFiles(
+                product_id=new_product_id,
+                name=orig_name,
+                file=dest,
+                file_url=f"/api/files/product_files/{disk_name}",
+                date_to=fconf.get("date_to") or "",
+            ))
+
+        # 6. Шаблоны ТКП продукта.
+        for tconf in config.get("tkp_templates", []):
+            rel = tconf.get("file")
+            if not rel:
+                continue
+            file_path = os.path.join(tmp_dir, *rel.split("/"))
+            if not os.path.exists(file_path):
+                continue
+            with open(file_path, "rb") as f:
+                data = f.read()
+            orig_name = tconf.get("name") or os.path.basename(rel)
+            suffix = os.path.splitext(rel)[1].lower() or ".docx"
+            if Path(orig_name).suffix.lower():
+                suffix = Path(orig_name).suffix.lower()
+            disk_name = f"{uuid4().hex}{suffix}"
+            dest = os.path.join(TKP_DIR, disk_name)
+            with open(dest, "wb") as f:
+                f.write(data)
+            db.add(TKP(
+                product_id=new_product_id,
+                name=orig_name,
+                file=dest,
+                file_url=f"/files/tkp_files/{disk_name}",
+            ))
+
+        # 7. Промпты и правила валидации ИИ (привязываются к новому product_id).
+        prompt_cfg = config.get("product_prompt") or {}
+        if prompt_cfg.get("validation_prompt"):
+            save_product_validation_prompt(new_product_id, prompt_cfg["validation_prompt"])
+        if prompt_cfg.get("rules_table"):
+            save_product_rules(prompt_cfg["rules_table"], new_product_id)
 
         await db.commit()
 
