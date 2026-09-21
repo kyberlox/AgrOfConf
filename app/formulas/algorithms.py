@@ -1119,7 +1119,7 @@ async def _working_media_names(ctx: FormulaContext, config: dict | None = None) 
     name = await _selected_text(
         ctx,
         ("рабочая среда", "рабочей среды"),
-        exclude=("температура", "давление", "тип смеси", "состав", "доля", "агрегатное"),
+        exclude=("температура", "давление", "тип смеси", "состав", "доля", "агрегатное", "сброс"),
     )
     if not name:
         return None
@@ -1165,6 +1165,387 @@ async def discharge_type(ctx: FormulaContext, config: dict | None = None) -> str
 
     ctx.computed["_bellows_override"] = "Нет"
     return "Открытого типа"
+
+
+async def bellows_material(ctx: FormulaContext, config: dict | None = None) -> str:
+    """«Материал сильфона» — формульный select-параметр, зависит от «Сильфонного уплотнения».
+
+    Простая логика:
+      - «Сильфонное уплотнение» = «Да»   =>  «08Х18Н10Т»;
+      - «Сильфонное уплотнение» = «Нет»  =>  «—».
+
+    Пока значение «Сильфонного уплотнения» не выбрано — поднимается
+    MissingParamError, и параметр показывает «Заполните параметр "..."»
+    (само «Сильфонное уплотнение» тоже может быть формулой — движок просто
+    отложит расчёт на следующий проход). Статический список значений select
+    задаётся в formula_config параметра ключом "values" (читает интеграция).
+    """
+    bellows = await _selected_value_by_keyword(
+        ctx, ("сильфонное уплотнение",), exclude=("тип уплотнения",)
+    )
+    if bellows is None or str(bellows).strip() == "":
+        raise MissingParamError("Сильфонное уплотнение")
+
+    choice = _normalize_yes_no(bellows)
+    if choice == "Да":
+        return "08Х18Н10Т"
+    if choice == "Нет":
+        return "—"
+    return str(bellows).strip()
+
+
+# ── Обязательные испытания ────────────────────────────────────────────────
+# Тексты по СТ ЦКБА 052-2008 для сред, требующих испытаний.
+
+_REQUIRED_TESTS_TEXT_H2S = (
+    "По СТ ЦКБА 052-2008\n\n"
+    "Испытания материала корпуса:\n"
+    " 1) Хим. Состав \n"
+    " 2) На растяжение при +20 град. С \n"
+    " 3) KCU при -60 град. С \n"
+    " 4) Твердость \n"
+    " 5) Стойкость к МКК \n"
+    " 6) ВИК \n"
+    " 7) РК \n"
+    " 8) Капиллярный контроль \n\n"
+    "Испытания материала золотника и седла: \n"
+    " 1) Хим. Состав \n"
+    " 2) На растяжение при +20 град. С \n"
+    " 3) Контроль неметаллических включений \n"
+    " 4) Контроль макроструктуры \n"
+    " 5) Твердость \n"
+    " 6) Стойкость к МКК \n"
+    " 7) ВИК \n"
+    " 8) РК \n"
+    " 9) Капиллярный контроль"
+)
+
+_REQUIRED_TESTS_TEXT_CL2 = (
+    "По СТ ЦКБА 052-2008\n\n"
+    "Испытания материала корпуса:\n"
+    " 1) Хим. Состав \n"
+    " 2) На растяжение при +20 град. С \n"
+    " 3) KCU при -60 град. С \n"
+    " 4) Твердость \n"
+    " 5) Стойкость к МКК \n"
+    " 6) ВИК \n"
+    " 7) РК \n"
+    " 8) Капиллярный контроль \n\n"
+    "Испытания материала золотника и седла: \n"
+    " 1) Хим. Состав \n"
+    " 2) На растяжение при +20 град. С \n"
+    " 3) Контроль неметаллических включений \n"
+    " 4) Контроль макроструктуры \n"
+    " 5) Твердость \n"
+    " 6) Стойкость к МКК \n"
+    " 7) ВИК \n"
+    " 8) РК \n"
+    " 9) Капиллярный контроль"
+)
+
+# Ключевое слово (lowercase, нормализованное) -> текст.
+_REQUIRED_TESTS_TRIGGERS: list[tuple[str, str]] = [
+    ("сероводород", _REQUIRED_TESTS_TEXT_H2S),
+    ("хлор", _REQUIRED_TESTS_TEXT_CL2),
+]
+
+
+async def required_tests(ctx: FormulaContext, config: dict | None = None) -> str:
+    """«Обязательные испытания» — формульный select-параметр.
+
+    По умолчанию — «Не требуются».
+
+    Если рабочая среда (единичная или любая из сред смеси) содержит
+    «Сероводород» или «Хлор» — возвращается соответствующий текст
+    испытаний по СТ ЦКБА 052-2008.
+
+    Список значений select задаётся в formula_config["values"] (обычно
+    ["Не требуются", <текст H2S>, <текст Cl2>]).
+
+    Если среда ещё не определена (не выбрана, не завершён тип/состав
+    смеси) — возвращается значение по умолчанию.
+    """
+    media = None
+    try:
+        media = await _working_media_names(ctx, config)
+    except (MissingParamError, ValueError):
+        # Смесь включена, но тип/состав ещё не выбраны — не гасим на этом
+        # единичную среду: пробуем прочитать «Название рабочей среды» напрямую.
+        media = None
+
+    if not media:
+        name = await _selected_text(
+            ctx,
+            ("рабочая среда", "рабочей среды"),
+            exclude=("температура", "давление", "тип смеси", "состав", "доля", "агрегатное", "сброс"),
+        )
+        if name:
+            media = [name]
+
+    if media:
+        lowered = {_norm_lower(m) for m in media}
+        for trigger, value in _REQUIRED_TESTS_TRIGGERS:
+            if any(trigger in m for m in lowered):
+                return value
+
+    return "Не требуются"
+
+
+# === «Покраска» ===
+
+_PAINT_25L = [
+    "Серый RAL7035 по технологической инструкции 38877941.25206.01013 АО \"НПО Регулятор\" ",
+    "Серый RAL7035 cистема АКП С4 по № П2-05 ТИ-0002",
+    "Красный RAL3020 по СТО Газпром 9.1-018-2012",
+]
+
+_PAINT_20GL = [
+    "Синий RAL5017 по технологической инструкции 38877941.25206.01013 АО \"НПО Регулятор\" ",
+    "Синий RAL5017 система АКП С4 по № П2-05 ТИ-0002",
+    "Красный RAL3020 по СТО Газпром 9.1-018-2012",
+]
+
+_PAINT_OTHER = [
+    "Голубой RAL5012 по технологической инструкции 38877941.25206.01013 АО \"НПО Регулятор\" ",
+    "Голубой RAL5012 система АКП С4 по № П2-05 ТИ-0002",
+    "Красный RAL3020 по СТО Газпром 9.1-018-2012",
+]
+
+_PAINT_BY_MATERIALS = {
+    "25л": _PAINT_25L,
+    "20гл": _PAINT_20GL,
+}
+
+
+async def pokraska(ctx: FormulaContext, config: dict | None = None) -> str:
+    """«Покраска» — формульный select-параметр, список вариантов зависит от «Материала».
+
+    «Материал» = «25Л»   → набор «Серый RAL7035 …/Серый RAL7035 АКП/Красный RAL3020»;
+    «Материал» = «20ГЛ»  → набор «Синий RAL5017 …/Синий RAL5017 АКП/Красный RAL3020»;
+    остальные материалы / материал неизвестен → набор «Голубой RAL5012 …/Голубой
+    RAL5012 АКП/Красный RAL3020».
+
+    Значением параметра становится первый вариант набора (пользователь может
+    выбрать другой из выпадающего списка). Список вариантов кладётся в
+    ctx.computed["_pokraska_values"] — интеграция записывает его в all_values.
+    """
+    material = await _selected_text(
+        ctx,
+        ("материал",),
+        exclude=("пружин", "сильфон", "корпус"),
+    )
+
+    key = _norm_lower(material) if material else ""
+    values = _PAINT_BY_MATERIALS.get(key, _PAINT_OTHER)
+
+    ctx.computed["_pokraska_values"] = list(values)
+    return values[0]
+
+
+async def service_life(ctx: FormulaContext, config: dict | None = None) -> str:
+    """«Срок эксплуатации» — формульный select-параметр (25 лет / 30 лет).
+
+    «Сильфонное уплотнение» = «Да» → «30 лет»; во всех остальных случаях
+    («Нет», не выбрано) → «25 лет».
+
+    Если «Сильфонное уплотнение» — формульный параметр, расчёт откладывается
+    до его готовности (чтобы не зафиксировать «25 лет» до того, как bellows
+    станет «Да» на следующем проходе). Если дисчarge перебил сильфон на «Нет»
+    (ctx.computed["_bellows_override"]), срок остаётся «25 лет».
+    """
+    value = None
+
+    # 1) Формульные параметры-сильфоны: ждём завершения на следующих проходах.
+    candidates = [
+        name for name in (ctx.formula_names or ())
+        if name and "сильфонное уплотнение" in _norm_lower(name)
+        and "тип уплотнения" not in _norm_lower(name)
+    ]
+    candidates.sort(key=len)
+    for name in candidates:
+        if name not in (ctx.computed or {}):
+            ctx.get(name)  # поднимет MissingParamError → движок отложит нас
+
+    # 2) Значение (вычисленное или выбранное пользователем); None безопасно.
+    value = await _selected_value_by_keyword(
+        ctx, ("сильфонное уплотнение",), exclude=("тип уплотнения",)
+    )
+
+    # 3) Принудительное «Нет» от формулы сброса учтено (если она успела посчитаться).
+    override = (ctx.computed or {}).get("_bellows_override")
+    if override is not None and str(override).strip().lower() == "нет":
+        return "25 лет"
+
+    if value is not None and _norm_lower(str(value).strip()) == "да":
+        return "30 лет"
+    return "25 лет"
+
+
+async def _valve_selected_optional(ctx: FormulaContext, config: dict | None = None) -> dict | None:
+    """Подбор строки клапана без жёсткого требования значений.
+
+    Если подбор невозможен из-за незаполненного обычного входного параметра —
+    возвращает None. Если ждёт результата формульного параметра — поднимается
+    MissingParamError, и движок откладывает расчёт на следующий проход.
+    """
+    try:
+        return await _valve_selected(ctx, config)
+    except MissingParamError as exc:
+        if exc.param_name in (ctx.formula_names or ()):
+            raise  # ждём готовности другой формулы
+        return None
+
+
+async def _resolve_flange_table(ctx: FormulaContext, side_word: str) -> dict[str, str] | None:
+    """Карта «русское имя -> колонка» таблицы фланцев (входной или выходной).
+
+    Таблица фланцев — физическая таблица с параметрами «Давление», «Стандарт
+    исполнения» и «Фланец на входе» (side_word = «входе») или «Фланец на
+    выходе» (side_word = «выходе»).
+    """
+    from sqlalchemy import text
+
+    rows = await ctx.db.execute(text(
+        """
+        SELECT name, transliterated_name, table_name
+        FROM parameter_schemas
+        WHERE product_id = :product_id AND type = 'Table'
+          AND table_name IS NOT NULL
+        """
+    ), {"product_id": ctx.product_id})
+
+    by_table: dict[str, dict[str, str]] = {}
+    for row in rows.mappings().all():
+        name = (row["name"] or "").strip()
+        translit = (row["transliterated_name"] or "").strip()
+        tbl = (row["table_name"] or "").strip()
+        if not name or not translit or not tbl:
+            continue
+        by_table.setdefault(tbl, {})[name] = translit
+
+    for tbl, columns in by_table.items():
+        lowered = [_norm_lower(n) for n in columns]
+        has_side = any(
+            n.startswith("фланец") and side_word in n
+            for n in lowered
+        )
+        has_pressure = any("давление" in n for n in lowered)
+        has_std = any("стандарт" in n for n in lowered)
+        if has_side and has_pressure and has_std:
+            return columns
+    return None
+
+
+async def _flange_select(
+    ctx: FormulaContext,
+    config: dict | None,
+    side_word: str,
+) -> dict | None:
+    """Подбирает строку таблицы фланцев по PN соответствующей стороны.
+
+    Из выбранной строки таблицы клапана берутся «PN входное» (side_word «входе»)
+    или «PN выходное» («выходе»); в таблице фланцев ищется строка, где
+    «Давление» совпадает с этим PN. Результат кэшируется в
+    ctx.computed["_flange_inlet"] / ["_flange_outlet"], возвращается dict
+    (давление, стандарт, фланец, _table) или None.
+    """
+    from sqlalchemy import text
+
+    columns = await _resolve_flange_table(ctx, side_word)
+    if not columns:
+        return None
+
+    def _col(*keywords: str) -> str | None:
+        for name, translit in columns.items():
+            low = _norm_lower(name)
+            if any(_norm_lower(k) in low for k in keywords):
+                return translit
+        return None
+
+    pres_col = _col("давление")
+    std_col = _col("стандарт")
+    f_col = _col(f"фланец на {side_word}", "фланец")
+    if not pres_col or not std_col or not f_col:
+        return None
+
+    valve = await _valve_selected_optional(ctx, config)
+    if valve is None:
+        return None
+    pn = valve.get("pn_in" if side_word == "входе" else "pn_out")
+    pn_float = _to_float(pn, default=None)
+    if pn_float is None:
+        return None
+
+    result = await ctx.db.execute(text(
+        """
+        SELECT table_name FROM parameter_schemas
+        WHERE product_id = :product_id AND type = 'Table'
+          AND transliterated_name = :col AND table_name IS NOT NULL
+        LIMIT 1
+        """
+    ), {"product_id": ctx.product_id, "col": f_col})
+    table = result.scalar_one_or_none()
+    if not table:
+        return None
+
+    # «Давление» = PN соответствующей стороны ВСЕГДА, когда клапан подобран —
+    # даже если в таблице фланцев нет строки с таким давлением. «Стандарт
+    # исполнения» и «Фланец на ...» дополняются из строки таблицы (если нашлась).
+    selected: dict = {
+        "_table": table,
+        "давление": pn,
+    }
+
+    existing = await _existing_table_columns(ctx, table)
+    if pres_col in existing:
+        select_cols = [c for c in (pres_col, std_col, f_col) if c in existing]
+        if len(select_cols) >= 2:
+            cols_sql = ", ".join(f'"{c}"' for c in select_cols)
+            sql = f'SELECT {cols_sql} FROM "{table}" WHERE "{pres_col}" = :p'
+            raw_rows = (await ctx.db.execute(text(sql), {"p": str(pn_float)})).mappings().all()
+
+            mapping = None
+            for candidate in raw_rows:
+                pv = candidate.get(pres_col)
+                pn_num = _to_float(pv, default=None)
+                ok = pn_num is not None and abs(pn_num - pn_float) < 1e-9
+                if not ok and str(pv or "").strip() != str(pn).strip():
+                    continue
+                mapping = candidate
+                break
+
+            if mapping is not None:
+                if std_col:
+                    selected["стандарт"] = mapping.get(std_col)
+                if f_col:
+                    selected["фланец"] = mapping.get(f_col)
+
+    ctx.computed["_flange_inlet" if side_word == "входе" else "_flange_outlet"] = selected
+    return selected
+
+
+async def flange_standard_inlet(ctx: FormulaContext, config: dict | None = None) -> str | None:
+    """Стандарт исполнения фланца на входе (формула-драйвер входной таблицы фланцев).
+
+    Берёт «PN входное» из подобранной строки клапана, ищет в таблице фланцев
+    строку с совпадающим «Давлением» и возвращает её «Стандарт исполнения».
+
+    Результат подбора кладётся в ctx.computed["_flange_inlet"] — интеграция
+    записывает его в табличные параметры («Давление», «Стандарт исполнения»,
+    «Фланец на входе») и помечает их нередактируемыми.
+    """
+    sel = await _flange_select(ctx, config, "входе")
+    return None if sel is None else sel.get("стандарт")
+
+
+async def flange_standard_outlet(ctx: FormulaContext, config: dict | None = None) -> str | None:
+    """Стандарт исполнения фланца на выходе (формула-драйвер выходной таблицы фланцев).
+
+    Аналогично flange_standard_inlet, но по «PN выходное»; результат кладётся в
+    ctx.computed["_flange_outlet"].
+    """
+    sel = await _flange_select(ctx, config, "выходе")
+    return None if sel is None else sel.get("стандарт")
 
 
 async def _resolve_media_table(ctx: FormulaContext) -> str | None:

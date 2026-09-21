@@ -7,9 +7,10 @@
             <BaseSelect :selectSettings="initSelectProps(tkpVariants)"
                         @valueChanged="(id: string) => chosenVariant = id" />
 
-            <BaseButton :button-settings="{ class: 'button-primary' }"
+            <BaseButton :button-settings="{ class: 'button-primary', disabled: tkpLoading }"
                         @clicked=handleDownload>
-                Скачать
+                <span v-if="!tkpLoading">Скачать</span>
+                <Loader v-else />
             </BaseButton>
         </div>
         <span v-else>Ткп пока не загружены</span>
@@ -21,13 +22,15 @@ import { defineComponent, type PropType, ref } from 'vue';
 import { type ITkpVariant } from '@/assets/interfaces/ITkpVariant.ts';
 import { BaseSelect, BaseButton } from 'beans-ui-kit';
 import SlotModal from '@/components/layout/SlotModal.vue';
+import Loader from '@/components/layout/Loader.vue';
 
 export default defineComponent({
     emits: ['downloadTkp'],
     components: {
         BaseSelect,
         BaseButton,
-        SlotModal
+        SlotModal,
+        Loader
     },
     props: {
         tkpVariants: {
@@ -35,6 +38,10 @@ export default defineComponent({
             required: true
         },
         tkpModalIsVisible: {
+            type: Boolean,
+            default: false
+        },
+        tkpLoading: {
             type: Boolean,
             default: false
         }
