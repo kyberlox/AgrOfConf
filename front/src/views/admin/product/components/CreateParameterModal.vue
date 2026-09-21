@@ -105,7 +105,7 @@
 <script lang="ts">
 import { computed, defineComponent, reactive, watch } from "vue";
 import Api from "@/utils/Api";
-import ValuesListEditor from "./components/ValuesListEditor.vue";
+import ValuesListEditor from "./ValuesListEditor.vue";
 import SlotModal from "@/components/layout/SlotModal.vue";
 import { useFormulaFunctions } from "@/composables/useFormulaFunctions";
 
