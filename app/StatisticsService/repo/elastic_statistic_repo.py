@@ -102,6 +102,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
 
     async def get_all(
         self,
+        request_id: Optional[int] = None,
         user_id: Optional[int] = None,
         product_id: Optional[int] = None,
         status: Optional[str] = None,
@@ -114,6 +115,8 @@ class ElasticStatisticRepo(DatabaseStatistic):
         filter_keys = []
         if user_id:
             filter_keys.append({"term": {"user_id": str(user_id)}})
+        if request_id:
+            filter_keys.append({"term": {"request_id": str(request_id)}})
         if product_id:
             filter_keys.append({"term": {"product_id": str(product_id)}})
         if status is not None and status != "":

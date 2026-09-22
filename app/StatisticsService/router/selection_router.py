@@ -78,6 +78,7 @@ class SelectionRouter:
 
     async def get_all_selection(
         self,
+        request_id: Optional[int] = None,
         user_id: Optional[int] = None,
         product_id: Optional[int] = None,
         status: Optional[str] = None,
@@ -89,6 +90,7 @@ class SelectionRouter:
     ) -> Dict[str, Any]:
         """Получить все записи подбора с пагинацией."""
         return await self.repo.get_all(
+            request_id=request_id,
             user_id=user_id,
             product_id=product_id,
             status=status,
@@ -228,6 +230,7 @@ async def update_selection_status(
 
 @router.get("/selection")
 async def get_all_selection(
+    request_id: Optional[int] = None,
     user_id: Optional[int] = None,
     product_id: Optional[int] = None,
     status: Optional[str] = None,
@@ -240,6 +243,7 @@ async def get_all_selection(
 ):
     """Получить все записи подбора с пагинацией."""
     return await router_instance.get_all_selection(
+        request_id=request_id,
         user_id=user_id, 
         product_id=product_id, 
         status=status, 
