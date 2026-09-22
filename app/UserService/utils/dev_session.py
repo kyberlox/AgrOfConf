@@ -34,7 +34,6 @@ DEV_USER_ID = int(os.getenv("DEV_USER_ID", "4133"))
 
 
 def is_dev_enabled() -> bool:
-    print(_DEV_ENABLED, 123123)
     return _DEV_ENABLED
 
 
