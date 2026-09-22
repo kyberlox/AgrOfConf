@@ -662,14 +662,14 @@ async def delete_request(
 
 
 @router.get(
-    "/users/{user_id}",
+    "/user",
     response_model=list[RequestResponse],
     description="Выведение всех запросов пользователя.",
 )
 async def get_user_requests(
-        user_id: int,
         skip: int = Query(default=0, ge=0),
         limit: int = Query(default=100, ge=1, le=500),
+        user_id: int = Depends(get_active_user_id),
         db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
