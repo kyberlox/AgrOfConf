@@ -16,6 +16,7 @@ from ..schema.request import RequestCreate, RequestResponse, RequestUpdate, Requ
 from ..schema.customer import CustomerRequest, CustomerResponse
 from ...UserService.model.Users import Users
 from ...UserService.utils.auth_utils import get_user_id_by_session_id
+from app.StatisticsService.router.selection_router import get_selection_router
 
 logger = logging.getLogger(__name__)
 
@@ -637,29 +638,40 @@ async def delete_request(
         request_id: int,
         user_id: int = Depends(get_active_user_id),
         db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Request).where(
-            Request.id == request_id,
-            Request.user_id == user_id,
+        statistic_router=Depends(get_selection_router)
+):  
+
+    try:
+        result = await db.execute(
+            select(Request).where(
+                Request.id == request_id,
+                Request.user_id == user_id,
+            )
         )
-    )
-    db_request = result.scalar_one_or_none()
+        db_request = result.scalar_one_or_none()
 
-    if db_request is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Запрос с id={request_id} не найден",
-        )
+        if db_request is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Запрос с id={request_id} не найден",
+            )
 
-    await db.delete(db_request)
-    await db.commit()
+        await db.delete(db_request)
 
-    return {
-        "detail": "Запрос успешно удалён",
-        "request_id": request_id,
-    }
+        # Удалить все ОЛ для этого запроса
+        is_selections_delete = await statistic_router.delete_selection_by_request_id(request_id)
+        if is_selections_delete.status == False:
+            raise HTTPException(status_code=500, detail=f"Ошибка при удалении ОЛ: {is_selections_delete.error}")
+        await db.commit()
 
+        return {
+            "detail": "Запрос успешно удалён",
+            "request_id": request_id,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при удалении запроса: {e}")
 
 @router.get(
     "/user",

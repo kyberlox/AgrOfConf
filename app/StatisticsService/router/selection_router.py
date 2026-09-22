@@ -42,6 +42,16 @@ class SelectionRouter:
         except Exception as e:
             return SelectionResponse(success=False, error=str(e))
 
+    async def delete_selection_by_request_id(self, request_id: int) -> SelectionResponse:
+        """
+        Удаляени все данные по подбору (ОЛ) на основе id запроса
+        """
+        try:
+            result =await self.repo.delete_by_request_id(request_id)
+            return SelectionResponse(success=True, data=result)
+        except Exception as e:
+            return SelectionResponse(success=False, error=str(e))
+
     async def update_selection_status(
         self,
         record_id: Union[str, int],
