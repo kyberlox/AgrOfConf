@@ -27,10 +27,11 @@ from app.formulas.integration import (
 
 router = APIRouter(prefix="/module_search", tags=["Module_search"])
 
-async def save_statistic(db, statistic_router, user_id, product_id, parameters) -> tuple[dict, object]:
+async def save_statistic(db, statistic_router, user_id, product_id, parameters, request_id) -> tuple[dict, object]:
     stat_info = await build_statistic_data(db, user_id, product_id)
     stat_info["parameters"] = parameters
-    stat_info["document_number"] = await statistic_router.get_number_document(user_id) + 1
+    stat_info['request_id'] = request_id
+    stat_info["document_number"] = await statistic_router.get_number_document(user_id, request_id) + 1
     is_dump = await statistic_router.save_selection(stat_info)
     return stat_info, is_dump
 
@@ -637,6 +638,7 @@ def get_ordered_table_params(
 )
 async def process_table_data(
     product_id: int,
+    request_id: int  = Query(..., description="ID Запроса"),
     recognition_id: str | int | None = Query(
         default=None,
         description="ID подбора",
@@ -792,7 +794,7 @@ async def process_table_data(
         if not recognition_id:
             # если сохранения подбора еще не было
             # сохраняем заглушку
-            stat_info, is_dump = await save_statistic(db, statistic_router, user_id, product_id, db_data)
+            stat_info, is_dump = await save_statistic(db, statistic_router, user_id, product_id, db_data, request_id)
             recognition_id = is_dump.data["elastic_response"].get("_id")
         else:
             # обноваляем подбор
@@ -1119,7 +1121,7 @@ async def process_table_data(
     if not recognition_id:
         # если сохранения подбора еще не было
         # сохраняем заглушку
-        stat_info, is_dump = await save_statistic(db, statistic_router, user_id, product_id, db_data)
+        stat_info, is_dump = await save_statistic(db, statistic_router, user_id, product_id, db_data, request_id)
         recognition_id = is_dump.data["elastic_response"].get("_id")
     else:
         # обноваляем подбор
