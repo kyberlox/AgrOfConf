@@ -179,9 +179,9 @@ class SelectionRouter:
             ko_users=ko_users,
         )
 
-    async def get_number_document(self, user_id: int) -> int:
+    async def get_number_document(self, user_id: int, request_id: int) -> int:
         """Получить порядковый номер документа для указанного пользователя."""
-        return await self.repo.last_document_number(user_id)
+        return await self.repo.last_document_number(user_id, request_id)
 
 
 # ──────────────────────────────────────────────
