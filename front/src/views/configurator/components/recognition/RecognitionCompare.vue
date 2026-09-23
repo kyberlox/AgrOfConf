@@ -21,7 +21,7 @@
             </BaseButton>
         </div>
         <div class="flex flex-row gap-[25px] items-start justify-center py-[15px]">
-            <div class="flex flex-col gap-[5px] min-w-[40%] sticky top-0 z-10 ">
+            <div class="flex flex-row gap-[5px] min-w-[40%] sticky top-0 z-10 ">
                 <div class=" max-w-[650px] border border-gray-200 rounded-[16px] p-[15px] hover:bg-gray-50 hover:border-gray-500"
                      v-for="(image, index) in imagesUrl"
                      :key="'zi' + index">
