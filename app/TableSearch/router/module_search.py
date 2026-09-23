@@ -638,7 +638,7 @@ def get_ordered_table_params(
 )
 async def process_table_data(
     product_id: int,
-    request_id: int  = Query(..., description="ID Запроса"),
+    request_id: int  = Query(default=1, description="ID Запроса"), #Временно default=1 
     recognition_id: str | int | None = Query(
         default=None,
         description="ID подбора",
