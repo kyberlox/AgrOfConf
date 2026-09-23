@@ -65,3 +65,8 @@ class RequestListResponse(BaseModel):
     created_at: datetime
     edited_at: datetime | None = None
     dispatched_at: datetime | None = None
+
+
+class RequestListPageResponse(BaseModel):
+    data: list[RequestListResponse]
+    total_count: int

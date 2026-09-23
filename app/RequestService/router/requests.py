@@ -15,6 +15,7 @@ from ..model.request import Request
 from ..schema.request import (
     RequestCreate,
     RequestData,
+    RequestListPageResponse,
     RequestListResponse,
     RequestResponse,
     RequestUpdate,
@@ -696,7 +697,7 @@ async def delete_request(
 
 @router.get(
     "/user",
-    response_model=list[RequestListResponse],
+    response_model=RequestListPageResponse,
     description="Выведение всех запросов пользователя.",
 )
 async def get_user_requests(
@@ -705,11 +706,15 @@ async def get_user_requests(
         user_id: int = Depends(get_active_user_id),
         db: AsyncSession = Depends(get_db),
 ):
+    user_filter = Request.user_id == user_id
+    count_result = await db.execute(
+        select(func.count(Request.id)).where(user_filter)
+    )
+    total_count = count_result.scalar_one()
+
     result = await db.execute(
         select(Request)
-        .where(
-            Request.user_id == user_id
-        )
+        .where(user_filter)
         .order_by(
             Request.id.desc()
         )
@@ -719,19 +724,22 @@ async def get_user_requests(
 
     requests = result.scalars().all()
 
-    return [
-        RequestListResponse(
-            id=request.id,
-            request_num=request.request_num,
-            status=request.status,
-            ol_count=request.ol_count,
-            description=request.description,
-            created_at=request.created_at,
-            edited_at=request.edited_at,
-            dispatched_at=request.dispatched_at,
-        )
-        for request in requests
-    ]
+    return RequestListPageResponse(
+        data=[
+            RequestListResponse(
+                id=request.id,
+                request_num=request.request_num,
+                status=request.status,
+                ol_count=request.ol_count,
+                description=request.description,
+                created_at=request.created_at,
+                edited_at=request.edited_at,
+                dispatched_at=request.dispatched_at,
+            )
+            for request in requests
+        ],
+        total_count=total_count,
+    )
 
 
 @router.get(
