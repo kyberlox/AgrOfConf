@@ -60,6 +60,9 @@ class RequestListResponse(BaseModel):
     id: int
     request_num: int
     status: str
+    customer: str | None
+    organization: str | None
+    end_customer: str | None
     ol_count: int | None
     description: str | None
     created_at: datetime

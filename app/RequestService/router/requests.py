@@ -714,6 +714,11 @@ async def get_user_requests(
 
     result = await db.execute(
         select(Request)
+        .options(
+            selectinload(Request.customer),
+            selectinload(Request.organization),
+            selectinload(Request.end_customer),
+        )
         .where(user_filter)
         .order_by(
             Request.id.desc()
@@ -730,6 +735,9 @@ async def get_user_requests(
                 id=request.id,
                 request_num=request.request_num,
                 status=request.status,
+                customer=request.customer.organization if request.customer else None,
+                organization=request.organization.organization if request.organization else None,
+                end_customer=request.end_customer.organization if request.end_customer else None,
                 ol_count=request.ol_count,
                 description=request.description,
                 created_at=request.created_at,
