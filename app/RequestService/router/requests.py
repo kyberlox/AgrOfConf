@@ -12,7 +12,13 @@ from ..schema.contact_person import ContactResponse
 from ..model.customer import Customer
 from ..model.database import get_db
 from ..model.request import Request
-from ..schema.request import RequestCreate, RequestResponse, RequestUpdate, RequestData
+from ..schema.request import (
+    RequestCreate,
+    RequestData,
+    RequestListResponse,
+    RequestResponse,
+    RequestUpdate,
+)
 from ..schema.customer import CustomerRequest, CustomerResponse
 from ...UserService.model.Users import Users
 from ...UserService.utils.auth_utils import get_user_id_by_session_id
@@ -29,7 +35,6 @@ CUSTOMER_FIELDS = (
     "registered_address",
     "international_address",
     "website",
-    "customer_type",
     "additional_information",
 )
 
@@ -298,11 +303,13 @@ async def create_request(
         )
 
         # 2. Проектная организация
-        organization = await get_or_create_customer(
-            data=payload.organization,
-            role_name="Проектная организация",
-            db=db,
-        )
+        organization = None
+        if payload.organization is not None:
+            organization = await get_or_create_customer(
+                data=payload.organization,
+                role_name="Проектная организация",
+                db=db,
+            )
 
         # 3. Конечный заказчик
         end_customer = None
@@ -319,7 +326,7 @@ async def create_request(
             user_id=user_id,
 
             customer_id=customer.id,
-            organization_id=organization.id,
+            organization_id=organization.id if organization is not None else None,
             end_customer_id=(
                 end_customer.id
                 if end_customer is not None
@@ -595,6 +602,18 @@ async def update_request(
             )
             db_request.end_customer_id = end_customer.id
 
+        if "organization" in payload.model_fields_set and payload.organization is None:
+            db_request.organization_id = None
+
+        if "end_customer" in payload.model_fields_set and payload.end_customer is None:
+            db_request.end_customer_id = None
+
+        if payload.request is not None or any(
+            field in payload.model_fields_set
+            for field in ("customer", "organization", "end_customer")
+        ):
+            db_request.edited_at = func.now()
+
         await db.commit()
 
         return await get_request_with_relations(
@@ -660,7 +679,7 @@ async def delete_request(
 
         # Удалить все ОЛ для этого запроса
         is_selections_delete = await statistic_router.delete_selection_by_request_id(request_id)
-        if is_selections_delete.status == False:
+        if not is_selections_delete.success:
             raise HTTPException(status_code=500, detail=f"Ошибка при удалении ОЛ: {is_selections_delete.error}")
         await db.commit()
 
@@ -669,13 +688,15 @@ async def delete_request(
             "request_id": request_id,
         }
     except HTTPException:
+        await db.rollback()
         raise
     except Exception as e:
+        await db.rollback()
         raise HTTPException(status_code=500, detail=f"Ошибка при удалении запроса: {e}")
 
 @router.get(
     "/user",
-    response_model=list[RequestResponse],
+    response_model=list[RequestListResponse],
     description="Выведение всех запросов пользователя.",
 )
 async def get_user_requests(
@@ -686,16 +707,6 @@ async def get_user_requests(
 ):
     result = await db.execute(
         select(Request)
-        .options(
-            selectinload(Request.customer)
-            .selectinload(Customer.contacts),
-
-            selectinload(Request.organization)
-            .selectinload(Customer.contacts),
-
-            selectinload(Request.end_customer)
-            .selectinload(Customer.contacts),
-        )
         .where(
             Request.user_id == user_id
         )
@@ -709,23 +720,15 @@ async def get_user_requests(
     requests = result.scalars().all()
 
     return [
-        RequestResponse(
+        RequestListResponse(
             id=request.id,
             request_num=request.request_num,
             status=request.status,
-
-            request=RequestData(
-                request_purpose=request.request_purpose,
-                description=request.description,
-                construction_project=request.construction_project,
-                tkp_term=request.tkp_term,
-                delivery_time=request.delivery_time,
-                procedure_type=request.procedure_type,
-            ),
-
-            customer=request.customer,
-            organization=request.organization,
-            end_customer=request.end_customer,
+            ol_count=request.ol_count,
+            description=request.description,
+            created_at=request.created_at,
+            edited_at=request.edited_at,
+            dispatched_at=request.dispatched_at,
         )
         for request in requests
     ]

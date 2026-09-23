@@ -1,5 +1,7 @@
 # app/requests/schema/request.py
 
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 
 from .customer import CustomerRequest, CustomerResponse
@@ -27,7 +29,7 @@ class RequestCreate(BaseModel):
     request: RequestData
 
     customer: CustomerRequest
-    organization: CustomerRequest
+    organization: CustomerRequest | None = None
     end_customer: CustomerRequest | None = None
 
 
@@ -52,3 +54,14 @@ class RequestResponse(BaseModel):
     end_customer: CustomerResponse | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class RequestListResponse(BaseModel):
+    id: int
+    request_num: int
+    status: str
+    ol_count: int | None
+    description: str | None
+    created_at: datetime
+    edited_at: datetime | None = None
+    dispatched_at: datetime | None = None
