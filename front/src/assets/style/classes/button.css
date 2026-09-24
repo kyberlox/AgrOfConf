@@ -11,7 +11,7 @@
 }
 
 .button-primary {
-  @apply text-(--text-primary) m-auto font-semibold text-[16px] px-[46px] py-[17px] flex flex-row items-center justify-center gap-[4px] min-w-[200px] h-full;
+  @apply text-(--text-primary) m-auto font-semibold text-[16px] sm:px-[0] md:px-[46px] py-[17px] flex flex-row items-center justify-center gap-[4px] sm:min-w-auto md:min-w-[200px] h-full;
 }
 
 .button-primary__wrapper:has(.button-primary:disabled) {
