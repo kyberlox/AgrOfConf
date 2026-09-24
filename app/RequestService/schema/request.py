@@ -60,8 +60,16 @@ class RequestListResponse(BaseModel):
     id: int
     request_num: int
     status: str
+    customer: str | None
+    organization: str | None
+    end_customer: str | None
     ol_count: int | None
     description: str | None
     created_at: datetime
     edited_at: datetime | None = None
     dispatched_at: datetime | None = None
+
+
+class RequestListPageResponse(BaseModel):
+    data: list[RequestListResponse]
+    total_count: int
