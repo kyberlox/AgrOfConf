@@ -148,7 +148,9 @@ export default defineComponent({
             try {
                 tableReady.value = false;
                 historyData.value = (await Api.get(checkRoute())) as IHistoryResponse;
-                useHistoryStore().setHistoryData(formatResultToHistory(historyData.value, requestId ? "ol" : "req"));
+                useHistoryStore().setHistoryData(
+                    formatResultToHistory(historyData.value, requestId.value ? "ol" : "req"),
+                );
                 totalHistoryRows.value = Number(historyData.value.total_count);
             } finally {
                 tableReady.value = true;
