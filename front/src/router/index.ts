@@ -56,6 +56,11 @@ const router = createRouter({
             },
         },
         {
+            path: "/my_requests",
+            name: "myRequest",
+            component: HomeView,
+        },
+        {
             path: "/ko_requests",
             name: "koRequests",
             component: HomeView,

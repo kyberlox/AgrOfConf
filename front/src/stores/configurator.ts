@@ -2,51 +2,54 @@ import type { IFormattedData } from "@/assets/interfaces/IForm";
 import { defineStore } from "pinia";
 
 interface ISketch {
-    img: string,
-    title: string
+    img: string;
+    title: string;
 }
 interface IDoc {
-    created_at: string,
-    date_to: string,
-    file: string,
-    file_url: string,
-    id: number,
-    name: string,
-    product_id: number
+    created_at: string;
+    date_to: string;
+    file: string;
+    file_url: string;
+    id: number;
+    name: string;
+    product_id: number;
 }
 
-export const useConfiguratorStore = defineStore('configuratorStore', {
+export const useConfiguratorStore = defineStore("configuratorStore", {
     state: () => ({
-        error: ['Выбирайте параметры последовательно - доступные значения обновляются автоматически в зависимости от выбранных условий.'],
-        errorStatus: 'warning',
+        error: [
+            "Выбирайте параметры последовательно - доступные значения обновляются автоматически в зависимости от выбранных условий.",
+        ],
+        errorStatus: "warning",
         status: {
-            mark: 'XXXXX-XXX-XX-XXXX',
+            mark: "XXXXX-XXX-XX-XXXX",
             result: 12,
-            status: 'Выполним',
+            status: "Выполним",
             answeredQuestions: 0,
-            allQuestions: 0
+            allQuestions: 0,
         },
         sketch: [] as ISketch[],
         calcParams: [] as IFormattedData[],
         docs: [] as IDoc[],
-        freeModeConfig: false
+        freeModeConfig: false,
     }),
     actions: {
         setError(error: string | string[]) {
-            this.error.length = 0
-            Array.isArray(error) ? this.error = error : this.error.push(error)
-            this.errorStatus = 'error'
+            this.error.length = 0;
+            Array.isArray(error) ? (this.error = error) : this.error.push(error);
+            this.errorStatus = "error";
         },
         setDefaultError() {
-            this.error =
-                ['Выбирайте параметры последовательно - доступные значения обновляются автоматически в зависимости от выбранных условий.'];
-            this.errorStatus = 'warning';
+            this.error = [
+                "Выбирайте параметры последовательно - доступные значения обновляются автоматически в зависимости от выбранных условий.",
+            ];
+            this.errorStatus = "warning";
         },
         setMark(mark: string) {
             this.status.mark = mark;
         },
         seftDefaultMark() {
-            this.status.mark = 'XXXXX-XXX-XX-XXXX';
+            this.status.mark = "XXXXX-XXX-XX-XXXX";
         },
         setCovered(count: number) {
             this.status.answeredQuestions = count;
@@ -65,18 +68,20 @@ export const useConfiguratorStore = defineStore('configuratorStore', {
             this.docs = docs;
         },
         setCalcParams(params: IFormattedData[]) {
-            const markKey = 'Маркировка';
-            const sketchKey = 'Чертеж';
-            const targetMark = params.find(e => e.name == markKey);
-            const targetSketch = params.find(e => e.name == sketchKey);
+            const markKey = "Маркировка";
+            const sketchKey = "Чертеж";
+            const targetMark = params.find((e) => e.name == markKey);
+            const targetSketch = params.find((e) => e.name == sketchKey);
 
             if (targetMark?.response_value) {
-                this.setMark(targetMark.response_value as string)
+                this.setMark(targetMark.response_value as string);
             }
-            if (targetSketch?.response_value && String(targetSketch.response_value).startsWith('/api/files/')) {
+            if (targetSketch?.response_value && String(targetSketch.response_value).startsWith("/api/files/")) {
                 this.setSketch({ title: sketchKey, img: targetSketch.response_value as string });
             }
-            this.calcParams = params.filter(e => e.name !== markKey && e.name !== sketchKey && e.required_type !== 'drawing');
+            this.calcParams = params.filter(
+                (e) => e.name !== markKey && e.name !== sketchKey && e.required_type !== "drawing",
+            );
         },
     },
     getters: {
@@ -86,8 +91,8 @@ export const useConfiguratorStore = defineStore('configuratorStore', {
         getFreeModeConfig: (state) => state.freeModeConfig,
         getCalcParams: (state) => state.calcParams,
         getImages: (state) => state.sketch,
-        getDocs: (state) => state.docs
-    }
-})
+        getDocs: (state) => state.docs,
+    },
+});
 
-export type configuratorStoreType = ReturnType<typeof useConfiguratorStore>
+export type configuratorStoreType = ReturnType<typeof useConfiguratorStore>;

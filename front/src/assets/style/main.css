@@ -3,6 +3,7 @@
 @import 'vue3-toastify/dist/index.css';
 @import './classes.css';
 @import 'tailwindcss';
+@import './animation/animation';
 
 @theme {
   --breakpoint-3xl: 120rem;

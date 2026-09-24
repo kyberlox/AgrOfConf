@@ -1,9 +1,9 @@
 <template>
-    <div v-if="currentTableNav !== 'statistics'" class="w-full h-[700px]">
+    <div v-if="currentTableNav !== 'statistics' && tableHead" class="w-full h-[700px]">
         <!-- Заглушка если нет истории -->
         <div v-if="!tableData.length && tableReady" class="2xl:mt-[100px] xl:mt-[20px]">
             <EmptyHistoryPlug
-                :isEmptyPage="Number(activePage) > total"
+                :isEmptyPage="total > 1 && Number(activePage) > total"
                 :isSearchResult="isSearchResult"
                 @navToFirstPage="navToPage(1)"
                 @createOl="$emit('createOl')" />
@@ -22,7 +22,7 @@
                 :autoSizeStrategy="autoSizeStrategy"
                 :tooltipShowMode="'whenTruncated'"
                 :tooltipShowDelay="10"
-                @cell-clicked="(x) => handleCellClicked(x)"
+                @cell-clicked="(x: ICellClicked) => handleCellClicked(x)"
                 @grid-ready="onGridReady"
                 @grid-size-changed="autoSize" />
             <Pagination
@@ -39,8 +39,19 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, type PropType, computed, shallowRef, ref } from "vue";
+import { defineComponent, type PropType, computed, shallowRef, ref, watch } from "vue";
 import { AgGridVue } from "ag-grid-vue3";
+import EmptyHistoryPlug from "@/components/EmptyHistoryPlug.vue";
+import CellRenderer from "./CellRenderer.vue";
+import { useUserStore } from "@/stores/user.ts";
+import { historyTableTheme } from "@/assets/static/historyThemeAdGrid.ts";
+import Pagination from "./TablePagination.vue";
+import Loader from "@/components/layout/Loader.vue";
+import TextTooltip from "@/components/layout/TextTooltip.vue";
+import { useRoute, useRouter } from "vue-router";
+import { type ICellClicked, type IHistoryResponse } from "@/assets/interfaces/IHistory.ts";
+import { headerComparsionOl, headerComparsionReq } from "@/utils/historyTable.ts";
+
 import {
     ModuleRegistry,
     type ColDef,
@@ -54,15 +65,6 @@ import {
     CellStyleModule,
     TooltipModule,
 } from "ag-grid-community";
-import EmptyHistoryPlug from "@/components/EmptyHistoryPlug.vue";
-import CellRenderer from "./CellRenderer.vue";
-import { useUserStore } from "@/stores/user.ts";
-import { historyTableTheme } from "@/assets/static/historyThemeAdGrid.ts";
-import Pagination from "./TablePagination.vue";
-import Loader from "@/components/layout/Loader.vue";
-import TextTooltip from "@/components/layout/TextTooltip.vue";
-import { useRoute, useRouter } from "vue-router";
-import { type IHistoryResponse } from "@/assets/interfaces/IHistory.ts";
 
 ModuleRegistry.registerModules([
     ClientSideRowModelModule,
@@ -75,7 +77,14 @@ const theme = themeAlpine.withParams(historyTableTheme);
 
 export default defineComponent({
     name: "HistoryTable",
-    components: { AgGridVue, EmptyHistoryPlug, CellRenderer, Pagination, Loader, TextTooltip },
+    components: {
+        AgGridVue,
+        EmptyHistoryPlug,
+        CellRenderer,
+        Pagination,
+        Loader,
+        TextTooltip,
+    },
     emits: ["createOl", "pageChanged"],
     props: {
         currentTableNav: {
@@ -84,10 +93,6 @@ export default defineComponent({
         },
         tableData: {
             type: Array as PropType<string[][]>,
-            required: true,
-        },
-        tableHead: {
-            type: Array as PropType<string[]>,
             required: true,
         },
         tableReady: {
@@ -117,10 +122,20 @@ export default defineComponent({
         const router = useRouter();
         const activePage = computed(() => route.query.page || 1);
         const totalPages = computed(() => Math.ceil(props.total / props.rowsPerPage));
+        const requestId = computed(() => route.query.requestId);
+        const tableHead = ref<string[]>([]);
+        watch(
+            () => requestId.value,
+            () => {
+                tableHead.value = Object.keys(requestId.value ? headerComparsionOl : headerComparsionReq);
+            },
+            { immediate: true },
+        );
 
         const columnMinWidths: Record<string, number> = {
             Наименование: 250,
             "Шифр ОЛ": 200,
+            "Запрос №": 150,
         };
         const columnMaxWidths: Record<string, number> = {
             "Шт.": 100,
@@ -129,7 +144,7 @@ export default defineComponent({
         const rowData = computed(() => {
             return props.tableData.map((row) => {
                 const obj: Record<string, string | number> = {};
-                props.tableHead.forEach((header, index) => {
+                tableHead.value.forEach((header, index) => {
                     const raw = row[index];
                     if (raw === undefined || raw === null) {
                         obj[header] = "Не определено";
@@ -157,12 +172,12 @@ export default defineComponent({
         };
 
         const columnDefs = computed<ColDef[]>(() => {
-            return props.tableHead.map((header, index) => ({
+            return tableHead.value.map((header, index) => ({
                 field: header,
                 headerName: header,
                 cellRenderer: "CellRenderer",
                 cellRendererParams: {
-                    colDefs: props.tableHead,
+                    colDefs: tableHead,
                 },
                 tooltipValueGetter: (params) => params.value,
                 tooltipComponent: "TextTooltip",
@@ -189,14 +204,21 @@ export default defineComponent({
             emit("pageChanged", page);
         };
 
-        const handleCellClicked = (rowData: { value: string; column: { colId: string } }) => {
-            if (rowData.column.colId !== "Шифр ОЛ") return;
+        const handleCellClicked = (rowData: ICellClicked) => {
+            if (rowData.column.colId !== "Шифр ОЛ" && rowData.column.colId !== "Запрос №") return;
             const targetRow = props.historyData.data?.find((e) => e.id == rowData.value);
-            router.push({
-                name: "configurator",
-                params: { id: String(targetRow?.product_id) },
-                query: { code: String(targetRow?.id) },
-            });
+            router.push(
+                rowData.column.colId == "Шифр ОЛ"
+                    ? {
+                          name: "configurator",
+                          params: { id: String(targetRow?.product_id) },
+                          query: { code: String(targetRow?.id), requestId: String(requestId.value) },
+                      }
+                    : {
+                          name: "myRequest",
+                          query: { requestId: String(rowData.value) },
+                      },
+            );
         };
 
         return {
@@ -208,6 +230,7 @@ export default defineComponent({
             gridApi,
             totalPages,
             activePage,
+            tableHead,
             autoSize,
             onGridReady,
             onFirstDataRendered,

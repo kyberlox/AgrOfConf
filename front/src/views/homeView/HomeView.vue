@@ -43,9 +43,9 @@
             <div
                 v-if="tableData?.length && !(currentTableNav == 'statistics')"
                 class="flex items-center justify-end w-full px-[24px]">
-                <BaseButton :buttonSettings="{ class: 'button-primary' }" @clicked="showEngineModal = true">
+                <BaseButton :buttonSettings="{ class: 'button-primary' }" @clicked="createRequestVisible = true">
                     <Blank class="w-[24px] h-[24px]" />
-                    <span>Создать ОЛ</span>
+                    <span>{{ requestId ? "Создать ОЛ" : "Создать запрос" }}</span>
                 </BaseButton>
             </div>
 
@@ -58,19 +58,26 @@
                 :currentTableNav="currentTableNav"
                 :tableReady="tableReady"
                 :tableData="tableData || []"
-                :tableHead="Object.keys(headerComparsion)"
                 :isSearchResult="!!textToSearch"
                 :rowsPerPage="rowsPerPage"
                 :total="totalHistoryRows"
+                :requestId="requestId"
                 :historyData="historyData"
                 @pageChanged="(page: number) => changePage(page)"
                 @create-ol="showEngineModal = true" />
 
             <!-- Модалка для выбора изделия -->
             <EnginePickModal
+                v-if="requestId"
                 :items="engines"
+                :requestId="String(requestId)"
                 :showEngineModal="showEngineModal"
                 @closeModal="showEngineModal = false" />
+
+            <CreateRequestModal
+                v-if="createRequestVisible"
+                @closeModal="createRequestVisible = false"
+                @goToReq="goToReq" />
         </div>
     </div>
 </template>
@@ -90,9 +97,10 @@ import HistoryTable from "./components/dataTable/HistoryTable.vue";
 import Statistics from "./components/statistics/Statistics.vue";
 import { useUserStore } from "@/stores/user.ts";
 import { useHistoryStore } from "@/stores/historyTable.ts";
-import { headerComparsion, formatResultToHistory } from "@/utils/historyTable.ts";
-import { type IHistoryResponse, type IHistory } from "@/assets/interfaces/IHistory.ts";
-import { useRoute } from "vue-router";
+import { formatResultToHistory } from "@/utils/historyTable.ts";
+import { type IHistoryResponse } from "@/assets/interfaces/IHistory.ts";
+import { useRoute, useRouter } from "vue-router";
+import CreateRequestModal from "@/views/homeView/components/createRequestModal/CreateRequestModal.vue";
 
 export default defineComponent({
     components: {
@@ -105,6 +113,7 @@ export default defineComponent({
         Configurator,
         HistoryTable,
         Statistics,
+        CreateRequestModal,
     },
     setup(props) {
         const showEngineModal = ref(false);
@@ -121,20 +130,26 @@ export default defineComponent({
         const rowsPerPage = ref(10);
         const currentPage = ref(Number(useRoute().query.page || 1));
         const historyData = ref<IHistoryResponse>();
+        const createRequestVisible = ref(false);
+        const router = useRouter();
+        const route = useRoute();
+        const requestId = computed(() => route.query?.requestId || null);
 
         const getHistoryData = async () => {
             const getSkip = () => {
                 return currentPage.value < 1 ? 0 : (currentPage.value - 1) * rowsPerPage.value;
             };
+            const checkRoute = () => {
+                if (requestId.value) {
+                    return `selection_statistic/selection?user_id=${userId.value}&skip=${getSkip()}&request_id=${requestId.value}`;
+                } else return "requests/user?skip=0&limit=100";
+            };
+
             try {
                 tableReady.value = false;
-                historyData.value = (await Api.get(
-                    `selection_statistic/selection?user_id=${userId.value}&skip=${getSkip()}`,
-                )) as IHistoryResponse;
-                useHistoryStore().setHistoryData(formatResultToHistory(historyData.value.data));
+                historyData.value = (await Api.get(checkRoute())) as IHistoryResponse;
+                useHistoryStore().setHistoryData(formatResultToHistory(historyData.value, requestId ? "ol" : "req"));
                 totalHistoryRows.value = Number(historyData.value.total_count);
-            } catch (error) {
-                console.error("Error history:", error);
             } finally {
                 tableReady.value = true;
             }
@@ -142,17 +157,14 @@ export default defineComponent({
 
         onMounted(async () => {
             textToSearch.value = "";
-            try {
-                const data = await Api.get("products/?skip=0&limit=100");
-                useProductsData().setProducts(data);
-                engines.value = data;
-            } catch (error) {
-                console.error("Error fetching products:", error);
-            }
+            const data = await Api.get("products/?skip=0&limit=100");
+            if (!data) return;
+            useProductsData().setProducts(data);
+            engines.value = data;
         });
 
         watch(
-            () => userId.value,
+            [() => userId.value, () => requestId.value],
             async () => {
                 if (!userId.value) return;
                 getHistoryData();
@@ -166,6 +178,7 @@ export default defineComponent({
 
         let abortController: AbortController | null = null;
         const search = async (newTextToSearch: string, page: number = 1) => {
+            if (!newTextToSearch && newTextToSearch !== "") return;
             textToSearch.value = newTextToSearch;
             if (abortController) {
                 abortController.abort();
@@ -176,11 +189,11 @@ export default defineComponent({
                     return getHistoryData();
                 }
                 const searchRes = await Api.get(
-                    `/selection_statistic/search_by_value?value=${textToSearch.value}&skip= rowsPerPage.value}`,
+                    `/selection_statistic/search_by_value?value=${textToSearch.value}&skip=${rowsPerPage.value}`,
                     abortController,
                 );
                 if (!searchRes.result) return;
-                useHistoryStore().setHistoryData(formatResultToHistory(searchRes));
+                useHistoryStore().setHistoryData(formatResultToHistory(searchRes, requestId.value ? "ol" : "req"));
             } catch (e) {
                 console.error(e);
             }
@@ -191,6 +204,10 @@ export default defineComponent({
             getHistoryData();
         };
 
+        const goToReq = (chosenRequestId: number) => {
+            router.push({ name: "myRequest", query: { requestId: chosenRequestId } });
+        };
+
         return {
             engineId,
             tableNav,
@@ -199,16 +216,18 @@ export default defineComponent({
             section,
             currentTableNav,
             tableData,
-            headerComparsion,
             tableReady,
             textToSearch,
             userId,
             totalHistoryRows,
             rowsPerPage,
             historyData,
+            createRequestVisible,
+            requestId,
             handlePageTypeChange,
             search,
             changePage,
+            goToReq,
         };
     },
 });
