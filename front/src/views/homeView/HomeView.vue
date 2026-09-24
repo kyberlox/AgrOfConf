@@ -209,7 +209,6 @@ export default defineComponent({
         };
 
         const handleCreateClick = () => {
-            console.log(requestId.value);
             if (!requestId.value) {
                 createRequestVisible.value = true;
             } else showEngineModal.value = true;
