@@ -205,10 +205,15 @@ export default defineComponent({
         };
 
         const handleCellClicked = (rowData: ICellClicked) => {
-            if (rowData.column.colId !== "Шифр ОЛ" && rowData.column.colId !== "Запрос №") return;
-            const targetRow = props.historyData.data?.find((e) => e.id == rowData.value);
+            console.log(rowData);
+            const targetRow = props.historyData.data?.find(
+                (e) => e.id == rowData.data["Запрос №"] || e.id == rowData.data["Шифр ОЛ"],
+            );
+            console.log(targetRow);
+            console.log(rowData.data);
+            console.log({ query: { code: String(targetRow?.id), requestId: String(requestId.value) } });
             router.push(
-                rowData.column.colId == "Шифр ОЛ"
+                Object.keys(rowData.data).includes("Шифр ОЛ")
                     ? {
                           name: "configurator",
                           params: { id: String(targetRow?.product_id) },
@@ -216,7 +221,7 @@ export default defineComponent({
                       }
                     : {
                           name: "myRequest",
-                          query: { requestId: String(rowData.value) },
+                          query: { requestId: String(targetRow?.id) },
                       },
             );
         };
@@ -278,6 +283,7 @@ export default defineComponent({
 
 .ag-row {
     transition: background-color 0.2s;
+    cursor: pointer;
 }
 
 .ag-row:last-child {

@@ -11,6 +11,7 @@ export interface IHistoryResponse {
 }
 
 export interface ICellClicked {
+    data: Record<string, string>;
     value: string;
     column: {
         colId: string;
