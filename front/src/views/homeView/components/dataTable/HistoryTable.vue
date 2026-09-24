@@ -187,6 +187,8 @@ export default defineComponent({
             }));
         });
 
+        console.log(columnDefs.value);
+
         const autoSize = () => {
             gridApi.value?.sizeColumnsToFit();
         };
@@ -205,13 +207,9 @@ export default defineComponent({
         };
 
         const handleCellClicked = (rowData: ICellClicked) => {
-            console.log(rowData);
             const targetRow = props.historyData.data?.find(
                 (e) => e.id == rowData.data["Запрос №"] || e.id == rowData.data["Шифр ОЛ"],
             );
-            console.log(targetRow);
-            console.log(rowData.data);
-            console.log({ query: { code: String(targetRow?.id), requestId: String(requestId.value) } });
             router.push(
                 Object.keys(rowData.data).includes("Шифр ОЛ")
                     ? {

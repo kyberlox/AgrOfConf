@@ -43,7 +43,7 @@
             <div
                 v-if="tableData?.length && !(currentTableNav == 'statistics')"
                 class="flex items-center justify-end w-full px-[24px]">
-                <BaseButton :buttonSettings="{ class: 'button-primary' }" @clicked="createRequestVisible = true">
+                <BaseButton :buttonSettings="{ class: 'button-primary' }" @clicked="handleCreateClick">
                     <Blank class="w-[24px] h-[24px]" />
                     <span>{{ requestId ? "Создать ОЛ" : "Создать запрос" }}</span>
                 </BaseButton>
@@ -64,7 +64,7 @@
                 :requestId="requestId"
                 :historyData="historyData"
                 @pageChanged="(page: number) => changePage(page)"
-                @create-ol="showEngineModal = true" />
+                @createOl="showEngineModal = true" />
 
             <!-- Модалка для выбора изделия -->
             <EnginePickModal
@@ -208,6 +208,13 @@ export default defineComponent({
             router.push({ name: "myRequest", query: { requestId: chosenRequestId } });
         };
 
+        const handleCreateClick = () => {
+            console.log(requestId.value);
+            if (!requestId.value) {
+                createRequestVisible.value = true;
+            } else showEngineModal.value = true;
+        };
+
         return {
             engineId,
             tableNav,
@@ -224,6 +231,7 @@ export default defineComponent({
             historyData,
             createRequestVisible,
             requestId,
+            handleCreateClick,
             handlePageTypeChange,
             search,
             changePage,

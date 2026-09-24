@@ -9,10 +9,13 @@
                 <div class="flex flex-row gap-[16px]">
                     <RouterLink
                         v-for="item in items"
-                        :to="{ name: 'configurator', params: { id: item.id, requestId: requestId } }"
+                        :to="{
+                            name: 'configurator',
+                            params: { id: item.id },
+                            query: { requestId },
+                        }"
                         :key="'engine' + item.id"
-                        class="w-[200px] h-[274] p-[17px] cursor-pointer flex flex-col gap-[10px] border border-[#EAECEF] rounded-[8px] hover:border-orange-500 duration-300 transition-all"
-                        @click="$emit('selectEngine', item.id)">
+                        class="w-[200px] h-[274] p-[17px] cursor-pointer flex flex-col gap-[10px] border border-[#EAECEF] rounded-[8px] hover:border-orange-500 duration-300 transition-all">
                         <div
                             class="w-full h-[170px] bg-contain bg-no-repeat bg-center"
                             :style="{ 'background-image': item.image_url ? `url(${item.image_url})` : 'none' }"></div>

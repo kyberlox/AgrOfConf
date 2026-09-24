@@ -3,16 +3,16 @@ import { type IHistory } from "@/assets/interfaces/IHistory.ts";
 export const headerComparsionReq = {
     "Запрос №": "request_num",
     Статус: "status",
-    "Ол(шт.)": "ol_count",
     Заказчик: "customer",
     ПО: "organization",
-    Наименование: "product_name",
+    Конечный: "end_customer",
+    "Ол(шт.)": "ol_count",
     Описание: "description",
-    "Комментарий:": "commentary",
+    Наименование: "product_name",
     "Созд.": "created_at",
     "Ред.": "edited_at",
     "Отпр.": "dispatched_at",
-    Конечный: "end_customer",
+    // "Комментарий:": "commentary",
 } as const;
 
 export const headerComparsionOl = {
