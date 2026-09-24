@@ -32,7 +32,7 @@ async def save_statistic(db, statistic_router, user_id, product_id, parameters, 
     stat_info["parameters"] = parameters
     stat_info['request_id'] = request_id
     last_number = await statistic_router.get_number_document(user_id, request_id)
-    if not last_number.get('status'):
+    if isinstance(last_number, dict) and not last_number.get('status'):
         raise HTTPException(status_code=500, detail=last_number['error'])
     stat_info["document_number"] = last_number + 1
     is_dump = await statistic_router.save_selection(stat_info)
