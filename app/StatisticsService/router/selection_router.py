@@ -42,6 +42,16 @@ class SelectionRouter:
         except Exception as e:
             return SelectionResponse(success=False, error=str(e))
 
+    async def delete_selection_by_request_id(self, request_id: int) -> SelectionResponse:
+        """
+        Удаляени все данные по подбору (ОЛ) на основе id запроса
+        """
+        try:
+            result =await self.repo.delete_by_request_id(request_id)
+            return SelectionResponse(success=True, data=result)
+        except Exception as e:
+            return SelectionResponse(success=False, error=str(e))
+
     async def update_selection_status(
         self,
         record_id: Union[str, int],
@@ -68,6 +78,7 @@ class SelectionRouter:
 
     async def get_all_selection(
         self,
+        request_id: Optional[int] = None,
         user_id: Optional[int] = None,
         product_id: Optional[int] = None,
         status: Optional[str] = None,
@@ -79,6 +90,7 @@ class SelectionRouter:
     ) -> Dict[str, Any]:
         """Получить все записи подбора с пагинацией."""
         return await self.repo.get_all(
+            request_id=request_id,
             user_id=user_id,
             product_id=product_id,
             status=status,
@@ -167,9 +179,9 @@ class SelectionRouter:
             ko_users=ko_users,
         )
 
-    async def get_number_document(self, user_id: int) -> int:
+    async def get_number_document(self, user_id: int, request_id: int) -> int:
         """Получить порядковый номер документа для указанного пользователя."""
-        return await self.repo.last_document_number(user_id)
+        return await self.repo.last_document_number(user_id, request_id)
 
 
 # ──────────────────────────────────────────────
@@ -218,6 +230,7 @@ async def update_selection_status(
 
 @router.get("/selection")
 async def get_all_selection(
+    request_id: Optional[int] = None,
     user_id: Optional[int] = None,
     product_id: Optional[int] = None,
     status: Optional[str] = None,
@@ -230,6 +243,7 @@ async def get_all_selection(
 ):
     """Получить все записи подбора с пагинацией."""
     return await router_instance.get_all_selection(
+        request_id=request_id,
         user_id=user_id, 
         product_id=product_id, 
         status=status, 

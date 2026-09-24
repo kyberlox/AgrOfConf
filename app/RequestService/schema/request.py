@@ -1,94 +1,75 @@
 # app/requests/schema/request.py
 
-from typing import Annotated, Optional
+from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, PositiveInt, StringConstraints, model_validator
+from pydantic import BaseModel, ConfigDict
 
-from .contact_person import ContactCreate, ContactResponse
-from .customer import CustomerCreate, CustomerResponse
+from .customer import CustomerRequest, CustomerResponse
 
-NonEmptyStr = Annotated[
-    str,
-    StringConstraints(strip_whitespace=True, min_length=1),
-]
+
+class RequestData(BaseModel):
+    request_purpose: str
+    description: str | None = None
+    construction_project: str | None = None
+    tkp_term: str | None = None
+    delivery_time: str | None = None
+    procedure_type: str
+
+
+class RequestDataUpdate(BaseModel):
+    request_purpose: str | None = None
+    description: str | None = None
+    construction_project: str | None = None
+    tkp_term: str | None = None
+    delivery_time: str | None = None
+    procedure_type: str | None = None
 
 
 class RequestCreate(BaseModel):
-    # Передаётся для существующего заказчика
-    customer_id: Optional[PositiveInt] = None
+    request: RequestData
 
-    # Передаётся для нового заказчика
-    customer: Optional[CustomerCreate] = None
+    customer: CustomerRequest
+    organization: CustomerRequest | None = None
+    end_customer: CustomerRequest | None = None
 
-    contacts: list[ContactCreate] = Field(default_factory=list)
-
-    organization_id: Optional[PositiveInt] = None
-    request_purpose: NonEmptyStr
-    description: Optional[str] = None
-    construction_project: Optional[str] = None
-    tkp_term: Optional[str] = None
-    delivery_time: Optional[str] = None
-    procedure_type: NonEmptyStr
-
-    @model_validator(mode="after")
-    def validate_customer_source(self):
-        if self.customer_id is None and self.customer is None:
-            raise ValueError(
-                "Нужно передать customer_id существующего заказчика "
-                "или customer для создания нового"
-            )
-
-        if self.customer_id is not None and self.customer is not None:
-            raise ValueError(
-                "Нельзя одновременно передавать customer_id и customer"
-            )
-
-        return self
 
 class RequestUpdate(BaseModel):
-    customer_id: Optional[PositiveInt] = None
-    organization_id: Optional[PositiveInt] = None
-    request_purpose: Optional[NonEmptyStr] = None
-    description: Optional[str] = None
-    construction_project: Optional[str] = None
-    tkp_term: Optional[str] = None
-    delivery_time: Optional[str] = None
-    procedure_type: Optional[NonEmptyStr] = None
+    forced: bool = False
+    request: RequestDataUpdate | None = None
 
-    @model_validator(mode="after")
-    def validate_required_fields(self):
-        for field_name in ("customer_id", "request_purpose", "procedure_type"):
-            if field_name in self.model_fields_set and getattr(self, field_name) is None:
-                raise ValueError(f"{field_name} не может быть null")
-        return self
+    customer: CustomerRequest | None = None
+    organization: CustomerRequest | None = None
+    end_customer: CustomerRequest | None = None
+
 
 class RequestResponse(BaseModel):
     id: int
-    user_id: int
-    customer_id: int
-    organization_id: Optional[int] = None
-    request_purpose: Optional[str] = None
-    description: Optional[str] = None
-    construction_project: Optional[str] = None
-    tkp_term: Optional[str] = None
-    delivery_time: Optional[str] = None
-    procedure_type: Optional[str] = None
+    request_num: int
+    status: str | None = None
+
+    request: RequestData
+
+    customer: CustomerResponse | None = None
+    organization: CustomerResponse | None = None
+    end_customer: CustomerResponse | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class RequestCreateResponse(BaseModel):
+class RequestListResponse(BaseModel):
     id: int
-    customer_id: int
-    organization_id: Optional[int] = None
-    request_purpose: Optional[str] = None
-    description: Optional[str] = None
-    construction_project: Optional[str] = None
-    tkp_term: Optional[str] = None
-    delivery_time: Optional[str] = None
-    procedure_type: Optional[str] = None
+    request_num: int
+    status: str
+    customer: str | None
+    organization: str | None
+    end_customer: str | None
+    ol_count: int | None
+    description: str | None
+    created_at: datetime
+    edited_at: datetime | None = None
+    dispatched_at: datetime | None = None
 
-    customer: CustomerResponse
-    contacts: list[ContactResponse] = Field(default_factory=list)
 
-    model_config = ConfigDict(from_attributes=True)
+class RequestListPageResponse(BaseModel):
+    data: list[RequestListResponse]
+    total_count: int

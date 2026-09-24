@@ -15,10 +15,23 @@ class Request(Base):
                          nullable=False)
     status = Column(String, nullable=False, default="Открыт")
     ol_count = Column(Integer, nullable=True)
-    customer_id = Column(Integer, ForeignKey("customers.id", ondelete="SET NULL"),
-                         nullable=True)  # Связь через внешний ключ
-    organization_id = Column(Integer, ForeignKey("customers.id", ondelete="SET NULL"),
-                             nullable=True)  # Связь через внешний ключ
+    customer_id = Column(
+        Integer,
+        ForeignKey("customers.id", ondelete="SET NULL"),
+        nullable=True
+    )
+
+    organization_id = Column(
+        Integer,
+        ForeignKey("customers.id", ondelete="SET NULL"),
+        nullable=True
+    )
+
+    end_customer_id = Column(
+        Integer,
+        ForeignKey("customers.id", ondelete="SET NULL"),
+        nullable=True
+    )
     request_purpose = Column(Text, nullable=False)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -36,5 +49,20 @@ class Request(Base):
 
 
     # Связь
-    customer = relationship("Customer", foreign_keys=[customer_id], back_populates="customer_requests")
-    organization = relationship("Customer", foreign_keys=[organization_id], back_populates="organization_requests")
+    customer = relationship(
+        "Customer",
+        foreign_keys=[customer_id],
+        back_populates="customer_requests",
+    )
+
+    organization = relationship(
+        "Customer",
+        foreign_keys=[organization_id],
+        back_populates="organization_requests",
+    )
+
+    end_customer = relationship(
+        "Customer",
+        foreign_keys=[end_customer_id],
+        back_populates="end_customer_requests",
+    )

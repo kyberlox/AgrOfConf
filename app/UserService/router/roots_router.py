@@ -10,7 +10,7 @@ router = APIRouter(prefix="/roots", tags=["Права доступа"])
 @router.post("/create_new_root", status_code=201)
 async def create_new_root(
     user_id: int,
-    product_id: int,
+    product_id: Optional[int] = None,
     admin: Optional[bool] = False,
     db: AsyncSession = Depends(get_db)
 ):

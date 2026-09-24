@@ -2,37 +2,25 @@ FROM python:3.13
 
 # Системные зависимости для PyMuPDF, Pillow, pandoc и LibreOffice
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Для PyMuPDF
     libmupdf-dev \
-    # Для Pillow (JPEG/PNG)
     libjpeg62-turbo-dev \
     libpng-dev \
-    # pandoc (для pypandoc) + pdf-engine (pdflatex как fallback)
     pandoc \
     texlive-latex-base \
-    # LibreOffice для конвертации DOCX → PDF
     libreoffice-core \
     libreoffice-writer \
-    # Для RapidOCR (ONNX Runtime): OpenGL, GLib и графические библиотеки УБРАЛИ ПОКА ЧТО
-    # libgl1 \
-    # libglib2.0-0 \
-    # libgomp1 \
-    # && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем uv (копируем бинарник из официального образа — это самый быстрый способ)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /data/app
 COPY ./requirements.txt /data/app/requirements.txt
 
-RUN pip install --upgrade pip
-
-ENV PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
-
-# Ограничение потоков BLAS/OpenMP — стабилизирует ONNX Runtime в контейнере:
-# без этого OMP_* поднимает по потоку на ядро → segfault/деградация под нагрузкой. УБРАЛИ ПОКА ЧТО
-# ENV OMP_NUM_THREADS=2 \
-#     OPENBLAS_NUM_THREADS=2 \
-#     MKL_NUM_THREADS=2 \
-#     NUMEXPR_NUM_THREADS=2
-
-RUN pip install --no-cache-dir --upgrade -r requirements.txt
+# Используем uv для установки. Флаг --system ставит пакеты в системный Python,
+# что эквивалентно тому, что делал pip раньше.
+# Опция UV_INDEX_URL задаёт зеркало (аналог PIP_INDEX_URL).
+ENV UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+RUN uv pip install --system --no-cache -r requirements.txt
 
 CMD ["fastapi", "run", "main.py", "--port", "8000"]

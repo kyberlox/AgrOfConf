@@ -14,3 +14,4 @@
 app/AiRecognition/utils/rules_table.json
 #для dev-авторизации
 docker-compose.yaml
+/nginx/*
