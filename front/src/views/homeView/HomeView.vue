@@ -40,13 +40,17 @@
             </div>
 
             <!-- Создать запрос -->
-            <div
-                v-if="tableData?.length && !(currentTableNav == 'statistics')"
-                class="flex items-center justify-end w-full px-[24px]">
-                <BaseButton :buttonSettings="{ class: 'button-primary' }" @clicked="handleCreateClick">
-                    <Blank class="w-[24px] h-[24px]" />
-                    <span>{{ requestId ? "Создать ОЛ" : "Создать запрос" }}</span>
-                </BaseButton>
+            <div class="flex flex-row justify-between px-[24px] items-center">
+                <!-- <RequestCard
+                    v-if="requestId"
+                    :requestId="requestId"
+                    :requestInfo="historyData?.data.find((e) => e.id == requestId)" /> -->
+                <div v-if="tableData?.length && !(currentTableNav == 'statistics')" class="flex justify-end w-full">
+                    <BaseButton :buttonSettings="{ class: 'button-primary' }" @clicked="handleCreateClick">
+                        <Blank class="w-[24px] h-[24px]" />
+                        <span>{{ requestId ? "Создать ОЛ" : "Создать запрос" }}</span>
+                    </BaseButton>
+                </div>
             </div>
 
             <!-- Статистика пользователя -->
@@ -101,6 +105,7 @@ import { formatResultToHistory } from "@/utils/historyTable.ts";
 import { type IHistoryResponse } from "@/assets/interfaces/IHistory.ts";
 import { useRoute, useRouter } from "vue-router";
 import CreateRequestModal from "@/views/homeView/components/createRequestModal/CreateRequestModal.vue";
+import RequestCard from "./components/RequestCard.vue";
 
 export default defineComponent({
     components: {
@@ -114,6 +119,7 @@ export default defineComponent({
         HistoryTable,
         Statistics,
         CreateRequestModal,
+        RequestCard,
     },
     setup(props) {
         const showEngineModal = ref(false);

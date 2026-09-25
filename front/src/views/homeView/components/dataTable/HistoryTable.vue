@@ -187,8 +187,6 @@ export default defineComponent({
             }));
         });
 
-        console.log(columnDefs.value);
-
         const autoSize = () => {
             gridApi.value?.sizeColumnsToFit();
         };
