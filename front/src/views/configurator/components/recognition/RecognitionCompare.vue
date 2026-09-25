@@ -1,89 +1,94 @@
 <template>
-<SlotModal v-if="recognitionModalVisible"
-           @closeModal="convertAiIsLoading ? '' : $emit('closeModal')">
-    <div class="max-h-[90vh]">
-        <div class="flex flex-row justify-between p-[15px]">
-            <div class="flex flex-col justify-center">
-                <span class="block text-[16px] text-(--text-primary)">Проверьте корректность распознавания и создайте ОЛ
-                    по
-                    кнопке</span>
-                <span class="block text-[15px] text-(--text-secondary)">При наличии несоответствия - нажмите на параметр
-                    и
-                    введите нужное значение</span>
-            </div>
-            <BaseButton :button-settings="{ class: 'button-primary', disabled: convertAiIsLoading }"
-                        @clicked="$emit('successRecognized', editedTable)">
-                <div v-if="convertAiIsLoading"
-                     class="button-primary__loader">
-                    <Loader />
+    <SlotModal v-if="recognitionModalVisible" @closeModal="convertAiIsLoading ? '' : $emit('closeModal')">
+        <div class="max-h-[90vh]">
+            <div class="flex flex-row justify-between p-[15px]">
+                <div class="flex flex-col justify-center">
+                    <span class="block text-[16px] text-(--text-primary)"
+                        >Проверьте корректность распознавания и создайте ОЛ по кнопке</span
+                    >
+                    <span class="block text-[15px] text-(--text-secondary)"
+                        >При наличии несоответствия - нажмите на параметр и введите нужное значение</span
+                    >
                 </div>
-                <span v-else>Создать ОЛ</span>
-            </BaseButton>
-        </div>
-        <div class="flex flex-row gap-[25px] items-start justify-center py-[15px]">
-            <div class="flex flex-row gap-[5px] min-w-[40%] sticky top-0 z-10 ">
-                <div class=" max-w-[650px] border border-gray-200 rounded-[16px] p-[15px] hover:bg-gray-50 hover:border-gray-500"
-                     v-for="(image, index) in imagesUrl"
-                     :key="'zi' + index">
-                    <VueImageZoomer :regular="image"
-                                    hover-message="Наведите для приближения">
-                    </VueImageZoomer>
+                <BaseButton
+                    :button-settings="{ class: 'button-primary', disabled: convertAiIsLoading }"
+                    @clicked="$emit('successRecognized', editedTable)">
+                    <div v-if="convertAiIsLoading" class="button-primary__loader">
+                        <Loader />
+                    </div>
+                    <span v-else>Создать ОЛ</span>
+                </BaseButton>
+            </div>
+            <div class="flex flex-row gap-[25px] items-start justify-center py-[15px]">
+                <div class="flex flex-row gap-[5px] min-w-[40%] sticky top-0 z-10">
+                    <div class="flex flex-col gap-[5px]">
+                        <div
+                            class="max-w-[650px] border border-gray-200 rounded-[16px] p-[15px] hover:bg-gray-50 hover:border-gray-500"
+                            v-for="(image, index) in imagesUrl"
+                            :key="'zi' + index">
+                            <VueImageZoomer :regular="image" hover-message="Наведите для приближения"> </VueImageZoomer>
+                        </div>
+                    </div>
+                    <div
+                        class="max-w-full sticky top-0 overflow-y-auto max-h-[85vh] p-[25px] recognition-table-wrapper border border-gray-200 focus:outline-0 focus:border-gray-500 rounded-[16px]"
+                        contenteditable="true"
+                        ref="mdTableNode"
+                        v-html="recognizedTable"></div>
                 </div>
-                <div class="max-w-full sticky top-0 overflow-y-auto max-h-[85vh] p-[25px] recognition-table-wrapper border border-gray-200 focus:outline-0 focus:border-gray-500 rounded-[16px]"
-                     contenteditable="true"
-                     ref=mdTableNode
-                     v-html="recognizedTable"></div>
             </div>
         </div>
-    </div>
-</SlotModal>
+    </SlotModal>
 </template>
-<script lang='ts'>
-import { BaseButton, BaseInput } from 'beans-ui-kit';
-import { defineComponent, ref, watch } from 'vue';
-import { VueImageZoomer } from 'vue-image-zoomer';
-import Loader from '@/components/layout/Loader.vue';
-import 'vue-image-zoomer/dist/style.css';
-import SlotModal from '@/components/layout/SlotModal.vue';
+<script lang="ts">
+import { BaseButton, BaseInput } from "beans-ui-kit";
+import { defineComponent, ref, watch } from "vue";
+import { VueImageZoomer } from "vue-image-zoomer";
+import Loader from "@/components/layout/Loader.vue";
+import "vue-image-zoomer/dist/style.css";
+import SlotModal from "@/components/layout/SlotModal.vue";
 
 export default defineComponent({
-    emits: ['successRecognized', 'closeModal'],
+    emits: ["successRecognized", "closeModal"],
     components: {
         VueImageZoomer,
         BaseButton,
         Loader,
         SlotModal,
-        BaseInput
+        BaseInput,
     },
     props: {
         recognizedTable: {
-            type: String
+            type: String,
         },
         imagesUrl: {
-            type: Array<string>
+            type: Array<string>,
         },
         convertAiIsLoading: {
             type: Boolean,
-            default: false
+            default: false,
         },
         recognitionModalVisible: {
             type: Boolean,
-            default: false
-        }
+            default: false,
+        },
     },
     setup() {
-        const editedTable = ref<string>('');
+        const editedTable = ref<string>("");
         const mdTableNode = ref<HTMLElement>();
 
-        watch((mdTableNode), () => {
-            editedTable.value = String(mdTableNode.value?.innerHTML)
-        }, { deep: true, immediate: true })
+        watch(
+            mdTableNode,
+            () => {
+                editedTable.value = String(mdTableNode.value?.innerHTML);
+            },
+            { deep: true, immediate: true },
+        );
 
         return {
             editedTable,
             mdTableNode,
-        }
-    }
+        };
+    },
 });
 </script>
 
@@ -92,7 +97,7 @@ export default defineComponent({
     width: auto;
     min-width: 100%;
     border-collapse: collapse;
-    font-family: 'Inter', 'sans-serif';
+    font-family: "Inter", "sans-serif";
     font-size: 12px;
     line-height: 1.2;
     color: #343b4c;
@@ -106,7 +111,7 @@ export default defineComponent({
     color: #5e697d;
     padding: 4px 8px;
     white-space: nowrap;
-    border-bottom: 1px solid #EAECEF;
+    border-bottom: 1px solid #eaecef;
 }
 
 .recognition-table-wrapper :deep(thead th:first-child) {
@@ -124,7 +129,7 @@ export default defineComponent({
     font-weight: 400;
     font-size: 14px;
     line-height: 1.3;
-    border-bottom: 1px solid #EAECEF;
+    border-bottom: 1px solid #eaecef;
 }
 
 .recognition-table-wrapper :deep(tbody tr:last-child td) {

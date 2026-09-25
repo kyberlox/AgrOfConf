@@ -132,7 +132,7 @@ export default defineComponent({
                 props.tableHead.forEach((header, index) => {
                     const raw = row[index];
                     if (raw === undefined || raw === null) {
-                        obj[header] = "Не определено";
+                        obj[header] = "-";
                     } else if (/^\d+$/.test(raw)) {
                         obj[header] = raw;
                     } else {
