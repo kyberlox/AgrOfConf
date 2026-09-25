@@ -24,8 +24,8 @@ export const headerComparsionOl = {
     "Шт.": "quantity",
     "Комментарий:": "Комментарий",
     "Созд.": "date_search",
-    "Ред.": "date_search",
-    "Отпр.": "date_search",
+    "Ред.": "edited_at",
+    "Отпр.": "dispatched_at",
 } as const;
 
 export const formatResultToHistory = (historyData: { data: IHistory[] }, type: "ol" | "req") => {
