@@ -5,7 +5,7 @@ import re
 import time
 from copy import deepcopy
 from typing import Any, Dict, List, Optional
-
+import httpx
 import openai
 from dotenv import load_dotenv
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Request, Response, UploadFile
@@ -118,19 +118,39 @@ async def _run_llm_text_only(prompt_text: str) -> dict:
     return {"parsed": _extract_json_from_response(need), "total_coast": total_coast}
 
 
-async def _run_llm_vision(content: list) -> dict:
-    """Vision-вызов LLM (фолбэк для рукописных документов)."""
-    response = await client.chat.completions.create(
-        model='deepseek/deepseek-v4-flash-vision-exp',
-        max_tokens=8000,
-        messages=[{"role": "user", "content": content}],
-    )
-    res = response.model_dump()
-    need = res['choices'][0]['message']['content']
-    total_coast = res['usage']['total_cost']
-    # return {"parsed": _extract_json_from_response(need), "total_coast": total_coast}
-    return {"parsed": need, "total_coast": total_coast}
-
+# async def _run_llm_vision(content: list) -> dict:
+#     """Vision-вызов LLM (фолбэк для рукописных документов)."""
+#     response = await client.chat.completions.create(
+#         model='deepseek/deepseek-v4-flash-vision-exp',
+#         max_tokens=8000,
+#         messages=[{"role": "user", "content": content}],
+#         timeout=httpx.Timeout(60.0, connect=10.0)
+#     )
+#     res = response.model_dump()
+#     need = res['choices'][0]['message']['content']
+#     total_coast = res['usage']['total_cost']
+#     # return {"parsed": _extract_json_from_response(need), "total_coast": total_coast}
+#     return {"parsed": need, "total_coast": total_coast}
+async def _run_llm_vision(content: list, retries: int = 3) -> dict:
+    last_exc = None
+    for attempt in range(1, retries + 1):
+        try:
+            response = await client.chat.completions.create(
+                model='deepseek/deepseek-v4-flash-vision-exp',
+                max_tokens=8000,
+                messages=[{"role": "user", "content": content}],
+            )
+            res = response.model_dump()
+            need = res['choices'][0]['message']['content']
+            total_coast = res['usage']['total_cost']
+            return {"parsed": need, "total_coast": total_coast}
+        except (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError) as e:
+            last_exc = e
+            if attempt == retries:
+                break
+            wait = min(2 ** attempt, 10)
+            await asyncio.sleep(wait)
+    raise last_exc
 
 # ---------------------------------------------------------------------------
 # Эндпоинты
