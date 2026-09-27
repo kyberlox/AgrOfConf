@@ -54,16 +54,24 @@ services:
     container_name: fastapi_1
     volumes:
       - ./app:/data/app
-      - ./app_logs/fastapi:/etc/loggs/fastapi # Добавляем том для логов FastAPI
       - ./uploads:/data/uploads
     env_file:
       - .env
+    environment:
+      # Наблюдаемость: трейсы -> OTel Collector -> Tempo; логи -> Elasticsearch
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318/v1/traces}
+      - OTEL_SERVICE_NAME=agrof-conf-api
+      - ES_HOST=${ES_HOST:-http://elasticsearch:9200}
+      - LOG_DATA_STREAM=${LOG_DATA_STREAM:-logs-agrof.app-default}
+      - LOG_RETENTION=${LOG_RETENTION:-30d}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     ports:
       - "127.0.0.1:8000:8000"
       #- "8000:8000"
     depends_on:
       - postgres
       - elasticsearch
+      - otel-collector
     networks:
       - app-network
 
@@ -101,23 +109,79 @@ services:
     networks:
       - app-network
 
-  kibana:
-    image: kibana:9.1.0
-    container_name: kibana
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200 # Указываем на наш Elasticsearch
-      # Токен временно не используется (security ES отключена для тестов).
-      # - ELASTICSEARCH_SERVICEACCOUNTTOKEN=${KIBANA_TOKEN}
+  prometheus:
+    image: prom/prometheus:v3.4.1
+    container_name: prometheus
+    volumes:
+      - ./app/Observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
     ports:
-      - "5601:5601"                         # Порт для веб-интерфейса Kibana
-    depends_on:
-      - elasticsearch
+      - "127.0.0.1:9090:9090"
     networks:
       - app-network
-  
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    container_name: node-exporter
+    ports:
+      - "127.0.0.1:9100:9100"
+    networks:
+      - app-network
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.161.0
+    container_name: otel-collector
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./app/Observability/otel/config.yaml:/etc/otel/config.yaml
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+    depends_on:
+      - tempo
+    networks:
+      - app-network
+
+  tempo:
+    image: grafana/tempo:2.7.1
+    container_name: tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./app/Observability/tempo/tempo.yaml:/etc/tempo.yaml
+      - tempo-data:/var/tempo
+    ports:
+      # - "127.0.0.1:4317:4317"
+      # - "127.0.0.1:4318:4318"
+      - "127.0.0.1:3200:3200"
+    networks:
+      - app-network
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${pswd}
+    volumes:
+      - ./app/Observability/grafana/provisioning:/etc/grafana/provisioning
+      - ./app/Observability/grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - prometheus
+      - tempo
+    networks:
+      - app-network
 
 volumes:
   elasticsearch-data:
+  prometheus-data:
+  tempo-data:
+  grafana-data:
 
 networks:
   app-network:

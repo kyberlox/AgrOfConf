@@ -1,0 +1,40 @@
+receivers:
+  otlp:
+    protocols:
+      # Явно слушаем все интерфейсы, а не только 127.0.0.1: иначе
+      # контейнеры в app-network не смогут достучаться до коллектора.
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  tail_sampling:
+    decision_wait: 30s
+    policies:
+      - name: errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      - name: slow
+        type: latency
+        latency:
+          threshold_ms: 1000
+      - name: sample-10
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 10
+  batch:
+
+exporters:
+  otlp:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [tail_sampling, batch]
+      exporters: [otlp]
