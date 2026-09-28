@@ -374,14 +374,14 @@ async def convert_ai_result(
             }
         ]
         response = await client.chat.completions.create(
-        model='deepseek/deepseek-v4-pro',
-        max_tokens=4000,
-        messages=messages,
-        response_format={"type": "json_object"},
-    )
-    usage = response.model_dump().get('usage', {})
-    total_coast = usage.get('total_cost')
-    print(f"Total cost конвертации: {total_coast} (usage={usage})")
+            model='deepseek/deepseek-v4-pro',
+            max_tokens=4000,
+            messages=messages,
+            response_format={"type": "json_object"},
+        )
+        usage = response.model_dump().get('usage', {})
+        total_coast = usage.get('total_cost')
+        print(f"Total cost конвертации: {total_coast} (usage={usage})")
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка обработки данных с thinking модели: {str(e)}")
