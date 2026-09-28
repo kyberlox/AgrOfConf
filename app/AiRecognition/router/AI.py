@@ -107,16 +107,16 @@ def _file_cache_key(file: UploadFile) -> str:
 
 
 async def _run_llm_text_only(prompt_text: str) -> dict:
-    """Текст-only вызов LLM (дешевле и быстрее vision)."""
     response = await client.chat.completions.create(
-        model='deepseek/deepseek-v4-pro',
+        model=model_type,
         max_tokens=8000,
         messages=[{"role": "user", "content": prompt_text}],
         response_format={"type": "json_object"},
     )
     res = response.model_dump()
     need = res['choices'][0]['message']['content']
-    total_coast = res['usage']['total_cost']
+    # безопасно: если провайдер не вернул total_cost — ставим None
+    total_coast = res.get('usage', {}).get('total_cost')
     return {"parsed": _extract_json_from_response(need), "total_coast": total_coast}
 
 
@@ -144,14 +144,14 @@ async def _run_llm_vision(content: list, retries: int = 3) -> dict:
             )
             res = response.model_dump()
             need = res['choices'][0]['message']['content']
-            total_coast = res['usage']['total_cost']
+            total_coast = res.get('usage', {}).get('total_cost')
             return {"parsed": need, "total_coast": total_coast}
         except (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError) as e:
             last_exc = e
             if attempt == retries:
                 break
             wait = min(2 ** attempt, 10)
-            await asyncio.sleep(wait)
+            await asyncio.sleep(wait)   # не забудьте import asyncio!
     raise last_exc
 
 # ---------------------------------------------------------------------------
@@ -374,17 +374,14 @@ async def convert_ai_result(
             }
         ]
         response = await client.chat.completions.create(
-            model='deepseek/deepseek-v4-pro',
-            max_tokens=4000,
-            messages=messages,
-            response_format={"type": "json_object"},
-        )
-        total_coast = response.model_dump()['usage']['total_cost']
-        print(f"Total cost конвертации: {total_coast}")
-        result = response.choices[0].message.content
-        fin_all = time.time()
-        print(f"Конвертировали за {fin_all - start_all:.2f}s")
-        return json.loads(result)
+        model='deepseek/deepseek-v4-pro',
+        max_tokens=4000,
+        messages=messages,
+        response_format={"type": "json_object"},
+    )
+    usage = response.model_dump().get('usage', {})
+    total_coast = usage.get('total_cost')
+    print(f"Total cost конвертации: {total_coast} (usage={usage})")
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка обработки данных с thinking модели: {str(e)}")
