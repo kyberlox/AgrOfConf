@@ -329,6 +329,98 @@ async def delete_product_prompt(
     return {"deleted": delete_product_validation_prompt(product_id)}
 
 
+# @router.post("/convert-ai-result")
+# async def convert_ai_result(
+#     product_id: int,
+#     raw_md: str = Body(...),
+#     db: AsyncSession = Depends(get_db),
+#     user_id: Optional[int] = Depends(get_user_id_by_session_id),
+# ):
+#     try:
+#         params = await get_params_and_values_of_product(db, product_id)
+
+#         res_params = {key: value for key, value in params.items() if key not in ['Цена /шт. руб без НДС', 'Цена /шт. руб с НДС 22%']}
+
+#         agent_info = {
+#             "ФИО Заказчика": '',
+#             "Телефон Заказчика": '',
+#             "Email Заказчика": '',
+#             "Организация Заказчика": '',
+#             "Должность Заказчика": '',
+#             "Проектная организация": '',
+#             "Примечание": '',
+#             "Адрес Заказчика": '',
+#         }
+#         total_params = res_params | agent_info
+#         start_all = time.time()
+#         product_prompt = get_product_validation_prompt(product_id)
+#         rules_table = get_product_rules(product_id)
+#         messages = [
+#             {
+#                 "role": "user",
+#                 "content": f"""
+#                 {product_prompt} (см. выше)
+
+#                 RAW_MD:
+
+#                 {raw_md}
+
+#                 TEMPLATE_JSON:
+#                 {json.dumps(total_params, ensure_ascii=False, indent=2)}
+
+#                 RULES_TABLE:
+#                 {rules_table}
+#                 """,
+#             }
+#         ]
+#         response = await client.chat.completions.create(
+#             model='deepseek/deepseek-v4-pro',
+#             max_tokens=4000,
+#             messages=messages,
+#             response_format={"type": "json_object"},
+#         )
+#         usage = response.model_dump().get('usage', {})
+#         total_coast = usage.get('total_cost')
+#         print(f"Total cost конвертации: {total_coast} (usage={usage})")
+
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Ошибка обработки данных с thinking модели: {str(e)}")
+
+def _extract_cost(usage: dict) -> Optional[float]:
+    """Достаёт стоимость из блока usage независимо от того, как её назвал провайдер.
+    Возвращает None, если провайдер стоимость не отдаёт вообще."""
+    if not usage:
+        return None
+
+    # 1. Прямые ключи, которые встречаются у vseGPT / OpenRouter / OpenAI
+    for key in ("total_cost", "cost", "total_price", "price", "cost_total"):
+        if key in usage and usage[key] is not None:
+            return usage[key]
+
+    # 2. Вложенные структуры (OpenRouter: cost_details.upstream_inference_cost и т.п.)
+    for nested_key in ("cost_details", "pricing", "billing"):
+        nested = usage.get(nested_key)
+        if isinstance(nested, dict):
+            for key in ("total", "total_cost", "cost", "upstream_inference_cost"):
+                if nested.get(key) is not None:
+                    return nested[key]
+
+    # 3. Провайдер не отдаёт стоимость — считаем сами по токенам и тарифу
+    return None
+
+
+def _calc_cost_from_tokens(usage: dict, price_in: float, price_out: float) -> Optional[float]:
+    """Резервный подсчёт стоимости, если провайдер её не возвращает.
+    price_in / price_out — цена за 1M токенов в рублях (или любой валюте).
+    """
+    if not usage:
+        return None
+    pt = usage.get("prompt_tokens") or 0
+    ct = usage.get("completion_tokens") or 0
+    if pt == 0 and ct == 0:
+        return None
+    return (pt / 1_000_000) * price_in + (ct / 1_000_000) * price_out
+
 @router.post("/convert-ai-result")
 async def convert_ai_result(
     product_id: int,
@@ -339,7 +431,11 @@ async def convert_ai_result(
     try:
         params = await get_params_and_values_of_product(db, product_id)
 
-        res_params = {key: value for key, value in params.items() if key not in ['Цена /шт. руб без НДС', 'Цена /шт. руб с НДС 22%']}
+        res_params = {
+            key: value
+            for key, value in params.items()
+            if key not in ['Цена /шт. руб без НДС', 'Цена /шт. руб с НДС 22%']
+        }
 
         agent_info = {
             "ФИО Заказчика": '',
@@ -355,6 +451,7 @@ async def convert_ai_result(
         start_all = time.time()
         product_prompt = get_product_validation_prompt(product_id)
         rules_table = get_product_rules(product_id)
+
         messages = [
             {
                 "role": "user",
@@ -373,15 +470,37 @@ async def convert_ai_result(
                 """,
             }
         ]
+
         response = await client.chat.completions.create(
             model='deepseek/deepseek-v4-pro',
             max_tokens=4000,
             messages=messages,
             response_format={"type": "json_object"},
         )
-        usage = response.model_dump().get('usage', {})
-        total_coast = usage.get('total_cost')
-        print(f"Total cost конвертации: {total_coast} (usage={usage})")
+
+        dumped = response.model_dump()
+        usage = dumped.get('usage') or {}
+
+        # Достаём стоимость: сначала пробуем из ответа, иначе считаем по токенам
+        total_cost = _extract_cost(usage)
+        if total_cost is None:
+            # тарифы подставьте свои (руб. за 1M токенов) — только если нужно
+            total_cost = _calc_cost_from_tokens(usage, price_in=0.0, price_out=0.0)
+
+        print(f"Total cost конвертации: {total_cost} (usage={usage})")
+
+        result = response.choices[0].message.content
+        fin_all = time.time()
+        print(f"Конвертировали за {fin_all - start_all:.2f}s")
+
+        parsed = json.loads(result)
+
+        # (опционально) можно вернуть стоимость на фронт, чтобы видеть расход
+        # parsed["_meta"] = {"cost": total_cost, "usage": usage}
+        return parsed
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка обработки данных с thinking модели: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка обработки данных с thinking модели: {str(e)}",
+        )
