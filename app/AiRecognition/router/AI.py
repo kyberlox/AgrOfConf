@@ -14,6 +14,8 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import asyncio           # ← ДОБАВИТЬ
+
 from app.StatisticsService.router.recognition_router import get_recognition_router
 from app.TablePakage.model.database import get_db
 from app.UserService.utils.auth_utils import get_user_id_by_session_id
@@ -213,7 +215,6 @@ async def upload_OL(
             content.append({"type": "text", "text": PROMT})
 
             llm_result = await _run_llm_vision(content)
-            print(llm_result["parsed"])
             parsed_need = llm_result["parsed"]
             total_coast = llm_result["total_coast"]
             # УБРАЛИ КООРДИНАТЫ
@@ -264,6 +265,15 @@ async def upload_OL(
     except HTTPException:
         raise
     except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")
+    except openai.APIStatusError as e:
+        print(f"[AiRecognition] API {e.status_code}: {e.response.text}")
+        raise HTTPException(status_code=502, detail=f"LLM error: {e.status_code} {e.response.text[:300]}")
+    except openai.APIConnectionError as e:
+        print(f"[AiRecognition] Connection error: {e}")
+        raise HTTPException(status_code=502, detail=f"LLM connection error: {e}")
+    except Exception as e:
+        print(f"[AiRecognition] UNHANDLED: {type(e).__name__}: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")
 
 
