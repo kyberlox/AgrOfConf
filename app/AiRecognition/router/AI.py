@@ -213,6 +213,7 @@ async def upload_OL(
             content.append({"type": "text", "text": PROMT})
 
             llm_result = await _run_llm_vision(content)
+            print(llm_result)
             parsed_need = llm_result["parsed"]
             total_coast = llm_result["total_coast"]
             # УБРАЛИ КООРДИНАТЫ
@@ -226,6 +227,7 @@ async def upload_OL(
             llm_start = time.time()
             prompt_text = f"{OCR_PARSING_PROMPT}\n\nТРАНСКРИПТ ДОКУМЕНТА:\n\n{transcript}"
             llm_result = await _run_llm_text_only(prompt_text)
+            print(llm_result)
             parsed_need = llm_result["parsed"]
             total_coast = llm_result["total_coast"]
             data = parsed_need.get("data", "")
@@ -367,11 +369,12 @@ async def convert_ai_result(
             messages=messages,
             response_format={"type": "json_object"},
         )
-        # total_coast = response.model_dump()['usage']['total_cost']
-        # print(f"Total cost конвертации: {total_coast}")
+        total_coast = response.model_dump()['usage']['total_cost']
+        print(f"Total cost конвертации: {total_coast}")
         result = response.choices[0].message.content
         fin_all = time.time()
         print(f"Конвертировали за {fin_all - start_all:.2f}s")
         return json.loads(result)
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка обработки данных с thinking модели: {str(e)}")
