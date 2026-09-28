@@ -367,8 +367,8 @@ async def convert_ai_result(
             messages=messages,
             response_format={"type": "json_object"},
         )
-        total_coast = response.model_dump()['usage']['total_cost']
-        print(f"Total cost конвертации: {total_coast}")
+        # total_coast = response.model_dump()['usage']['total_cost']
+        # print(f"Total cost конвертации: {total_coast}")
         result = response.choices[0].message.content
         fin_all = time.time()
         print(f"Конвертировали за {fin_all - start_all:.2f}s")
