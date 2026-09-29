@@ -1,23 +1,23 @@
-import axios, { AxiosError, type AxiosProgressEvent, type AxiosRequestConfig } from 'axios';
-import { handleApiErrors } from '../composables/apiStatusCodeErrors';
-import type { IProduct } from '@/assets/interfaces/IProduct';
-import type { IParameter } from '@/assets/interfaces/IParameter';
+import axios, { AxiosError, type AxiosProgressEvent, type AxiosRequestConfig } from "axios";
+import { handleApiErrors } from "../composables/apiStatusCodeErrors";
+import type { IProduct } from "@/assets/interfaces/IProduct";
+import type { IParameter } from "@/assets/interfaces/IParameter";
 
 const VITE_API_URL = import.meta.env.VITE_API_URL;
 
 const api = axios.create({
     baseURL: VITE_API_URL,
-    withCredentials: false
-})
+    withCredentials: false,
+});
 
 // добавляю токен
 // const authCookie = computed(() => useUserData().getAuthKey);
 // const id = computed(() => useUserData().getMyId);
 if (import.meta.env.DEV) {
     api.interceptors.request.use((config) => {
-        config.headers.session_id = '16d64208-da2f-4ad2-b81a-74223bd6168b';
-        return config
-    })
+        config.headers.session_id = "a0938f9d-79a0-4ba1-9ebd-8a3eff2616f4";
+        return config;
+    });
 }
 
 // vendorApi.interceptors.request.use((config) => {
@@ -28,46 +28,47 @@ if (import.meta.env.DEV) {
 
 export default class Api {
     static async get(url: string, config?: AxiosRequestConfig, signal?: AbortSignal) {
-        const mergedConfig: AxiosRequestConfig = { ...config, signal: signal ?? config?.signal }
+        const mergedConfig: AxiosRequestConfig = { ...config, signal: signal ?? config?.signal };
         try {
-            const request = await api.get(url, mergedConfig)
-            return request?.data
+            const request = await api.get(url, mergedConfig);
+            return request?.data;
         } catch (error) {
-            return handleApiErrors(error as AxiosError)
+            return handleApiErrors(error as AxiosError);
         }
     }
 
-    static async post(url: string, data?: unknown, config?: AxiosRequestConfig & {
-        onUploadProgress?: (progressEvent: AxiosProgressEvent) => void
-    }, signal?: AbortSignal, needRespInfo = false
+    static async post(
+        url: string,
+        data?: unknown,
+        config?: AxiosRequestConfig & {
+            onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
+        },
+        signal?: AbortSignal,
+        needRespInfo = false,
     ) {
-        const mergedConfig: AxiosRequestConfig = { ...config, signal: signal ?? config?.signal }
+        const mergedConfig: AxiosRequestConfig = { ...config, signal: signal ?? config?.signal };
         try {
-            const respData = await api.post(url, data, mergedConfig)
-            return needRespInfo ? respData : respData.data
+            const respData = await api.post(url, data, mergedConfig);
+            return needRespInfo ? respData : respData.data;
         } catch (e) {
-            if ((e as Error).name == 'CanceledError')
-                return
-            else
-                handleApiErrors(e as AxiosError)
+            if ((e as Error).name == "CanceledError") return;
+            else handleApiErrors(e as AxiosError);
         }
     }
 
     static async put(url: string, data?: IProduct | IParameter[] | FormData | Record<string, unknown>) {
         try {
             return await api.put(url, data);
-        }
-        catch (error) {
-            handleApiErrors(error as AxiosError)
+        } catch (error) {
+            handleApiErrors(error as AxiosError);
         }
     }
 
     static async delete(url: string, data?: IProduct) {
         try {
-            return await api.delete(url, { data })
-        }
-        catch (error) {
-            handleApiErrors(error as AxiosError)
+            return await api.delete(url, { data });
+        } catch (error) {
+            handleApiErrors(error as AxiosError);
         }
     }
 }

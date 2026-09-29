@@ -1,5 +1,5 @@
 .input-search__wrapper {
-  @apply w-[213px] min-h-[36px] bg-[#FDFDFD] border border-[#D3D7DF] rounded-[8px] relative pr-[16px] max-h-fit;
+  @apply max-w-full w-[213px] min-h-[36px] bg-[#FDFDFD] border border-[#D3D7DF] rounded-[8px] relative pr-[16px] max-h-fit;
 }
 
 .input-search {

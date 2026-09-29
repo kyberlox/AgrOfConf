@@ -1,6 +1,6 @@
 <template>
 <div class="grid grid-rows-[auto_1fr] h-[100vh] bg-[#F6F7F9]">
-  <div class="p-[24px] bg-[#F6F7F9] flex flex-row gap-[32px]">
+  <div class="p-[24px] bg-[#F6F7F9] flex sm:flex-col md:flex-row gap-[32px]">
     <LeftSidebar />
     <div class="max-w-[calc(100%-114px)] ml-auto grow">
       <RouterView />
