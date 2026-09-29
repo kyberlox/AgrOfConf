@@ -143,6 +143,7 @@ async def _run_llm_vision(content: list, retries: int = 3) -> dict:
                 messages=[{"role": "user", "content": content}],
             )
             res = response.model_dump()
+            return res
             need = res['choices'][0]['message']['content']
             total_coast = res.get('usage', {}).get('total_cost')
             return {"parsed": need, "total_coast": total_coast}
@@ -151,7 +152,7 @@ async def _run_llm_vision(content: list, retries: int = 3) -> dict:
             if attempt == retries:
                 break
             wait = min(2 ** attempt, 10)
-            await asyncio.sleep(wait)   # не забудьте import asyncio!
+            await asyncio.sleep(wait)
     raise last_exc
 
 # ---------------------------------------------------------------------------
