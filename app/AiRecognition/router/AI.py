@@ -215,6 +215,7 @@ async def upload_OL(
             content.append({"type": "text", "text": PROMT})
 
             llm_result = await _run_llm_vision(content)
+            return llm_result
             parsed_need = llm_result["parsed"]
             total_coast = llm_result["total_coast"]
             # УБРАЛИ КООРДИНАТЫ
