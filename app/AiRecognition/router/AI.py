@@ -5,7 +5,7 @@ import re
 import time
 from copy import deepcopy
 from typing import Any, Dict, List, Optional
-
+import httpx
 import openai
 from dotenv import load_dotenv
 from fastapi import APIRouter, Body, Depends, File, HTTPException, Request, Response, UploadFile
@@ -13,6 +13,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+
+import asyncio           # ← ДОБАВИТЬ
 
 from app.StatisticsService.router.recognition_router import get_recognition_router
 from app.TablePakage.model.database import get_db
@@ -105,32 +107,52 @@ def _file_cache_key(file: UploadFile) -> str:
 
 
 async def _run_llm_text_only(prompt_text: str) -> dict:
-    """Текст-only вызов LLM (дешевле и быстрее vision)."""
     response = await client.chat.completions.create(
-        model='deepseek/deepseek-v4-pro',
+        model=model_type,
         max_tokens=8000,
         messages=[{"role": "user", "content": prompt_text}],
         response_format={"type": "json_object"},
     )
     res = response.model_dump()
     need = res['choices'][0]['message']['content']
-    total_coast = res['usage']['total_cost']
+    # безопасно: если провайдер не вернул total_cost — ставим None
+    total_coast = res.get('usage', {}).get('total_cost')
     return {"parsed": _extract_json_from_response(need), "total_coast": total_coast}
 
 
-async def _run_llm_vision(content: list) -> dict:
-    """Vision-вызов LLM (фолбэк для рукописных документов)."""
-    response = await client.chat.completions.create(
-        model='deepseek/deepseek-v4-flash-vision-exp',
-        max_tokens=8000,
-        messages=[{"role": "user", "content": content}],
-    )
-    res = response.model_dump()
-    need = res['choices'][0]['message']['content']
-    total_coast = res['usage']['total_cost']
-    # return {"parsed": _extract_json_from_response(need), "total_coast": total_coast}
-    return {"parsed": need, "total_coast": total_coast}
-
+# async def _run_llm_vision(content: list) -> dict:
+#     """Vision-вызов LLM (фолбэк для рукописных документов)."""
+#     response = await client.chat.completions.create(
+#         model='deepseek/deepseek-v4-flash-vision-exp',
+#         max_tokens=8000,
+#         messages=[{"role": "user", "content": content}],
+#         timeout=httpx.Timeout(60.0, connect=10.0)
+#     )
+#     res = response.model_dump()
+#     need = res['choices'][0]['message']['content']
+#     total_coast = res['usage']['total_cost']
+#     # return {"parsed": _extract_json_from_response(need), "total_coast": total_coast}
+#     return {"parsed": need, "total_coast": total_coast}
+async def _run_llm_vision(content: list, retries: int = 3) -> dict:
+    last_exc = None
+    for attempt in range(1, retries + 1):
+        try:
+            response = await client.chat.completions.create(
+                model='deepseek/deepseek-v4-flash-vision-exp',
+                max_tokens=8000,
+                messages=[{"role": "user", "content": content}],
+            )
+            res = response.model_dump()
+            need = res['choices'][0]['message']['content']
+            total_coast = res.get('usage', {}).get('total_cost')
+            return {"parsed": need, "total_coast": total_coast}
+        except (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError) as e:
+            last_exc = e
+            if attempt == retries:
+                break
+            wait = min(2 ** attempt, 10)
+            await asyncio.sleep(wait)
+    raise last_exc
 
 # ---------------------------------------------------------------------------
 # Эндпоинты
@@ -206,6 +228,7 @@ async def upload_OL(
             llm_start = time.time()
             prompt_text = f"{OCR_PARSING_PROMPT}\n\nТРАНСКРИПТ ДОКУМЕНТА:\n\n{transcript}"
             llm_result = await _run_llm_text_only(prompt_text)
+            print(llm_result)
             parsed_need = llm_result["parsed"]
             total_coast = llm_result["total_coast"]
             data = parsed_need.get("data", "")
@@ -242,6 +265,15 @@ async def upload_OL(
     except HTTPException:
         raise
     except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")
+    except openai.APIStatusError as e:
+        print(f"[AiRecognition] API {e.status_code}: {e.response.text}")
+        raise HTTPException(status_code=502, detail=f"LLM error: {e.status_code} {e.response.text[:300]}")
+    except openai.APIConnectionError as e:
+        print(f"[AiRecognition] Connection error: {e}")
+        raise HTTPException(status_code=502, detail=f"LLM connection error: {e}")
+    except Exception as e:
+        print(f"[AiRecognition] UNHANDLED: {type(e).__name__}: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")
 
 
@@ -297,6 +329,98 @@ async def delete_product_prompt(
     return {"deleted": delete_product_validation_prompt(product_id)}
 
 
+# @router.post("/convert-ai-result")
+# async def convert_ai_result(
+#     product_id: int,
+#     raw_md: str = Body(...),
+#     db: AsyncSession = Depends(get_db),
+#     user_id: Optional[int] = Depends(get_user_id_by_session_id),
+# ):
+#     try:
+#         params = await get_params_and_values_of_product(db, product_id)
+
+#         res_params = {key: value for key, value in params.items() if key not in ['Цена /шт. руб без НДС', 'Цена /шт. руб с НДС 22%']}
+
+#         agent_info = {
+#             "ФИО Заказчика": '',
+#             "Телефон Заказчика": '',
+#             "Email Заказчика": '',
+#             "Организация Заказчика": '',
+#             "Должность Заказчика": '',
+#             "Проектная организация": '',
+#             "Примечание": '',
+#             "Адрес Заказчика": '',
+#         }
+#         total_params = res_params | agent_info
+#         start_all = time.time()
+#         product_prompt = get_product_validation_prompt(product_id)
+#         rules_table = get_product_rules(product_id)
+#         messages = [
+#             {
+#                 "role": "user",
+#                 "content": f"""
+#                 {product_prompt} (см. выше)
+
+#                 RAW_MD:
+
+#                 {raw_md}
+
+#                 TEMPLATE_JSON:
+#                 {json.dumps(total_params, ensure_ascii=False, indent=2)}
+
+#                 RULES_TABLE:
+#                 {rules_table}
+#                 """,
+#             }
+#         ]
+#         response = await client.chat.completions.create(
+#             model='deepseek/deepseek-v4-pro',
+#             max_tokens=4000,
+#             messages=messages,
+#             response_format={"type": "json_object"},
+#         )
+#         usage = response.model_dump().get('usage', {})
+#         total_coast = usage.get('total_cost')
+#         print(f"Total cost конвертации: {total_coast} (usage={usage})")
+
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Ошибка обработки данных с thinking модели: {str(e)}")
+
+def _extract_cost(usage: dict) -> Optional[float]:
+    """Достаёт стоимость из блока usage независимо от того, как её назвал провайдер.
+    Возвращает None, если провайдер стоимость не отдаёт вообще."""
+    if not usage:
+        return None
+
+    # 1. Прямые ключи, которые встречаются у vseGPT / OpenRouter / OpenAI
+    for key in ("total_cost", "cost", "total_price", "price", "cost_total"):
+        if key in usage and usage[key] is not None:
+            return usage[key]
+
+    # 2. Вложенные структуры (OpenRouter: cost_details.upstream_inference_cost и т.п.)
+    for nested_key in ("cost_details", "pricing", "billing"):
+        nested = usage.get(nested_key)
+        if isinstance(nested, dict):
+            for key in ("total", "total_cost", "cost", "upstream_inference_cost"):
+                if nested.get(key) is not None:
+                    return nested[key]
+
+    # 3. Провайдер не отдаёт стоимость — считаем сами по токенам и тарифу
+    return None
+
+
+def _calc_cost_from_tokens(usage: dict, price_in: float, price_out: float) -> Optional[float]:
+    """Резервный подсчёт стоимости, если провайдер её не возвращает.
+    price_in / price_out — цена за 1M токенов в рублях (или любой валюте).
+    """
+    if not usage:
+        return None
+    pt = usage.get("prompt_tokens") or 0
+    ct = usage.get("completion_tokens") or 0
+    if pt == 0 and ct == 0:
+        return None
+    return (pt / 1_000_000) * price_in + (ct / 1_000_000) * price_out
+
 @router.post("/convert-ai-result")
 async def convert_ai_result(
     product_id: int,
@@ -307,7 +431,11 @@ async def convert_ai_result(
     try:
         params = await get_params_and_values_of_product(db, product_id)
 
-        res_params = {key: value for key, value in params.items() if key not in ['Цена /шт. руб без НДС', 'Цена /шт. руб с НДС 22%']}
+        res_params = {
+            key: value
+            for key, value in params.items()
+            if key not in ['Цена /шт. руб без НДС', 'Цена /шт. руб с НДС 22%']
+        }
 
         agent_info = {
             "ФИО Заказчика": '',
@@ -323,6 +451,7 @@ async def convert_ai_result(
         start_all = time.time()
         product_prompt = get_product_validation_prompt(product_id)
         rules_table = get_product_rules(product_id)
+
         messages = [
             {
                 "role": "user",
@@ -341,17 +470,37 @@ async def convert_ai_result(
                 """,
             }
         ]
+
         response = await client.chat.completions.create(
             model='deepseek/deepseek-v4-pro',
             max_tokens=4000,
             messages=messages,
             response_format={"type": "json_object"},
         )
-        total_coast = response.model_dump()['usage']['total_cost']
-        print(f"Total cost конвертации: {total_coast}")
+
+        dumped = response.model_dump()
+        usage = dumped.get('usage') or {}
+
+        # Достаём стоимость: сначала пробуем из ответа, иначе считаем по токенам
+        total_cost = _extract_cost(usage)
+        if total_cost is None:
+            # тарифы подставьте свои (руб. за 1M токенов) — только если нужно
+            total_cost = _calc_cost_from_tokens(usage, price_in=0.0, price_out=0.0)
+
+        print(f"Total cost конвертации: {total_cost} (usage={usage})")
+
         result = response.choices[0].message.content
         fin_all = time.time()
         print(f"Конвертировали за {fin_all - start_all:.2f}s")
-        return json.loads(result)
+
+        parsed = json.loads(result)
+
+        # (опционально) можно вернуть стоимость на фронт, чтобы видеть расход
+        # parsed["_meta"] = {"cost": total_cost, "usage": usage}
+        return parsed
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка обработки данных с thinking модели: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка обработки данных с thinking модели: {str(e)}",
+        )
