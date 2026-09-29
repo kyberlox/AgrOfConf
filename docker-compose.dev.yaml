@@ -101,19 +101,19 @@ services:
     networks:
       - app-network
 
-  kibana:
-    image: kibana:9.1.0
-    container_name: kibana
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200 # Указываем на наш Elasticsearch
-      # Токен временно не используется (security ES отключена для тестов).
-      # - ELASTICSEARCH_SERVICEACCOUNTTOKEN=${KIBANA_TOKEN}
-    ports:
-      - "5601:5601"                         # Порт для веб-интерфейса Kibana
-    depends_on:
-      - elasticsearch
-    networks:
-      - app-network
+  # kibana:
+  #   image: kibana:9.1.0
+  #   container_name: kibana
+  #   environment:
+  #     - ELASTICSEARCH_HOSTS=http://elasticsearch:9200 # Указываем на наш Elasticsearch
+  #     # Токен временно не используется (security ES отключена для тестов).
+  #     # - ELASTICSEARCH_SERVICEACCOUNTTOKEN=${KIBANA_TOKEN}
+  #   ports:
+  #     - "5601:5601"                         # Порт для веб-интерфейса Kibana
+  #   depends_on:
+  #     - elasticsearch
+  #   networks:
+  #     - app-network
   
 
 volumes:

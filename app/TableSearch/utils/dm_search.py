@@ -33,99 +33,98 @@ async def rebuild_dm(
         db: AsyncSession,
         product_id: int,
 ):
+    # Транзакционная advisory-блокировка: снимается автоматически при
+    # завершении транзакции (commit/rollback). Сессионную pg_advisory_lock
+    # здесь использовать нельзя — при ошибке внутри пересборки разблокировка
+    # в finally не выполняется (транзакция aborted), и блокировка навсегда
+    # «зависает» на соединении из пула, блокируя все дальнейшие операции
+    # по продукту.
     await db.execute(
-        text("SELECT pg_advisory_lock(:pid)"),
+        text("SELECT pg_advisory_xact_lock(:pid)"),
         {"pid": product_id}
     )
 
-    try:
-        dm_table = f"dm_product_{product_id}"
+    dm_table = f"dm_product_{product_id}"
 
-        # удаляем старую витрину
-        await db.execute(
-            text(f'DROP TABLE IF EXISTS "{dm_table}"')
-        )
+    # удаляем старую витрину
+    await db.execute(
+        text(f'DROP TABLE IF EXISTS "{dm_table}"')
+    )
 
-        # получаем все параметры продукта
-        result = await db.execute(text("""
-            SELECT
-                name,
-                transliterated_name,
-                table_name
-            FROM parameter_schemas
-            WHERE product_id = :pid
-              AND type = 'Table'
-              AND table_name IS NOT NULL
-        """), {
-            "pid": product_id
-        })
+    # получаем все параметры продукта
+    result = await db.execute(text("""
+        SELECT
+            name,
+            transliterated_name,
+            table_name
+        FROM parameter_schemas
+        WHERE product_id = :pid
+          AND type = 'Table'
+          AND table_name IS NOT NULL
+    """), {
+        "pid": product_id
+    })
 
-        params = result.mappings().all()
+    params = result.mappings().all()
 
-        # если параметров нет — создаём пустую dm
-        if not params:
-            await db.execute(text(f"""
-                CREATE TABLE "{dm_table}" (
-                    param_name TEXT,
-                    values TEXT[],
-                    matched_rows INTEGER
-                )
-            """))
-
-        else:
-            union_queries = []
-
-            for row in params:
-                param_name = row["name"]
-                col = row["transliterated_name"]
-                table_name = row["table_name"]
-
-                union_queries.append(f"""
-                    SELECT
-                        '{param_name}'::text AS param_name,
-                        array_agg(DISTINCT "{col}")
-                            FILTER (WHERE "{col}" IS NOT NULL) AS values,
-                        COUNT(*) AS matched_rows
-                    FROM "{table_name}"
-                """)
-
-            final_sql = f"""
-                CREATE TABLE "{dm_table}" AS
-                {" UNION ALL ".join(union_queries)}
-            """
-
-            await db.execute(text(final_sql))
-
-        # registry
-        await db.execute(text("""
-            INSERT INTO datamart_registry (
-                product_id,
-                dm_table_name,
-                is_dirty,
-                updated_at
+    # если параметров нет — создаём пустую dm
+    if not params:
+        await db.execute(text(f"""
+            CREATE TABLE "{dm_table}" (
+                param_name TEXT,
+                values TEXT[],
+                matched_rows INTEGER
             )
-            VALUES (
-                :pid,
-                :dm_table_name,
-                FALSE,
-                now()
-            )
-            ON CONFLICT (product_id)
-            DO UPDATE
-            SET is_dirty = FALSE,
-                updated_at = now()
-        """), {
-            "pid": product_id,
-            "dm_table_name": dm_table
-        })
+        """))
 
-        await db.commit()
+    else:
+        union_queries = []
 
-    finally:
-        await db.execute(
-            text("SELECT pg_advisory_unlock(:pid)"),
-            {"pid": product_id}
+        for row in params:
+            param_name = row["name"]
+            col = row["transliterated_name"]
+            table_name = row["table_name"]
+
+            union_queries.append(f"""
+                SELECT
+                    '{param_name}'::text AS param_name,
+                    array_agg(DISTINCT "{col}")
+                        FILTER (WHERE "{col}" IS NOT NULL) AS values,
+                    COUNT(*) AS matched_rows
+                FROM "{table_name}"
+            """)
+
+        final_sql = f"""
+            CREATE TABLE "{dm_table}" AS
+            {" UNION ALL ".join(union_queries)}
+        """
+
+        await db.execute(text(final_sql))
+
+    # registry
+    await db.execute(text("""
+        INSERT INTO datamart_registry (
+            product_id,
+            dm_table_name,
+            is_dirty,
+            updated_at
         )
+        VALUES (
+            :pid,
+            :dm_table_name,
+            FALSE,
+            now()
+        )
+        ON CONFLICT (product_id)
+        DO UPDATE
+        SET is_dirty = FALSE,
+            updated_at = now()
+    """), {
+        "pid": product_id,
+        "dm_table_name": dm_table
+    })
+
+    await db.commit()
 
 
 async def ensure_dm_exists(
