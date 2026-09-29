@@ -1,6 +1,8 @@
 # app/requests/router/requests.py
 import json
 import logging
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import case, func, select
 from sqlalchemy.exc import IntegrityError
@@ -15,6 +17,7 @@ from ..model.request import Request
 from ..schema.request import (
     RequestCreate,
     RequestData,
+    RequestListPageResponse,
     RequestListResponse,
     RequestResponse,
     RequestUpdate,
@@ -25,6 +28,11 @@ from ...UserService.utils.auth_utils import get_user_id_by_session_id
 from app.StatisticsService.router.selection_router import get_selection_router
 
 logger = logging.getLogger(__name__)
+
+
+def _format_request_datetime(value: datetime | None) -> str | None:
+    return value.strftime("%d.%m.%Y %H:%M:%S") if value is not None else None
+
 
 CUSTOMER_FIELDS = (
     "organization",
@@ -609,8 +617,8 @@ async def update_request(
             db_request.end_customer_id = None
 
         if payload.request is not None or any(
-            field in payload.model_fields_set
-            for field in ("customer", "organization", "end_customer")
+                field in payload.model_fields_set
+                for field in ("customer", "organization", "end_customer")
         ):
             db_request.edited_at = func.now()
 
@@ -658,8 +666,7 @@ async def delete_request(
         user_id: int = Depends(get_active_user_id),
         db: AsyncSession = Depends(get_db),
         statistic_router=Depends(get_selection_router)
-):  
-
+):
     try:
         result = await db.execute(
             select(Request).where(
@@ -694,9 +701,10 @@ async def delete_request(
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Ошибка при удалении запроса: {e}")
 
+
 @router.get(
     "/user",
-    response_model=list[RequestListResponse],
+    response_model=RequestListPageResponse,
     description="Выведение всех запросов пользователя.",
 )
 async def get_user_requests(
@@ -705,11 +713,20 @@ async def get_user_requests(
         user_id: int = Depends(get_active_user_id),
         db: AsyncSession = Depends(get_db),
 ):
+    user_filter = Request.user_id == user_id
+    count_result = await db.execute(
+        select(func.count(Request.id)).where(user_filter)
+    )
+    total_count = count_result.scalar_one()
+
     result = await db.execute(
         select(Request)
-        .where(
-            Request.user_id == user_id
+        .options(
+            selectinload(Request.customer),
+            selectinload(Request.organization),
+            selectinload(Request.end_customer),
         )
+        .where(user_filter)
         .order_by(
             Request.id.desc()
         )
@@ -719,19 +736,25 @@ async def get_user_requests(
 
     requests = result.scalars().all()
 
-    return [
-        RequestListResponse(
-            id=request.id,
-            request_num=request.request_num,
-            status=request.status,
-            ol_count=request.ol_count,
-            description=request.description,
-            created_at=request.created_at,
-            edited_at=request.edited_at,
-            dispatched_at=request.dispatched_at,
-        )
-        for request in requests
-    ]
+    return RequestListPageResponse(
+        data=[
+            RequestListResponse(
+                id=request.id,
+                request_num=request.request_num,
+                status=request.status,
+                customer=request.customer.organization if request.customer else None,
+                organization=request.organization.organization if request.organization else None,
+                end_customer=request.end_customer.organization if request.end_customer else None,
+                ol_count=request.ol_count,
+                description=request.description,
+                created_at=request.created_at.strftime("%d.%m.%Y %H:%M:%S"),
+                edited_at=_format_request_datetime(request.edited_at),
+                dispatched_at=_format_request_datetime(request.dispatched_at),
+            )
+            for request in requests
+        ],
+        total_count=total_count,
+    )
 
 
 @router.get(
