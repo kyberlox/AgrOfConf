@@ -46,7 +46,7 @@
 
         <!-- Модалка с распознанными данными -->
         <RecognitionCompare
-            :recognitionModalVisible="recognitionModalVisible"
+            v-if="recognitionModalVisible"
             :imagesUrl="imagesUrl"
             :recognizedTable="recognizedTable"
             :convertAiIsLoading="convertAiIsLoading"
@@ -79,7 +79,6 @@ import ConfiguratorHeader from "./components/ConfiguratorHeader.vue";
 import { useConfiguratorForm } from "@/composables/useConfiguratorForm";
 import { downloadFile } from "@/utils/downloadFile.ts";
 import { useRoute } from "vue-router";
-import { useHistoryStore } from "@/stores/historyTable.ts";
 
 export default defineComponent({
     components: {
@@ -123,6 +122,7 @@ export default defineComponent({
         const convertAiIsLoading = ref<boolean>(false);
         const recognitionModalVisible = ref<boolean>(false);
         const tkpLoading = ref(false);
+        const requestId = computed(() => route.query.requestId);
 
         // Параметры, которые пользователь выбрал явно (не авто-подставленные).
         const manuallyChanged = ref<Record<string, boolean>>({});
@@ -147,6 +147,7 @@ export default defineComponent({
             configuratorStore,
             paramsLoading,
             recognitionId,
+            requestId: String(requestId.value),
         });
 
         watchDebounced(

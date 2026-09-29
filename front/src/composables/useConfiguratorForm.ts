@@ -19,6 +19,7 @@ interface IConfiguratorDeps {
     configuratorStore: configuratorStoreType;
     paramsLoading: Ref<boolean>;
     recognitionId: Ref<string>;
+    requestId: string;
 }
 
 let abortController: AbortController | null = null;
@@ -36,6 +37,7 @@ export const useConfiguratorForm = (deps: IConfiguratorDeps) => {
         configuratorStore,
         paramsLoading,
         recognitionId,
+        requestId,
     } = deps;
 
     const prepareBody = (body: userParams): userParams | undefined => {
@@ -67,7 +69,9 @@ export const useConfiguratorForm = (deps: IConfiguratorDeps) => {
             paramsLoading.value = true;
             const data = await Api.post(
                 `/module_search/process_table_data?product_id=${
-                    productId + (recognitionId.value ? `&recognition_id=${recognitionId.value}` : "")
+                    productId +
+                    (recognitionId.value ? `&recognition_id=${recognitionId.value}` : "") +
+                    (requestId ? `&request_id=${requestId}` : "")
                 }`,
                 newBody,
                 {},

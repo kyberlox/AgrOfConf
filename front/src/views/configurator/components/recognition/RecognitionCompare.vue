@@ -1,14 +1,14 @@
 <template>
-    <SlotModal v-if="recognitionModalVisible" @closeModal="convertAiIsLoading ? '' : $emit('closeModal')">
+    <SlotModal @closeModal="convertAiIsLoading ? '' : $emit('closeModal')">
         <div class="max-h-[90vh]">
-            <div class="flex flex-row justify-between p-[15px]">
+            <div class="flex flex-row gap-[20px] justify-between p-[15px]">
                 <div class="flex flex-col justify-center">
-                    <span class="block text-[16px] text-(--text-primary)"
-                        >Проверьте корректность распознавания и создайте ОЛ по кнопке</span
-                    >
-                    <span class="block text-[15px] text-(--text-secondary)"
-                        >При наличии несоответствия - нажмите на параметр и введите нужное значение</span
-                    >
+                    <span class="block text-[16px] text-(--text-primary)">
+                        Проверьте корректность распознавания и создайте ОЛ по кнопке
+                    </span>
+                    <span class="block text-[15px] text-(--text-secondary)">
+                        При наличии несоответствия - нажмите на параметр и введите нужное значение
+                    </span>
                 </div>
                 <BaseButton
                     :button-settings="{ class: 'button-primary', disabled: convertAiIsLoading }"
@@ -16,25 +16,23 @@
                     <div v-if="convertAiIsLoading" class="button-primary__loader">
                         <Loader />
                     </div>
-                    <span v-else>Создать ОЛ</span>
+                    <span v-else> Создать ОЛ </span>
                 </BaseButton>
             </div>
-            <div class="flex flex-row gap-[25px] items-start justify-center py-[15px]">
-                <div class="flex flex-row gap-[5px] sticky top-0 z-10">
-                    <div class="flex flex-col gap-[5px] min-w-[40%]">
-                        <div
-                            class="max-w-[650px] border border-gray-200 rounded-[16px] p-[15px] hover:bg-gray-50 hover:border-gray-500"
-                            v-for="(image, index) in imagesUrl"
-                            :key="'zi' + index">
-                            <VueImageZoomer :regular="image" hover-message="Наведите для приближения"> </VueImageZoomer>
-                        </div>
-                    </div>
+            <div class="flex flex-row gap-[5px] sticky top-0 z-10">
+                <div class="flex flex-col min-w-[40%]">
                     <div
-                        class="max-w-full sticky top-0 overflow-y-auto max-h-[85vh] p-[25px] recognition-table-wrapper border border-gray-200 focus:outline-0 focus:border-gray-500 rounded-[16px]"
-                        contenteditable="true"
-                        ref="mdTableNode"
-                        v-html="recognizedTable"></div>
+                        class="max-w-[650px] border border-gray-200 rounded-[16px] p-[15px] hover:bg-gray-50 hover:border-gray-500"
+                        v-for="(image, index) in imagesUrl"
+                        :key="'zi' + index">
+                        <VueImageZoomer :regular="image" hover-message="Наведите для приближения"> </VueImageZoomer>
+                    </div>
                 </div>
+                <div
+                    class="max-w-full sticky top-0 overflow-y-auto max-h-[85vh] p-[25px] recognition-table-wrapper border border-gray-200 focus:outline-0 focus:border-gray-500 rounded-[16px]"
+                    contenteditable="true"
+                    ref="mdTableNode"
+                    v-html="recognizedTable"></div>
             </div>
         </div>
     </SlotModal>
@@ -64,10 +62,6 @@ export default defineComponent({
             type: Array<string>,
         },
         convertAiIsLoading: {
-            type: Boolean,
-            default: false,
-        },
-        recognitionModalVisible: {
             type: Boolean,
             default: false,
         },

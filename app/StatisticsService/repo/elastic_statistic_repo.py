@@ -102,6 +102,7 @@ class ElasticStatisticRepo(DatabaseStatistic):
 
     async def get_all(
         self,
+        request_id: Optional[int] = None,
         user_id: Optional[int] = None,
         product_id: Optional[int] = None,
         status: Optional[str] = None,
@@ -114,6 +115,8 @@ class ElasticStatisticRepo(DatabaseStatistic):
         filter_keys = []
         if user_id:
             filter_keys.append({"term": {"user_id": str(user_id)}})
+        if request_id:
+            filter_keys.append({"term": {"request_id": str(request_id)}})
         if product_id:
             filter_keys.append({"term": {"product_id": str(product_id)}})
         if status is not None and status != "":
@@ -169,16 +172,23 @@ class ElasticStatisticRepo(DatabaseStatistic):
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    async def last_document_number(self, user_id: int) -> int:
+    async def last_document_number(self, user_id: int, request_id: int) -> int:
         """
-        Возвращает порядковый номер документа указанного пользователя.
+        Возвращает порядковый номер документа указанного пользователя для определенного запроса.
         Сортировка по date_search desc, берётся только последняя запись.
         Если записей нет — возвращает 0.
         """
         body: dict = {
-            "query": {"term": {"user_id": user_id}},
+            "query": {
+                "bool": {
+                    "filter": [
+                        {"term": {"user_id": user_id}},
+                        {"term": {"request_id": request_id}},
+                    ]
+                }
+            },
             "sort": [{"date_search": {"order": "desc"}}],
-            "size": 1
+            "size": 1,
         }
         try:
             response = await asyncio.to_thread(
@@ -247,6 +257,34 @@ class ElasticStatisticRepo(DatabaseStatistic):
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    async def delete_by_request_id(self, request_id: int):
+        """
+        Удаляет все ОЛ по id запроса
+        """
+        try:
+            body: dict = {
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {"term": {"request_id": str(request_id)}},
+                        ]
+                    }
+                }
+            }
+            response = await asyncio.to_thread(
+                self.db.delete_by_query,
+                index=self.model,
+                body=body,
+                refresh=True,  # чтобы удаление сразу стало видно последующим поискам
+            )
+            data = {
+                "deleted": response.get("deleted"),
+                "failures": response.get("failures", []),
+            }
+            return {"success": True, "elastic_response": data}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        
 
     async def search_all_fields(
         self,

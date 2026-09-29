@@ -27,8 +27,9 @@
                             : Number(activePage) < 1
                               ? item == 1
                               : Number(activePage) == item,
-                }">
-                <div @click="navigateTo(item)">{{ item }}</div>
+                }"
+                @click="item !== '...' ? navigateTo(item) : ''">
+                <div>{{ item }}</div>
                 <div
                     v-if="item == '...'"
                     class="absolute shadow-[0_0_8px_0_rgba(180,188,200,0.5)] rounded-sm flex flex-col bottom-[10px] w-[50px] bg-white gap-[4px] py-[5px] invisible group-hover:visible"

@@ -1,0 +1,16 @@
+.fade-form-enter-active,
+.fade-form-leave-active {
+    transition:
+        opacity 0.25s ease,
+        transform 0.25s ease;
+}
+
+.fade-form-enter-from,
+.fade-form-leave-to {
+    opacity: 0;
+    transform: translateY(12px);
+}
+
+.fade-form-move {
+    transition: transform 0.25s ease;
+}

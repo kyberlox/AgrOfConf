@@ -19,12 +19,16 @@ from .TableSearch.router.blocks import router as blocks_router
 from .TablePakage.router.tkp_generation import router as tkp_generation
 from .TablePakage.router.product_porting import router as product_porting_router
 
-from .TablePakage.model.database import create_tables, AsyncSessionLocal
+from .TablePakage.model.database import create_tables, AsyncSessionLocal, engine
 from .TablePakage.model.formula_columns import ensure_formula_config_column
 from .TablePakage.model.blocks_columns import ensure_blocks_schema
 from .TablePakage.model.parameter_flags_columns import ensure_parameter_flags, ensure_parameter_special
-import app.logging_config
 from .TablePakage.model.database import create_tables
+
+# Наблюдаемость: логи (JSON + bulk в ES), трейсы (OTel), подготовка ES
+from .Observability.logging_config import setup_logging as setup_observability_logging
+from .Observability.tracing import setup_tracing, add_user_id_to_span
+from .Observability.es_setup import create_log_setup
 
 from .UserService.services.redis_service import RedisStorage
 from .UserService.utils.auth_utils import validate_users_sessions, create_session, refresh_session_id
@@ -56,6 +60,20 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
 
+# --- Наблюдаемость: логи (JSON + bulk в ES) и трейсы (OTel) ---
+setup_observability_logging()
+# Инструментируем уже созданный SQLAlchemy-движок (создан при импорте database.py)
+setup_tracing(app, sqlalchemy_engines=[engine])
+
+# --- Метрики: /metrics для Prometheus ---
+from prometheus_fastapi_instrumentator import Instrumentator
+
+Instrumentator(
+    should_group_status_codes=True,
+    should_group_untemplated=True,
+    excluded_handlers=["/metrics", "/health", "/api/docs", "/api/openapi.json"],
+).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
 DOMAIN = os.getenv('DOMAIN')
 
 # # Настройка CORS
@@ -70,11 +88,72 @@ origins = ["http://localhost:5173", DOMAIN]
 # )
 
 #Открытые эндпоинты
-open_links = ["/api/docs", "/api/openapi.json", '/api/auth/redirect']
+open_links = [
+    "/api/docs",
+    "/api/openapi.json",
+    '/api/auth/redirect',
+    "/metrics",
+    "/health",
+]
 
 redis_storage = RedisStorage()
 
 import time
+import logging
+
+# Отключаем дефолтный access-лог uvicorn (plain text в stderr): вместо него
+# каждый запрос логируется структурированным JSON в ES через middleware ниже.
+logging.getLogger("uvicorn.access").disabled = True
+logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
+
+http_logger = logging.getLogger("app.http")
+
+
+# Служебные пути, которые НЕ логируем в ES: /metrics скрейпится Prometheus
+# каждые ~15 секунд (это шум, а не пользовательский трафик), /health — пробы.
+NO_LOG_PATHS = {"/metrics", "/health"}
+
+
+@app.middleware("http")
+async def http_log_middleware(request: Request, call_next):
+    """Логирует КАЖДЫЙ HTTP-запрос структурированным JSON (в ES + stdout).
+
+    Поля http.method / http.route / http.status_code / http.duration_ms и
+    user_id замаплены в index template logs-agrof (es_setup.py).
+    /metrics и /health пропускаются — это служебный трафик.
+    """
+    if request.url.path in NO_LOG_PATHS:
+        return await call_next(request)
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+        status = response.status_code
+    except Exception:
+        # Ошибка вне обработчика — считаем 500 и пробрасываем дальше
+        status = 500
+        raise
+    finally:
+        duration_ms = (time.perf_counter() - start) * 1000
+        http_logger.info(
+            "%s %s -> %s (%.1f ms)",
+            request.method,
+            request.url.path,
+            status,
+            duration_ms,
+            extra={
+                "http": {
+                    "method": request.method,
+                    "route": request.url.path,
+                    "status_code": status,
+                    "duration_ms": round(duration_ms, 2),
+                },
+                "user_id": getattr(request.state, "user_id", None),
+            },
+        )
+    # Обязательно возвращаем ответ: иначе функция вернёт None, и Starlette
+    # упадёт с TypeError: 'NoneType' object is not callable.
+    return response
+
 
 @app.middleware("http")
 async def session_middleware(request: Request, call_next):
@@ -105,6 +184,10 @@ async def session_middleware(request: Request, call_next):
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid or expired session")
             # return RedirectResponse(url='https://intranet.emk.ru/auth_router/argconf')
+
+        # Кладём user.id в текущий span и request.state (для трасс и логов)
+        add_user_id_to_span(user_id)
+        request.state.user_id = user_id
 
         ttl = redis_storage.get_ttl(session_id)
         # Если ключ есть, но TTL == -1 (нет истечения) – не нужно обновлять
@@ -202,6 +285,24 @@ async def startup_event():
     await ensure_elastic_ready()
     create_selection_index()
     create_recognition_index()
+
+    # Наблюдаемость:
+    # 1) запускаем фоновый bulk-хэндлер логов в ES
+    from .Observability.logging_config import get_es_handler
+    es_handler = get_es_handler()
+    if es_handler is not None:
+        await es_handler.start()
+    # 2) ILM-политика + index template для логов (data stream создастся первой записью)
+    create_log_setup()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Останавливаем bulk-хэндлер логов: флашим буфер и закрываем клиент ES."""
+    from .Observability.logging_config import get_es_handler
+    es_handler = get_es_handler()
+    if es_handler is not None:
+        await es_handler.stop()
 
 
 

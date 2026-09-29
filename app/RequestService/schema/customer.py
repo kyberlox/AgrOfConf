@@ -17,7 +17,6 @@ class CustomerRequest(BaseModel):
     registered_address: str | None = None
     international_address: str | None = None
     website: str | None = None
-    customer_type: str | None = None
     additional_information: str | None = None
 
     contacts: list[ContactCreate] = Field(default_factory=list)

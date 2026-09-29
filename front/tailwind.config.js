@@ -11,6 +11,7 @@ module.exports = {
         'grid-cols-5',
         'grid-cols-6',
         'w-[10%]',
+        'text-red',
         'bg-(--color-information-orange-50)',
         'bg-(--color-information-orange-400)',
         'bg-(--color-information-green-400)',

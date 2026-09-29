@@ -1,5 +1,6 @@
 # app/products/router/tables.py
 import os
+import re
 import tempfile
 
 from pathlib import Path
@@ -8,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi import APIRouter, Depends, File, HTTPException
 from fastapi import UploadFile
 
-from sqlalchemy import text, select, update, func, delete
+from sqlalchemy import text, select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import pandas as pd
@@ -27,6 +28,7 @@ from ..schema.product_table import (
 )
 from ..utils.router_utils import to_sql_name_lat
 from .parameter_values import mark_datamart_dirty
+from app.TableSearch.utils.dm_search import rebuild_dm
 
 import io
 
@@ -48,12 +50,97 @@ def normalize_excel_value(value):
     return normalized or None
 
 
+def is_price_column(column_name: str) -> bool:
+    """Ценовые колонки определяются по слову «цена» в названии."""
+    return "цена" in str(column_name).lower()
+
+
+def format_price_value(value):
+    """Приводит цену к виду 123456.78 — ровно два знака после запятой, без округления.
+
+    - 432123       -> 432123.00
+    - 234234.123123-> 234234.12
+    - 234234.5     -> 234234.50
+    - 1 234 567,89 -> 1234567.89
+    - «текст»      -> как есть
+    """
+    if value is None:
+        return None
+
+    original = str(value).strip()
+
+    match = re.match(r"^([+\-]?\d[\d\s\u00a0.,]*)(.*)$", original)
+    if not match:
+        return original
+
+    num_text, suffix = match.group(1), match.group(2)
+    suffix = suffix.strip()
+
+    sign = ""
+    if num_text[:1] in ("+", "-"):
+        sign, num_text = num_text[:1], num_text[1:]
+
+    compact = num_text.replace(" ", "").replace("\u00a0", "")
+
+    last_dot = compact.rfind(".")
+    last_comma = compact.rfind(",")
+
+    if last_dot == -1 and last_comma == -1:
+        integer, decimals = compact, "00"
+    else:
+        separator = "," if last_comma > last_dot else "."
+        separator_index = compact.rfind(separator)
+        integer = compact[:separator_index].replace(".", "").replace(",", "") or "0"
+        decimals = compact[separator_index + 1:].replace(".", "").replace(",", "")[:2].ljust(2, "0")
+
+    formatted = f"{sign}{integer}.{decimals}"
+
+    return f"{formatted} {suffix}" if suffix else formatted
+
+
 def validate_sql_identifier(identifier: str) -> None:
     if not identifier.replace("_", "").isalnum():
         raise HTTPException(
             status_code=400,
             detail="Некорректное физическое имя таблицы",
         )
+
+
+async def _collect_entity_files(
+        db: AsyncSession,
+        entity: ProductTable,
+) -> list[str]:
+    """Собирает пути файлов (версий Excel и файлов параметров) сущности
+    для удаления с диска после успешного commit."""
+    paths: list[str] = []
+
+    versions_result = await db.execute(
+        select(ProductTableVersion.file_path).where(
+            ProductTableVersion.product_table_id == entity.id
+        )
+    )
+    for path in versions_result.scalars().all():
+        if path:
+            paths.append(path)
+
+    params_result = await db.execute(
+        select(ParameterSchema.id).where(
+            ParameterSchema.product_table_id == entity.id
+        )
+    )
+    param_ids = [row[0] for row in params_result.all()]
+
+    if param_ids:
+        files_result = await db.execute(
+            select(ParameterFile.file_path).where(
+                ParameterFile.parameter_id.in_(param_ids)
+            )
+        )
+        for path in files_result.scalars().all():
+            if path:
+                paths.append(path)
+
+    return paths
 
 
 async def read_excel(upload: UploadFile) -> tuple[pd.DataFrame, bytes]:
@@ -267,6 +354,20 @@ async def upload_product_table_version(
             detail="Табличная сущность не найдена",
         )
 
+    df, contents = await read_excel(file)
+
+    return await _load_excel_version(
+        db, entity, df, contents, source_filename=file.filename or ""
+    )
+
+
+async def _load_excel_version(
+        db: AsyncSession,
+        entity: ProductTable,
+        df: pd.DataFrame,
+        contents: bytes,
+        source_filename: str,
+) -> ProductTableVersion:
     table_name = entity.physical_table_name
 
     if not table_name:
@@ -276,8 +377,6 @@ async def upload_product_table_version(
         )
 
     validate_sql_identifier(table_name)
-
-    df, contents = await read_excel(file)
 
     excel_columns = [
         column
@@ -329,7 +428,7 @@ async def upload_product_table_version(
     version_directory.mkdir(parents=True, exist_ok=True)
 
     safe_extension = (
-            os.path.splitext(file.filename or "")[1].lower() or ".xlsx"
+            os.path.splitext(source_filename or "")[1].lower() or ".xlsx"
     )
 
     stored_filename = f"version_{next_version}{safe_extension}"
@@ -362,11 +461,23 @@ async def upload_product_table_version(
         )
 
         # 3. Заполняем таблицу
+        price_columns = {
+            sql_column
+            for sql_column in sql_columns
+            if is_price_column(excel_map[sql_column])
+        }
+
+        def normalize_cell(sql_column: str, record: dict):
+            normalized = normalize_excel_value(record[excel_map[sql_column]])
+
+            if sql_column in price_columns:
+                return format_price_value(normalized)
+
+            return normalized
+
         rows = [
             {
-                sql_column: normalize_excel_value(
-                    record[excel_map[sql_column]]
-                )
+                sql_column: normalize_cell(sql_column, record)
                 for sql_column in sql_columns
             }
             for record in df.to_dict(orient="records")
@@ -390,14 +501,42 @@ async def upload_product_table_version(
                 rows,
             )
 
-        # 4. Пересоздаём параметры только этой сущности
-        await db.execute(
-            delete(ParameterSchema).where(
+        # 4. Обновляем параметры (upsert): без дублей и с сохранением связей с блоками.
+        existing_result = await db.execute(
+            select(ParameterSchema).where(
                 ParameterSchema.product_table_id == entity.id
             )
         )
+        existing_rows = list(existing_result.scalars().all())
+
+        # Лечим уже накопленные дубли: оставляем один параметр на имя,
+        # предпочитая тот, что уже привязан к блоку.
+        by_name: dict[str, list[ParameterSchema]] = {}
+        for row in existing_rows:
+            by_name.setdefault(row.transliterated_name, []).append(row)
+
+        existing_params: dict[str, ParameterSchema] = {}
+
+        for key, rows in by_name.items():
+            keeper = next((r for r in rows if r.block_id is not None), rows[0])
+
+            for duplicate in rows:
+                if duplicate is not keeper:
+                    await db.delete(duplicate)
+
+            existing_params[key] = keeper
+
+        new_param_names = set(sql_columns)
 
         for position, sql_column in enumerate(sql_columns, start=1):
+            current = existing_params.get(sql_column)
+
+            if current is not None:
+                current.name = excel_map[sql_column]
+                current.table_name = table_name
+                current.sort = float(position)
+                continue
+
             db.add(
                 ParameterSchema(
                     name=excel_map[sql_column],
@@ -409,6 +548,11 @@ async def upload_product_table_version(
                     sort=float(position),
                 )
             )
+
+        # Параметры, ушедшие из файла, удаляем; у оставшихся блоки не трогаем.
+        for old_key, old_row in existing_params.items():
+            if old_key not in new_param_names:
+                await db.delete(old_row)
 
         # 5. Старая версия перестаёт быть текущей
         await db.execute(
@@ -423,7 +567,7 @@ async def upload_product_table_version(
         version = ProductTableVersion(
             product_table_id=entity.id,
             version_number=next_version,
-            original_filename=file.filename or stored_filename,
+            original_filename=source_filename or stored_filename,
             file_path=str(file_path),
             is_current=True,
         )
@@ -461,6 +605,14 @@ async def upload_product_table_version(
         await db.commit()
         await db.refresh(version)
 
+        # 9. Обновляем витрину (кэш значений) сразу.
+        # Если пересборка упадёт — is_dirty уже True (шаг 8),
+        # и витрина пересоберётся при первом же обращении к поиску.
+        try:
+            await rebuild_dm(db=db, product_id=entity.product_id)
+        except Exception as error:
+            print(f"[tables.upload] Ошибка пересборки витрины: {error}")
+
     except HTTPException:
         await db.rollback()
 
@@ -496,7 +648,11 @@ async def upload_product_table_version(
     status_code=201,
     description=(
         "Загрузка Excel с созданием таблицы и параметров продукта. "
-        "Если таблица с таким именем уже существует — перезагружает её версию."
+        "Если таблица с таким именем уже существует — перезагружает её версию. "
+        "Если в продукте уже есть таблица с похожим набором колонок (например, "
+        "«Версия3» и «Версия4» одного прайса, отличающиеся лишь парой колонок) — "
+        "она обновляется, а лишние таблицы с похожим набором колонок удаляются, "
+        "чтобы параметры не дублировались."
     ),
 )
 async def upload_xlsx(
@@ -511,29 +667,183 @@ async def upload_xlsx(
     if product_result.scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="Продукт не найден")
 
+    df, contents = await read_excel(file)
+
+    excel_columns = [
+        column
+        for column in df.columns
+        if column.lower() != "id"
+    ]
+
+    if not excel_columns:
+        raise HTTPException(
+            status_code=400,
+            detail="В Excel отсутствуют пользовательские колонки",
+        )
+
+    file_sql_columns = {
+        to_sql_name_lat(column)
+        for column in excel_columns
+    }
+
+    if len(file_sql_columns) != len(set(file_sql_columns)):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "После преобразования названий несколько колонок "
+                "получили одинаковое SQL-имя"
+            ),
+        )
+
     base_name = os.path.splitext(file.filename or "table")[0]
     physical = f"{to_sql_name_lat(base_name)}_p{product_id}"
     validate_sql_identifier(physical)
 
-    entity_result = await db.execute(
+    # Все сущности продукта и их «табличные» параметры (для сравнения колонок).
+    result = await db.execute(
         select(ProductTable).where(
-            ProductTable.product_id == product_id,
-            ProductTable.physical_table_name == physical,
+            ProductTable.product_id == product_id
+        ).order_by(ProductTable.id)
+    )
+    entities = list(result.scalars().all())
+
+    columns_result = await db.execute(
+        select(
+            ParameterSchema.product_table_id,
+            ParameterSchema.transliterated_name,
+            ParameterSchema.block_id,
+        ).where(
+            ParameterSchema.product_id == product_id,
+            ParameterSchema.type == "Table",
         )
     )
-    entity = entity_result.scalar_one_or_none()
+    entity_columns: dict[int, set] = {}
+    entity_block_linked: dict[int, bool] = {}
 
-    if entity is None:
-        entity = ProductTable(
+    for row in columns_result.mappings().all():
+        entity_id = row["product_table_id"]
+        if entity_id is None:
+            continue
+        entity_columns.setdefault(entity_id, set()).add(row["transliterated_name"])
+        if row["block_id"] is not None:
+            entity_block_linked[entity_id] = True
+
+    def column_similarity(entity: ProductTable) -> float:
+        params = entity_columns.get(entity.id)
+        if params is None or not params or not file_sql_columns:
+            return 0.0
+        intersect = len(params & file_sql_columns)
+        return intersect / max(len(params), len(file_sql_columns))
+
+    by_physical = next(
+        (e for e in entities if e.physical_table_name == physical),
+        None,
+    )
+    by_name = next(
+        (e for e in entities if e.name == base_name),
+        None,
+    )
+    SIMILARITY_THRESHOLD = 0.75
+    similar_entities = [
+        e for e in entities
+        if column_similarity(e) >= SIMILARITY_THRESHOLD
+    ]
+
+    # Целевая сущность: 1) то же физическое имя (тот же файл), 2) то же имя,
+    # 3) похожий набор колонок (предпочитаем ту, что уже связана с блоками,
+    # затем более похожую, затем старейшую).
+    target = by_physical or by_name
+    if target is None and similar_entities:
+        similar_entities.sort(
+            key=lambda e: (
+                not entity_block_linked.get(e.id),
+                -column_similarity(e),
+                e.id,
+            )
+        )
+        target = similar_entities[0]
+
+    redundant_entities = [
+        e for e in similar_entities
+        if target is not None and e is not target
+    ]
+
+    files_to_delete: list[str] = []
+
+    if target is not None:
+        # Переносим связи параметров с блоками с удаляемых сущностей на живую.
+        for redundant in redundant_entities:
+            redundant_params = await db.execute(
+                select(ParameterSchema).where(
+                    ParameterSchema.product_table_id == redundant.id
+                )
+            )
+            for param in redundant_params.scalars().all():
+                if param.block_id is None:
+                    continue
+                survivor_result = await db.execute(
+                    select(ParameterSchema.id).where(
+                        ParameterSchema.product_table_id == target.id,
+                        ParameterSchema.transliterated_name == param.transliterated_name,
+                    )
+                )
+                survivor_id = survivor_result.scalar_one_or_none()
+                if survivor_id is not None:
+                    await db.execute(
+                        update(ParameterSchema)
+                        .where(ParameterSchema.id == survivor_id)
+                        .values(block_id=param.block_id)
+                    )
+
+        # Переименовываем под новое имя файла, если оно никем не занято.
+        if base_name != target.name:
+            name_taken = await db.execute(
+                select(ProductTable.id).where(
+                    ProductTable.product_id == product_id,
+                    ProductTable.name == base_name,
+                    ProductTable.id != target.id,
+                )
+            )
+            if name_taken.scalar_one_or_none() is None:
+                target.name = base_name
+    else:
+        target = ProductTable(
             name=base_name,
             product_id=product_id,
             physical_table_name=physical,
         )
-        db.add(entity)
+        db.add(target)
         await db.flush()
 
+    # Удаляем лишние сущности с идентичным набором колонок (сжатие дублей).
+    for redundant in redundant_entities:
+        files_to_delete.extend(
+            await _collect_entity_files(db, redundant)
+        )
+
+        if redundant.physical_table_name:
+            validate_sql_identifier(redundant.physical_table_name)
+            await db.execute(
+                text(f'DROP TABLE IF EXISTS "{redundant.physical_table_name}" CASCADE')
+            )
+
+        # Каскадом удаляются версии сущности, её параметры и файлы параметров.
+        await db.delete(redundant)
+
     # Переиспользуем общую логику загрузки версии (создание таблицы + параметров).
-    return await upload_product_table_version(entity.id, file, db)
+    await _load_excel_version(
+        db, target, df, contents, source_filename=file.filename or ""
+    )
+
+    # Старые файлы удалённых сущностей чистим после успешного commit.
+    for old_file_path in files_to_delete:
+        try:
+            if old_file_path and os.path.exists(old_file_path):
+                os.remove(old_file_path)
+        except OSError:
+            pass
+
+    return {"status": "ok"}
 
 
 @router.get(

@@ -1,28 +1,37 @@
-import { type IRequestCostumerData } from "@/assets/interfaces/ICreateRequestData";
+import { type IRequestCostumerData, type ICustomer } from "@/assets/interfaces/ICreateRequest";
 
-export const customers = [
-    { title: "Запрос", hidden: false },
-    { title: "Заказчик", hidden: false },
-    { title: "Проектная организация", hidden: true },
-    { title: "Конечный заказчик", hidden: true },
+export const customers: ICustomer[] = [
+    { title: "Запрос", hidden: false, id: "request" },
+    { title: "Заказчик", hidden: false, id: "customer" },
+    { title: "Проектная организация", hidden: true, id: "organization" },
+    { title: "Конечный заказчик", hidden: true, id: "end_customer" },
 ];
 
 // Поля запроса
 export const requestFields: IRequestCostumerData[] = [
     {
+        id: "request_purpose",
         title: "Назначение",
         type: "select",
         options: ["проект(бюджет)", "реконструкция(ремонт)", "новый объект строительства"],
     },
     {
+        id: "construction_project",
         title: "Объект строительства",
         type: "input",
     },
     {
-        title: "Срок",
+        id: "tkp_term",
+        title: "Срок ТКП",
         type: "date",
     },
     {
+        id: "delivery_time",
+        title: "Срок доставки",
+        type: "date",
+    },
+    {
+        id: "procedure_type",
         title: "Тип процедуры",
         type: "select",
         options: [
@@ -33,6 +42,7 @@ export const requestFields: IRequestCostumerData[] = [
         ],
     },
     {
+        id: "description",
         title: "Описание",
         type: "textarea",
     },
@@ -40,12 +50,13 @@ export const requestFields: IRequestCostumerData[] = [
 
 // Поля заказчика
 export const customerFields: IRequestCostumerData[] = [
-    { title: "Название", type: "input" },
-    { title: "ИНН", type: "input" },
-    { title: "Юридический адрес", type: "input" },
-    { title: "Фактический адрес", type: "input" },
-    { title: "Международный адрес", type: "input" },
-    { title: "Телефон", type: "input" },
-    { title: "Сайт", type: "input" },
-    { title: "Контакты", type: "input" },
+    { id: "organization", title: "Название", type: "input" },
+    { id: "inn", title: "ИНН", type: "input" },
+    { id: "registered_address", title: "Юридический адрес", type: "input" },
+    { id: "address", title: "Фактический адрес", type: "input" },
+    { id: "international_address", title: "Международный адрес", type: "input" },
+    { id: "telephone", title: "Телефон", type: "input" },
+    { id: "website", title: "Сайт", type: "input" },
+    { id: "email", title: "Эл. почта", type: "input" },
+    { id: "", title: "Контакты", type: "input" },
 ];
