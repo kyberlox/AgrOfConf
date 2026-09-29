@@ -60,21 +60,34 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
 
-# --- Наблюдаемость: логи (JSON + bulk в ES) и трейсы (OTel) ---
-setup_observability_logging()
-# Инструментируем уже созданный SQLAlchemy-движок (создан при импорте database.py)
-setup_tracing(app, sqlalchemy_engines=[engine])
-
-# --- Метрики: /metrics для Prometheus ---
-from prometheus_fastapi_instrumentator import Instrumentator
-
-Instrumentator(
-    should_group_status_codes=True,
-    should_group_untemplated=True,
-    excluded_handlers=["/metrics", "/health", "/api/docs", "/api/openapi.json"],
-).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
-
+# Домен приложения: вся наблюдаемость (трейсы OTel, JSON-логи в ES, метрики)
+# включается ТОЛЬКО на продовом домене agrofconf.emk.ru.
 DOMAIN = os.getenv('DOMAIN')
+OBSERVABILITY_DOMAIN = os.getenv("OBSERVABILITY_DOMAIN", "agrofconf.emk.ru")
+_obs_flag = os.getenv("OBSERVABILITY_ENABLED", "").strip().lower()
+# true/false — принудительно включают/выключают; пусто — автоматически по домену
+OBSERVABILITY_ENABLED = (
+    _obs_flag == "true"
+    if _obs_flag in ("true", "false")
+    else DOMAIN == OBSERVABILITY_DOMAIN
+)
+
+# --- Наблюдаемость: логи (JSON + bulk в ES) и трейсы (OTel) ---
+# Активируются только на продовом домене agrofconf.emk.ru (или принудительно
+# через OBSERVABILITY_ENABLED=true).
+if OBSERVABILITY_ENABLED:
+    setup_observability_logging()
+    # Инструментируем уже созданный SQLAlchemy-движок (создан при импорте database.py)
+    setup_tracing(app, sqlalchemy_engines=[engine])
+
+    # --- Метрики: /metrics для Prometheus ---
+    from prometheus_fastapi_instrumentator import Instrumentator
+
+    Instrumentator(
+        should_group_status_codes=True,
+        should_group_untemplated=True,
+        excluded_handlers=["/metrics", "/health", "/api/docs", "/api/openapi.json"],
+    ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 # # Настройка CORS
 origins = ["http://localhost:5173", DOMAIN]
@@ -103,8 +116,10 @@ import logging
 
 # Отключаем дефолтный access-лог uvicorn (plain text в stderr): вместо него
 # каждый запрос логируется структурированным JSON в ES через middleware ниже.
-logging.getLogger("uvicorn.access").disabled = True
-logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
+# Выключение access-лога актуально только при включённой наблюдаемости.
+if OBSERVABILITY_ENABLED:
+    logging.getLogger("uvicorn.access").disabled = True
+    logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
 
 http_logger = logging.getLogger("app.http")
 
@@ -114,7 +129,6 @@ http_logger = logging.getLogger("app.http")
 NO_LOG_PATHS = {"/metrics", "/health"}
 
 
-@app.middleware("http")
 async def http_log_middleware(request: Request, call_next):
     """Логирует КАЖДЫЙ HTTP-запрос структурированным JSON (в ES + stdout).
 
@@ -155,6 +169,12 @@ async def http_log_middleware(request: Request, call_next):
     return response
 
 
+# Регистрируем middleware access-лога только при включённой наблюдаемости.
+# Порядок middleware сохраняется: сначала session_middleware, потом access-лог.
+if OBSERVABILITY_ENABLED:
+    app.middleware("http")(http_log_middleware)
+
+
 @app.middleware("http")
 async def session_middleware(request: Request, call_next):
     try:
@@ -185,8 +205,9 @@ async def session_middleware(request: Request, call_next):
             raise HTTPException(status_code=401, detail="Invalid or expired session")
             # return RedirectResponse(url='https://intranet.emk.ru/auth_router/argconf')
 
-        # Кладём user.id в текущий span и request.state (для трасс и логов)
-        add_user_id_to_span(user_id)
+        # Кладём user.id в текущий span (для трасс) и request.state (для логов)
+        if OBSERVABILITY_ENABLED:
+            add_user_id_to_span(user_id)
         request.state.user_id = user_id
 
         ttl = redis_storage.get_ttl(session_id)
@@ -286,23 +307,25 @@ async def startup_event():
     create_selection_index()
     create_recognition_index()
 
-    # Наблюдаемость:
+    # Наблюдаемость (только на продовом домене agrofconf.emk.ru):
     # 1) запускаем фоновый bulk-хэндлер логов в ES
-    from .Observability.logging_config import get_es_handler
-    es_handler = get_es_handler()
-    if es_handler is not None:
-        await es_handler.start()
     # 2) ILM-политика + index template для логов (data stream создастся первой записью)
-    create_log_setup()
+    if OBSERVABILITY_ENABLED:
+        from .Observability.logging_config import get_es_handler
+        es_handler = get_es_handler()
+        if es_handler is not None:
+            await es_handler.start()
+        create_log_setup()
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Останавливаем bulk-хэндлер логов: флашим буфер и закрываем клиент ES."""
-    from .Observability.logging_config import get_es_handler
-    es_handler = get_es_handler()
-    if es_handler is not None:
-        await es_handler.stop()
+    if OBSERVABILITY_ENABLED:
+        from .Observability.logging_config import get_es_handler
+        es_handler = get_es_handler()
+        if es_handler is not None:
+            await es_handler.stop()
 
 
 
