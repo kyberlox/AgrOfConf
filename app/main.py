@@ -63,7 +63,7 @@ app = FastAPI(
 # Домен приложения: вся наблюдаемость (трейсы OTel, JSON-логи в ES, метрики)
 # включается ТОЛЬКО на продовом домене agrofconf.emk.ru.
 DOMAIN = os.getenv('DOMAIN')
-OBSERVABILITY_DOMAIN = os.getenv("OBSERVABILITY_DOMAIN", "agrofconf.emk.ru")
+OBSERVABILITY_DOMAIN = os.getenv("OBSERVABILITY_DOMAIN", "")
 _obs_flag = os.getenv("OBSERVABILITY_ENABLED", "").strip().lower()
 # true/false — принудительно включают/выключают; пусто — автоматически по домену
 OBSERVABILITY_ENABLED = (
