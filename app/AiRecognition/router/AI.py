@@ -143,7 +143,6 @@ async def _run_llm_vision(content: list, retries: int = 3) -> dict:
                 messages=[{"role": "user", "content": content}],
             )
             res = response.model_dump()
-            return res
             need = res['choices'][0]['message']['content']
             total_coast = res.get('usage', {}).get('total_cost')
             return {"parsed": need, "total_coast": total_coast}
@@ -216,7 +215,6 @@ async def upload_OL(
             content.append({"type": "text", "text": PROMT})
 
             llm_result = await _run_llm_vision(content)
-            return llm_result
             parsed_need = llm_result["parsed"]
             total_coast = llm_result["total_coast"]
             # УБРАЛИ КООРДИНАТЫ
