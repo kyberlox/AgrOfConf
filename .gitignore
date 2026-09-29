@@ -13,3 +13,5 @@
 /elasticsearch
 app/AiRecognition/utils/rules_table.json
 /nginx/*
+.restart.sh
+.restart_front.sh
