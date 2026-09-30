@@ -319,14 +319,14 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
 @router.post("/upload_product_drawing", description="Загрузка чертежей для продукта", status_code=201)
 async def upload_product_drawing(
     product_id: int,
-    name: str, 
+    name: str | None = None, 
     image: UploadFile = File(None),
     db: AsyncSession = Depends(get_db)
 ):
     try:
         original_filename = image.filename
         file_type = Path(original_filename).suffix
-        new_filename = f"{name}{file_type}"
+        new_filename = f"{name}{file_type}" if name else original_filename
         
         file_path = os.path.join(DRAWING_DIR, new_filename)
         with open(file_path, "wb") as f:

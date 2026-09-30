@@ -164,6 +164,20 @@ async def file_by_construction(ctx: FormulaContext):
     url = row.scalar_one_or_none()
     return url or None
 
+async def file_by_param_name(ctx: FormulaContext): 
+    """Получение Чертежа по значению параметра 'Чертеж'"""
+    drawing_name = ctx.get("Чертеж")
+    if not ctx.db or not ctx.product_id:
+        return None
+    from sqlalchemy import text
+    
+    row = await ctx.db.execute(text(
+        "SELECT file_url FROM parameter_files "
+        "WHERE product_id = :pid AND name ILIKE :pattern LIMIT 1"
+    ), {"pid": ctx.product_id, "pattern": f"%{drawing_name}%"})
+    url = row.scalar_one_or_none()
+    return url or None
+
 async def has_product_device(ctx: FormulaContext):
     """Проверяет, есть ли у продукта рычаг."""
     has_device  = ctx.get('Устройство принудительного открытия')
