@@ -3,7 +3,7 @@
         class="flex flex-col gap-2 mt-4 border border-gray-200 p-[20px] rounded-xl bg-gray-50"
         v-if="Object.keys(systemPrompt).length">
         <h3 class="text-lg font-medium mb-2">Системный промпт</h3>
-        <div v-for="item in ['validation_prompt', 'unified_prompt']" :key="item">
+        <div v-for="item in [ 'unified_prompt', 'validation_prompt']" :key="item">
             <span>{{ ruPromptNames[item as keyof typeof ruPromptNames] }}</span>
             <BaseTextarea
                 class="mt-[10px]"
@@ -87,8 +87,8 @@ export default defineComponent({
         const showParamsModal = ref(false);
 
         const ruPromptNames = {
-            validation_prompt: "Промпт первого слоя",
-            unified_prompt: "Промпт второго слоя",
+            unified_prompt: "Промпт первого слоя",
+            validation_prompt: "Промпт второго слоя",
         };
 
         onMounted(async () => {
