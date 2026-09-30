@@ -166,7 +166,7 @@ async def file_by_construction(ctx: FormulaContext):
 
 async def file_by_param_name(ctx: FormulaContext): 
     """Получение Чертежа по значению параметра 'Чертеж'"""
-    drawing_name = ctx.get("Чертеж")
+    drawing_name = ctx.get("Значение для чертежа")
     if not ctx.db or not ctx.product_id:
         return None
     from sqlalchemy import text
