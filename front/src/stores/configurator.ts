@@ -69,9 +69,9 @@ export const useConfiguratorStore = defineStore("configuratorStore", {
         },
         setCalcParams(params: IFormattedData[]) {
             const markKey = "Маркировка";
-            const sketchKey = "Чертеж";
+            const sketchKey = "drawing";
             const targetMark = params.find((e) => e.name == markKey);
-            const targetSketch = params.find((e) => e.name == sketchKey);
+            const targetSketch = params.find((e) => e.required_type == sketchKey);
 
             if (targetMark?.response_value) {
                 this.setMark(targetMark.response_value as string);
